@@ -1,0 +1,63 @@
+{
+  "note": "Exact points only where a source gives one. NASA's Artemis candidate regions are broad areas (about 15 x 15 km); they are listed separately as regions, never as certified landing points.",
+  "sites": [
+    {
+      "id": "im2",
+      "name": "IM-2 Athena — target point",
+      "short": "Athena (IM-2)",
+      "lat": -84.78,
+      "lon": 29.13,
+      "kind": "lander",
+      "event": "Intuitive Machines' Athena landed on 6 Mar 2025 about 250 m from this target, on its side inside a small crater; the mission ended the next day.",
+      "source": "LROC 'IM-2 Landing Region' (https://www.lroc.asu.edu/images/1401): target about 84.78 S, 29.13 E on Mons Mouton.",
+      "event_date": "2025-03-06"
+    },
+    {
+      "id": "im1",
+      "name": "IM-1 Odysseus — landing site",
+      "short": "Odysseus (IM-1)",
+      "lat": -80.13,
+      "lon": 1.44,
+      "kind": "lander",
+      "event": "Intuitive Machines' Odysseus landed on 22 Feb 2024 about 1.5 km from Malapert A and tipped over; it operated until about 29 Feb 2024, as night reached the site.",
+      "source": "Landing location 80.13 S, 1.44 E as verified by NASA's LROC team (reported by SpaceNews and Benzinga, Feb 2024).",
+      "event_date": "2024-02-22"
+    },
+    {
+      "id": "ch3",
+      "name": "Chandrayaan-3 Vikram — Statio Shiv Shakti",
+      "short": "Chandrayaan-3",
+      "lat": -69.373,
+      "lon": 32.319,
+      "kind": "lander",
+      "event": "ISRO's Vikram landed on 23 Aug 2023; ISRO put it to sleep at 02:30 UTC on 4 Sep 2023, 'a little before sunset', and it did not wake up.",
+      "source": "IAU-approved Statio Shiv Shakti, 69.373 S, 32.319 E (Wikipedia, citing the IAU WGPSN, Mar 2024).",
+      "event_date": "2023-08-23"
+    },
+    {
+      "id": "sp895",
+      "name": "Near the south pole (0 E, 89.5 S)",
+      "short": "89.5 S test point",
+      "lat": -89.5,
+      "lon": 0.0,
+      "kind": "test",
+      "event": "A reference point 15 km from the pole, used in the Horizons checks.",
+      "source": "Chosen test coordinate (not a landing site)."
+    }
+  ],
+  "regions": {
+    "source": "NASA, 'NASA Provides Update on Artemis III Moon Landing Regions' (Oct 2024). NASA lists nine regions near the south pole; it does not publish single landing points, so the app shows their names only.",
+    "url": "https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/",
+    "names": ["Peak near Cabeus B", "Haworth", "Malapert Massif", "Mons Mouton Plateau", "Mons Mouton", "Nobile Rim 1", "Nobile Rim 2", "de Gerlache Rim 2", "Slater Plain"]
+  },
+  "reference": {
+    "id": "a11",
+    "name": "Apollo 11 — Tranquility Base",
+    "short": "Apollo 11",
+    "lat": 0.67408,
+    "lon": 23.47297,
+    "kind": "reference",
+    "event": "First crewed landing, 20 Jul 1969. Flat mare: the smooth-Moon horizon is used and labelled.",
+    "source": "Apollo 11 landing site 0.67408 N, 23.47297 E (LROC / NASA)."
+  }
+}
