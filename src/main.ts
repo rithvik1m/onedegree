@@ -201,6 +201,7 @@ async function boot(): Promise<void> {
     if (e.code === "KeyM") scanner.toggle();
     else if (e.code === "KeyO") $("btnOrbit").click();
     else if (e.code === "KeyP") (planner.isOpen() ? planner.hide() : planner.show("compare"));
+    else if (e.code === "KeyV" && moon && store.s.mode === "surface") toast(moon.toggleView() ? "Third-person view" : "First-person view — look down to see your suit", 2200);
     else if (e.code === "Escape" && planner.isOpen()) planner.hide();
   });
 

@@ -104,6 +104,7 @@ export class MoonScene {
       } catch {
         /* the WAC layer alone still works */
       }
+      this.addRegolithLayer(tiling);
       const globe = this.viewer.scene.globe;
       globe.enableLighting = true;
       globe.showGroundAtmosphere = false;
@@ -300,8 +301,68 @@ export class MoonScene {
     this.astronaut = this.viewer.entities.add({
       position: Cesium.Cartesian3.fromDegrees(0, 0, 0, Cesium.Ellipsoid.MOON),
       // NASA 3D Resources astronaut: ~74 model units tall, origin at its centre.
-      model: { uri: "/models/astronaut.glb", scale: ASTRO_SCALE, minimumPixelSize: 0, shadows: Cesium.ShadowMode.ENABLED },
+      model: {
+        uri: "/models/astronaut.glb", scale: ASTRO_SCALE, minimumPixelSize: 0, shadows: Cesium.ShadowMode.DISABLED,
+        // A touch of white keeps a backlit suit readable against the low polar Sun.
+        color: Cesium.Color.fromCssColorString("#d9d6cf"), colorBlendMode: Cesium.ColorBlendMode.MIX, colorBlendAmount: 0.35,
+      },
     });
+  }
+
+  thirdPerson = false;
+  toggleView(): boolean {
+    this.thirdPerson = !this.thirdPerson;
+    this.viewer.camera.frustum.near = this.thirdPerson ? 1.0 : 0.35;
+    return this.thirdPerson;
+  }
+
+  // Walking-scale ground detail: a procedural regolith texture served as an imagery
+  // layer only at zoom levels finer than ~300 m tiles, so it appears underfoot and
+  // never in orbit. Purely visual (the finest NASA DEM here is 20-400 m per cell),
+  // and labelled as such in the Data & method page.
+  private updateRegolith(_lon: number, _lat: number): void {
+    /* detail is an imagery layer now; nothing to move */
+  }
+  private addRegolithLayer(tiling: Any): void {
+    const tex = regolithTexture();
+    const squeezed = new Map<number, HTMLCanvasElement>();
+    const empty = document.createElement("canvas");
+    empty.width = empty.height = 1;
+    const provider = {
+      tilingScheme: tiling,
+      rectangle: tiling.rectangle,
+      tileWidth: 256,
+      tileHeight: 256,
+      minimumLevel: 0,
+      maximumLevel: 22,
+      tileDiscardPolicy: undefined,
+      errorEvent: new Cesium.Event(),
+      credit: new Cesium.Credit("Procedural regolith detail (visual only)"),
+      proxy: undefined,
+      hasAlphaChannel: true,
+      ready: true,
+      readyPromise: Promise.resolve(true),
+      getTileCredits: () => [],
+      requestImage: (x: number, y: number, level: number) => {
+        if (level < 13) return Promise.resolve(empty);
+        // Geographic tiles shrink east-west by cos(lat); repeat the texture across the
+        // tile so craters stay round on the ground instead of smearing near the pole.
+        const r = tiling.tileXYToRectangle(x, y, level);
+        const k = Math.max(1, Math.min(48, Math.round(1 / Math.max(0.02, Math.cos((r.north + r.south) / 2)))));
+        let c = squeezed.get(k);
+        if (!c) {
+          c = document.createElement("canvas");
+          c.width = c.height = 256;
+          const g = c.getContext("2d") as CanvasRenderingContext2D;
+          for (let i = 0; i < k; i++) g.drawImage(tex, (i * 256) / k, 0, 256 / k, 256);
+          squeezed.set(k, c);
+        }
+        return Promise.resolve(c);
+      },
+      pickFeatures: () => undefined,
+    };
+    const layer = this.viewer.imageryLayers.addImageryProvider(provider);
+    layer.alpha = 0.55;
   }
 
   /** Height of the rendered surface (m above the Moon sphere), or the LOLA grid, or null. */
@@ -357,12 +418,21 @@ export class MoonScene {
     w.z = Math.max(0, w.z + w.vz * dt);
     if (w.z === 0 && w.vz < 0) w.vz = 0;
     const cam = this.viewer.camera;
-    const eye = Cesium.Cartesian3.fromDegrees(w.lon, w.lat, w.ground + EYE + w.z, Cesium.Ellipsoid.MOON);
-    cam.setView({ destination: eye, orientation: { heading: w.heading, pitch: w.pitch, roll: 0 } });
+    if (this.thirdPerson) {
+      // Chase camera: 5 m behind and 2.4 m above the astronaut, looking past them.
+      const [clon, clat] = greatCircle(w.lon, w.lat, w.heading + Math.PI, 5);
+      const cg = this.groundAt(clon, clat) ?? w.ground;
+      const camH = Math.max(cg + 1.2, w.ground + 2.4 + w.z);
+      cam.setView({ destination: Cesium.Cartesian3.fromDegrees(clon, clat, camH, Cesium.Ellipsoid.MOON), orientation: { heading: w.heading, pitch: Math.max(-0.9, Math.min(0.6, w.pitch - 0.18)), roll: 0 } });
+    } else {
+      const eye = Cesium.Cartesian3.fromDegrees(w.lon, w.lat, w.ground + EYE + w.z, Cesium.Ellipsoid.MOON);
+      cam.setView({ destination: eye, orientation: { heading: w.heading, pitch: w.pitch, roll: 0 } });
+    }
+    this.updateRegolith(w.lon, w.lat);
     if (this.astronaut) {
       // Body slightly behind the eye so looking down shows chest, legs and boots.
       // Only when looking down: the model is T-posed, so its arms would block a level view.
-      this.astronaut.show = w.pitch < -0.5;
+      this.astronaut.show = this.thirdPerson || w.pitch < -0.5;
       const [blon, blat] = greatCircle(w.lon, w.lat, w.heading + Math.PI, 0.1);
       const feet = Cesium.Cartesian3.fromDegrees(blon, blat, w.ground + w.z + ASTRO_HALF_HEIGHT, Cesium.Ellipsoid.MOON);
       this.astronaut.position = feet;
@@ -420,6 +490,75 @@ export function greatCircle(lonDeg: number, latDeg: number, bearing: number, dis
   let lon = lam2 * R2D;
   lon = ((lon % 360) + 360) % 360;
   return [lon, phi2 * R2D, back + Math.PI];
+}
+
+/** Seamless procedural regolith tile: value noise + small craters, semi-transparent. */
+function regolithTexture(): HTMLCanvasElement {
+  const N = 256;
+  const c = document.createElement("canvas");
+  c.width = c.height = N;
+  const g = c.getContext("2d") as CanvasRenderingContext2D;
+  const img = g.createImageData(N, N);
+  let seed = 7;
+  const rnd = (): number => {
+    seed = (seed * 16807) % 2147483647;
+    return seed / 2147483647;
+  };
+  const grid = (s: number): Float32Array => {
+    const a = new Float32Array(s * s);
+    for (let i = 0; i < a.length; i++) a[i] = rnd();
+    return a;
+  };
+  const octave = (s: number): ((x: number, y: number) => number) => {
+    const a = grid(s);
+    return (x, y) => {
+      const fx = (x / N) * s;
+      const fy = (y / N) * s;
+      const x0 = Math.floor(fx) % s;
+      const y0 = Math.floor(fy) % s;
+      const x1 = (x0 + 1) % s;
+      const y1 = (y0 + 1) % s;
+      const tx = fx - Math.floor(fx);
+      const ty = fy - Math.floor(fy);
+      const sx = tx * tx * (3 - 2 * tx);
+      const sy = ty * ty * (3 - 2 * ty);
+      const v = (i: number, j: number): number => a[j * s + i] as number;
+      return (v(x0, y0) * (1 - sx) + v(x1, y0) * sx) * (1 - sy) + (v(x0, y1) * (1 - sx) + v(x1, y1) * sx) * sy;
+    };
+  };
+  const o1 = octave(8);
+  const o2 = octave(32);
+  const o3 = octave(128);
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const v = 0.5 * o1(x, y) + 0.3 * o2(x, y) + 0.2 * o3(x, y);
+      const k = (y * N + x) * 4;
+      const l = 70 + v * 110;
+      img.data[k] = l;
+      img.data[k + 1] = l * 0.98;
+      img.data[k + 2] = l * 0.95;
+      img.data[k + 3] = 120;
+    }
+  }
+  g.putImageData(img, 0, 0);
+  // A few small craters with a lit rim and shadowed floor.
+  for (let i = 0; i < 14; i++) {
+    const x = rnd() * N;
+    const y = rnd() * N;
+    const r = 3 + rnd() * 12;
+    for (const [dx, dy] of [[0, 0], [N, 0], [-N, 0], [0, N], [0, -N]] as [number, number][]) {
+      const grd = g.createRadialGradient(x + dx - r * 0.25, y + dy - r * 0.25, r * 0.2, x + dx, y + dy, r);
+      grd.addColorStop(0, "rgba(20,20,20,0.35)");
+      grd.addColorStop(0.75, "rgba(40,40,40,0.15)");
+      grd.addColorStop(0.92, "rgba(235,232,225,0.35)");
+      grd.addColorStop(1, "rgba(235,232,225,0)");
+      g.fillStyle = grd;
+      g.beginPath();
+      g.arc(x + dx, y + dy, r, 0, Math.PI * 2);
+      g.fill();
+    }
+  }
+  return c;
 }
 
 function sunSprite(): HTMLCanvasElement {

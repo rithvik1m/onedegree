@@ -24,28 +24,35 @@ export interface SkyCheck {
   n: number;
   max: number;
   median: number;
-  bySite: { site: string; n: number; max: number }[];
+  sunMax: number;
+  earthMax: number;
+  bySite: { site: string; n: number; sunMax: number; earthMax: number }[];
 }
 
 export async function runSkyCheck(data: Data): Promise<SkyCheck> {
   const fx = (await (await fetch("/data/validation/horizons_topocentric.json")).json()) as Fixture;
-  const errs: { site: string; err: number }[] = [];
+  const errs: { site: string; body: string; err: number }[] = [];
   for (const c of fx.cases) {
     const s = skyAt(data.table, c.t, c.lon, c.lat);
     if (!s) continue;
     const mine = c.body === "sun" ? s.sun : s.earth;
-    errs.push({ site: c.site, err: angularSeparationDeg(mine, { az: c.az, el: c.el }) });
+    errs.push({ site: c.site, body: c.body, err: angularSeparationDeg(mine, { az: c.az, el: c.el }) });
   }
   const sorted = errs.map((e) => e.err).sort((a, b) => a - b);
   const sites = [...new Set(errs.map((e) => e.site))];
+  const maxOf = (f: (e: { site: string; body: string; err: number }) => boolean): number => Math.max(...errs.filter(f).map((e) => e.err));
   return {
     n: errs.length,
     max: sorted[sorted.length - 1] ?? NaN,
     median: sorted[Math.floor(sorted.length / 2)] ?? NaN,
-    bySite: sites.map((site) => {
-      const e = errs.filter((x) => x.site === site).map((x) => x.err);
-      return { site, n: e.length, max: Math.max(...e) };
-    }),
+    sunMax: maxOf((e) => e.body === "sun"),
+    earthMax: maxOf((e) => e.body === "earth"),
+    bySite: sites.map((site) => ({
+      site,
+      n: errs.filter((x) => x.site === site).length,
+      sunMax: maxOf((e) => e.site === site && e.body === "sun"),
+      earthMax: maxOf((e) => e.site === site && e.body === "earth"),
+    })),
   };
 }
 
@@ -103,9 +110,10 @@ export async function renderReality(data: Data, sky: SkyCheck, grid: TerrainGrid
 
   cards.push(`<div class="rc-card glass"><h3>1 · Sun & Earth positions vs NASA/JPL Horizons ${ok(sky.max < 0.01)}</h3>
     <p>The app derives every Sun/Earth direction from one Horizons table. Here it is re-checked against <b>${sky.n}</b> answers Horizons computed itself for an observer standing on the Moon, at 5 sites (pole, landers, equator, far side), all sampled half-way between table rows (worst case). Error = angle on the sky.</p>
-    <table class="rc-table"><tr><th>Site</th><th>Cases</th><th>Max error</th></tr>
-    ${sky.bySite.map((r) => `<tr><td>${esc(r.site)}</td><td class="num">${r.n}</td><td class="num">${r.max.toFixed(4)}°</td></tr>`).join("")}
-    <tr><td><b>All</b></td><td class="num">${sky.n}</td><td class="num"><b>${sky.max.toFixed(4)}°</b> (median ${sky.median.toFixed(4)}°)</td></tr></table></div>`);
+    <table class="rc-table"><tr><th>Site</th><th>Cases</th><th>Sun · max error</th><th>Earth · max error</th></tr>
+    ${sky.bySite.map((r) => `<tr><td>${esc(r.site)}</td><td class="num">${r.n}</td><td class="num">${r.sunMax.toFixed(5)}°</td><td class="num">${r.earthMax.toFixed(5)}°</td></tr>`).join("")}
+    <tr><td><b>All</b></td><td class="num">${sky.n}</td><td class="num"><b>${sky.sunMax.toFixed(5)}°</b></td><td class="num"><b>${sky.earthMax.toFixed(5)}°</b></td></tr></table>
+    <p>The Sun agrees to under one arcsecond. Earth's residual (about 20 arcseconds, the same at every site because it lives in Earth's direction, not the site geometry) is about the size of the aberration of light, which the sub-point method does not model separately. It is roughly 1/300 of Earth's apparent width — far below anything the skyline can resolve.</p></div>`);
 
   const syn = syntheticChecks();
   cards.push(`<div class="rc-card glass"><h3>2 · Skyline geometry on synthetic terrain ${ok(syn.every((c) => Math.abs(c.got - c.expected) <= c.tol))}</h3>
@@ -167,7 +175,7 @@ export async function renderReality(data: Data, sky: SkyCheck, grid: TerrainGrid
   }
   if (im1p) {
     const t = firstSunset(data, im1p, Date.parse("2024-02-23T00:00:00Z") / 1000, 20);
-    ctx.push(`<tr><td>IM-1 Odysseus</td><td class="num">${t ? `${fmtUtc(t)} UTC` : "none in 20 d"}</td><td>Operated until about 29 Feb 2024 as lunar night reached the site (Intuitive Machines).</td><td></td></tr>`);
+    ctx.push(`<tr><td>IM-1 Odysseus</td><td class="num">${t ? `${fmtUtc(t)} UTC` : "none in 20 d"}</td><td>Operated until about 29 Feb 2024 as lunar night approached (Intuitive Machines). It was lying on its side, so its panels caught little of the low Sun before geometric sunset.</td><td class="num">${t ? `ended ~${fmtHours((t - Date.parse("2024-02-29T12:00:00Z") / 1000) / 3600)} before predicted sunset` : ""}</td></tr>`);
   }
   cards.push(`<div class="rc-card glass"><h3>6 · Context: real landers and the lunar night</h3>
     <p>Predicted first sunset (Sun centre behind the real skyline) after each landing. Mission end times are public statements, not precise measurements, so this is context, not a pass/fail test. Athena is not listed: it tipped over, so its power loss was about orientation, not the horizon.</p>
