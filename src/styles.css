@@ -402,7 +402,7 @@ body.demo .tutorial, body.demo .prompt, body.demo #mission, body.demo .settings,
 .sky-tag .st-dot { width: 14px; height: 14px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--earth); }
 .sky-tag.edge { color: var(--text-dim); }
 .sky-tag.blocked { color: #ff9b82; box-shadow: inset 0 0 0 1px rgb(255 120 90 / 0.4); }
-body.intro-on .sky-tag, body.demo .sky-tag, body.in-orbit .sky-tag { display: none !important; }
+body.intro-on .sky-tag, body.in-orbit .sky-tag { display: none !important; }
 
 /* Touch controls */
 .stick { position: fixed; left: 18px; bottom: 74px; z-index: 22; width: 112px; height: 112px; border-radius: 50%; background: rgb(255 255 255 / 0.06); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.16), 0 6px 24px rgb(0 0 0 / 0.4); touch-action: none; backdrop-filter: blur(6px); }
@@ -422,3 +422,5 @@ body.in-orbit .stick, body.in-orbit .touch-btn, body.intro-on .stick, body.intro
   .prompt { bottom: 196px; }
   .inst { bottom: 62px; max-height: 58vh; }
 }
+.sky-tag.sun { color: #ffb08f; box-shadow: inset 0 0 0 1px rgb(255 140 100 / 0.45); }
+.sky-tag.sun .st-dot { box-shadow: inset 0 0 0 1.5px #ffb347; background: radial-gradient(circle, rgb(255 200 120 / 0.5), transparent 70%); }

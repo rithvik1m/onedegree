@@ -53,6 +53,7 @@ export async function runDemo(c: Ctx): Promise<void> {
   document.body.classList.add("demo");
   const w = c.world;
   const { store } = c;
+  const clock = store.s.time;
   try {
     c.scanner.hide();
     c.planner.hide();
@@ -60,32 +61,32 @@ export async function runDemo(c: Ctx): Promise<void> {
     document.getElementById("intro")?.classList.add("hidden");
     // 1. the outpost
     const gy0 = w.groundAt(0, 0);
-    const fly = w.cinematic(5200, (u, cam) => {
-      const a = -0.9 + u * 1.1;
-      cam.position.set(Math.sin(a) * 110, gy0 + 26 - u * 8, -Math.cos(a) * 110);
+    const fly = w.cinematic(4800, (u, cam) => {
+      const a = -0.9 + u * 1.0;
+      cam.position.set(Math.sin(a) * 105, gy0 + 24 - u * 8, -Math.cos(a) * 105);
       cam.lookAt(-4, gy0 + 2, 2);
     }, false);
-    c.caption("A research outpost at the lunar south pole (fictional) — on a site chosen by code from NASA's sunlight maps.", 5200);
+    c.caption("A research outpost at the lunar south pole (fictional) — on a real site chosen by code from NASA's sunlight maps.", 4800);
     await fly;
 
-    // 2. solar station: Sun path over 30 days
+    // 2. solar station, backlit by the real Sun; its 30-day path drawn in the sky
     const it = w.outpost?.interactables.find((i) => i.id === "solar");
-    if (it) w.player.place(it.x, it.z + 2.5, Math.PI);
-    w.player.pitch = 0.02;
+    const sx = it?.x ?? 0, sz = it?.z ?? 0;
+    const sd = w.sky.sunDir.clone().setY(0).normalize();
+    w.player.place(sx - sd.x * 1.2, sz - sd.z * 1.2, Math.atan2(sd.x, -sd.z));
     store.set({ time: store.s.time });
     c.interact("solar");
-    const look = w.cinematic(6200, (u, cam) => {
-      const gy = w.groundAt(it?.x ?? 0, it?.z ?? 0);
-      cam.position.set((it?.x ?? 0) - 6, gy + 3.2, (it?.z ?? 0) + 7);
-      const s = w.sky.sunDir;
-      const tgt = new THREE.Vector3(cam.position.x + s.x * 50, cam.position.y + 2 + s.y * 50, cam.position.z + s.z * 50);
-      cam.lookAt(tgt.x * 0.35 + (it?.x ?? 0) * 0.65, gy + 1.6 + u * 0.4, tgt.z * 0.35 + (it?.z ?? 0) * 0.65);
+    const look = w.cinematic(6000, (u, cam) => {
+      const gy = w.groundAt(sx, sz);
+      const back = 9 - u * 2.5;
+      cam.position.set(sx - sd.x * back + sd.z * 2.5, gy + 2.4, sz - sd.z * back - sd.x * 2.5);
+      cam.lookAt(sx + sd.x * 60, gy + 1.2, sz + sd.z * 60);
     }, true);
-    c.caption("Solar station: NASA/JPL Horizons puts the Sun in the sky; NASA LOLA terrain decides if it clears the horizon. Amber = sunlit, red = blocked.", 6200);
+    c.caption("NASA/JPL Horizons places the Sun; NASA LOLA terrain decides if it clears the horizon. Its next 30 days: amber = sunlit, red = blocked.", 6000);
     await look;
     c.instrument.close();
 
-    // 3. survey point S-1, 433 m away
+    // 3. survey point S-1, 433 m away, at the clearest "one degree" moment in the data
     const sv = w.outpost?.interactables.find((i) => i.id === "survey");
     const mom = findBlockedMoment(c.data, c.survey, c.windowT0);
     if (sv) w.player.place(sv.x + 2, sv.z + 2, 0);
@@ -93,17 +94,17 @@ export async function runDemo(c: Ctx): Promise<void> {
     c.instrument.skylineOn = true;
     c.interact("survey");
     const a = analyse(c.data, c.survey, c.windowT0, 30);
-    const s1 = w.cinematic(8200, (u, cam) => {
+    const s1 = w.cinematic(7600, (u, cam) => {
       const gy = w.groundAt(sv?.x ?? 0, sv?.z ?? 0);
-      cam.position.set((sv?.x ?? 0) + 3, gy + 1.8, (sv?.z ?? 0) + 3);
-      if (mom) {
-        const d = new THREE.Vector3(Math.cos(mom.sunEl * Math.PI / 180) * Math.sin(mom.az * Math.PI / 180), Math.sin((mom.sunEl + 1.5) * Math.PI / 180), -Math.cos(mom.sunEl * Math.PI / 180) * Math.cos(mom.az * Math.PI / 180));
-        cam.lookAt(cam.position.x + d.x, cam.position.y + d.y, cam.position.z + d.z);
-      }
-      void u;
+      const az = ((mom?.az ?? 0) * Math.PI) / 180;
+      const dx = Math.sin(az), dz = -Math.cos(az);
+      const px = (sv?.x ?? 0) - dx * 7 + dz * 2, pz = (sv?.z ?? 0) - dz * 7 - dx * 2;
+      cam.position.set(px, gy + 1.9 + u * 0.3, pz);
+      const el = (((mom?.sunEl ?? 1) + 1.2) * Math.PI) / 180;
+      cam.lookAt(px + dx * 100, gy + 1.9 + Math.tan(el) * 100, pz + dz * 100);
     }, false);
-    if (mom) c.caption(`433 m down the slope: a smooth Moon puts the Sun ${mom.sunEl.toFixed(1)}° up. The real ridge is ${mom.ridge.toFixed(1)}°. One degree decides.`, 8200);
-    else if (a) c.caption(`Survey point S-1: sunlit ${a.mReal.sunlitPct.toFixed(0)}% of the next 30 days (smooth Moon: ${a.mSmooth.sunlitPct.toFixed(0)}%).`, 8200);
+    if (mom) c.caption(`433 m from the outpost: a smooth Moon puts the Sun ${mom.sunEl.toFixed(1)}° up. The real LOLA ridge is ${mom.ridge.toFixed(1)}°. Sunlit ${a ? a.mReal.sunlitPct.toFixed(0) : "—"}% vs 100%.`, 7600);
+    else if (a) c.caption(`Survey point S-1: sunlit ${a.mReal.sunlitPct.toFixed(0)}% of the next 30 days (smooth Moon: ${a.mSmooth.sunlitPct.toFixed(0)}%).`, 7600);
     await s1;
     c.instrument.close();
     c.instrument.skylineOn = false;
@@ -111,16 +112,29 @@ export async function runDemo(c: Ctx): Promise<void> {
 
     // 4. mission control: compare + slip
     c.interact("control");
-    c.caption("Mission control: compare candidate sites and test a launch slip — same engine, same NASA data.", 3600);
-    await wait(3600);
-    store.set({ slipDays: 7 });
-    c.caption("A one-week slip changes the lighting. Every polar plan must be re-checked for its launch date.", 3400);
+    c.caption("Mission control: compare candidate landing sites and test a launch slip — same engine, same NASA data.", 3400);
     await wait(3400);
+    store.set({ slipDays: 7 });
+    c.caption("A one-week slip changes the light. Every polar plan must be re-checked for its launch date.", 3200);
+    await wait(3200);
     c.planner.hide();
     document.body.classList.remove("console");
-    store.set({ slipDays: 0 });
+    store.set({ slipDays: 0, time: c.windowT0 + 0 });
+
+    // 5. end card: the outpost with Earth in the sky
+    store.set({ time: clock });
+    const sp0 = w.outpost?.spawn;
+    if (sp0) w.player.place(sp0.x, sp0.z, sp0.yaw);
+    store.set({ here: c.outpost });
+    const endShot = w.cinematic(4000, (u, cam) => {
+      const a = -0.55 + u * 0.35;
+      cam.position.set(Math.sin(a) * 125, gy0 + 30 - u * 6, -Math.cos(a) * 125);
+      cam.lookAt(-4, gy0 + 1, 2);
+    }, false);
     c.caption("ONE DEGREE — real NASA data, a fictional outpost. On the Moon, one degree decides everything.", 4000);
-    await wait(4000);
+    await endShot;
+    const sp = w.outpost?.spawn;
+    if (sp) w.player.place(sp.x, sp.z, sp.yaw);
   } finally {
     document.body.classList.remove("demo");
     running = false;

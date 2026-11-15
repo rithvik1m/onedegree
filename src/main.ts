@@ -638,17 +638,20 @@ async function boot(): Promise<void> {
 
   // ---------- Earth marker (always findable) ----------
   let earthState = "";
+  let sunHidden = "";
   const refreshEarthState = (): void => {
     const a = analyse(data, store.s.here, windowT0, 30);
-    if (!a) { earthState = ""; return; }
+    if (!a) { earthState = ""; sunHidden = ""; return; }
     const i = Math.max(0, Math.min(a.track.n - 1, Math.round((store.s.time - a.t0) / a.track.stepS)));
+    const sEl = a.track.sunEl[i] as number, sHz = a.real.sunHorizon[i] as number;
+    sunHidden = a.real.sunLit[i] === 0 && sEl > a.smoothDeg ? `Sun · hidden ${(sHz - sEl).toFixed(1)}° below the ridge` : "";
     const up = a.real.earthUp[i] === 1;
     const lit = Math.round(world.sky.earthLitFraction() * 100);
     earthState = up ? `Earth · ${lit}% lit` : (a.track.earthEl[i] as number) > a.smoothDeg ? "Earth · behind terrain" : "Earth · below horizon";
   };
   world.afterFrame = () => {
     const tag = $("earthTag");
-    if (store.s.mode !== "surface" || !earthState) { tag.classList.add("hidden"); return; }
+    if (store.s.mode !== "surface" || !earthState) { tag.classList.add("hidden"); $("sunTag").classList.add("hidden"); return; }
     const p = world.projectDir(world.sky.earthDir);
     const W = window.innerWidth, H = window.innerHeight;
     const on = !p.behind && p.x > 0 && p.x < W && p.y > 0 && p.y < H;
@@ -665,6 +668,14 @@ async function boot(): Promise<void> {
     tag.classList.toggle("blocked", !earthState.includes("lit"));
     $("earthTagText").textContent = on ? earthState : `${dxArrow(p, W)} ${earthState}`;
     tag.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
+    const st = $("sunTag");
+    const sp = world.projectDir(world.sky.sunDir);
+    const sOn = !!sunHidden && !sp.behind && sp.x > 0 && sp.x < W && sp.y > 0 && sp.y < H;
+    st.classList.toggle("hidden", !sOn);
+    if (sOn) {
+      $("sunTagText").textContent = sunHidden;
+      st.style.transform = `translate(${Math.round(sp.x - 9)}px, ${Math.round(sp.y - 11)}px)`;
+    }
   };
   const dxArrow = (p: { x: number; behind: boolean }, W: number): string => ((p.behind ? W - p.x : p.x) < W / 2 ? "◂" : "▸");
   store.on((_s, ch) => {
