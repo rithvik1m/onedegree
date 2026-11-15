@@ -52,7 +52,7 @@ export class SurfaceWorld {
   readonly sky: Sky3D;
   readonly sun = new THREE.DirectionalLight(0xfff4e6, 3.4);
   readonly fill = new THREE.DirectionalLight(0xa9c1ff, 0.0);
-  readonly ambient = new THREE.AmbientLight(0x8090a8, 0.0);
+  readonly ambient = new THREE.AmbientLight(0x8a98b8, 0.0);
   /** light bounced up from sunlit regolith (sky colour black: no atmosphere) */
   readonly bounce = new THREE.HemisphereLight(0x000000, 0x9a9282, 0.0);
   readonly lamp = new THREE.SpotLight(0xfff1dc, 0, 60, 0.55, 0.5, 1.2);
@@ -191,7 +191,8 @@ export class SurfaceWorld {
     const exclude: { x: number; z: number; r: number }[] = [];
     if (opts.outpost && opts.survey) {
       const [sx, sz] = lonLatToScene(p, opts.survey.lon, opts.survey.lat);
-      this.outpost = buildOutpost(gy, { x: sx, z: sz }, this.skyState?.sunAz ?? 250, Math.hypot(sx, sz));
+      const ss = this.skyState;
+      this.outpost = buildOutpost(gy, { x: sx, z: sz }, ss?.sunAz ?? 250, Math.hypot(sx, sz), ss && ss.earthEl > -2.5 ? ss.earthAz : null);
       this.props.add(this.outpost.group);
       this.player.colliders = this.outpost.colliders;
       exclude.push({ x: -8, z: 2, r: 60 }, { x: 99, z: 99, r: 26 }, { x: 30, z: -24, r: 22 }, { x: -42, z: 8, r: 9 });
@@ -224,7 +225,7 @@ export class SurfaceWorld {
     const mat = regolithMaterial(false);
     (mat as THREE.MeshStandardMaterial).color.set(0x85817a);
     const variants = [rockGeometry(1), rockGeometry(2), rockGeometry(3)];
-    const counts = [900, 700, 500].map((c) => Math.round(c * density));
+    const counts = [520, 380, 260].map((c) => Math.round(c * density));
     const m4 = new THREE.Matrix4();
     const q = new THREE.Quaternion();
     const e = new THREE.Euler();
@@ -240,7 +241,7 @@ export class SurfaceWorld {
         const x = Math.sin(a) * rad, z = -Math.cos(a) * rad;
         if (exclude.some((ex) => Math.hypot(x - ex.x, z - ex.z) < ex.r)) continue;
         // size distribution: many pebbles, few boulders (power law)
-        const s = 0.08 + Math.pow(r(), 6) * 1.6 + (r() < 0.01 ? 1.5 : 0);
+        const s = 0.14 + Math.pow(r(), 5) * 1.5 + (r() < 0.012 ? 1.6 : 0);
         e.set(r() * 0.4, r() * Math.PI * 2, r() * 0.4);
         q.setFromEuler(e);
         m4.compose(new THREE.Vector3(x, gy(x, z) - s * 0.25, z), q, new THREE.Vector3(s, s, s));
@@ -262,7 +263,7 @@ export class SurfaceWorld {
     const lit = this.sky.earthLitFraction();
     const earthUp = s.earthEl > -1 ? 1 : 0;
     this.fill.intensity = this.realisticDark ? 0.004 * lit * earthUp : (0.08 + 0.35 * lit * earthUp);
-    this.ambient.intensity = this.realisticDark ? 0.0 : 0.16;
+    this.ambient.intensity = this.realisticDark ? 0.0 : 0.34;
     if (this.outpost) {
       for (const a of this.outpost.arrays) a.rotation.y = -s.sunAz * D2R; // panel normal (+z) → Sun azimuth
       this.outpost.dish.yaw.rotation.y = -s.earthAz * D2R;
@@ -379,8 +380,8 @@ export class SurfaceWorld {
     // labels: fade with distance
     for (const l of this.outpost?.labels ?? []) {
       const d = l.position.distanceTo(this.camera.position);
-      (l.material as THREE.SpriteMaterial).opacity = d < 4 ? 0 : d > 160 ? Math.max(0, 1 - (d - 160) / 140) : 1;
-      const s = Math.max(1, d / 40);
+      (l.material as THREE.SpriteMaterial).opacity = d < 7 ? 0 : d < 12 ? (d - 7) / 5 : d > 160 ? Math.max(0, 1 - (d - 160) / 140) : 1;
+      const s = Math.max(0.35, d / 42);
       l.scale.set(4 * s * (l.userData.k ?? 1), 1 * s * (l.userData.k ?? 1), 1);
     }
     if (this.waypoint) {
@@ -389,7 +390,11 @@ export class SurfaceWorld {
       ring.scale.set(k, k, k);
     }
     const beam = this.outpost?.beacons.get("survey")?.getObjectByName("beam");
-    if (beam) (beam as THREE.Mesh).visible = this.beamOn;
+    if (beam) {
+      const b = beam as THREE.Mesh;
+      const bp = this.outpost?.beacons.get("survey")?.position;
+      b.visible = this.beamOn && (!bp || Math.hypot(bp.x - p.pos.x, bp.z - p.pos.z) > 25);
+    }
 
     this.sky.syncCamera(this.camera);
     const r = this.renderer;

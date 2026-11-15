@@ -147,7 +147,7 @@ export interface OutpostRefs {
   lander: { x: number; z: number };
 }
 
-export function buildOutpost(groundY: (x: number, z: number) => number, survey: { x: number; z: number }, sunAz = 250, surveyDist = 433): OutpostRefs {
+export function buildOutpost(groundY: (x: number, z: number) => number, survey: { x: number; z: number }, sunAz = 250, surveyDist = 433, earthAz: number | null = null): OutpostRefs {
   const group = new THREE.Group();
   group.name = "outpost";
   const colliders: Collider[] = [];
@@ -444,11 +444,16 @@ export function buildOutpost(groundY: (x: number, z: number) => number, survey: 
   return {
     group, colliders, interactables, arrays, dish: { yaw, pitch }, beacons, labels,
     // spawn with the Sun behind you, looking at the lit side of the base
+    // and, when Earth is up, turned so Earth sits inside the frame
     spawn: (() => {
-      const a = sunAz * D2R;
-      const cx = -6, cz = 2, r = 34;
-      const x = cx + Math.sin(a) * r, z = cz - Math.cos(a) * r;
-      return { x, z, yaw: Math.atan2(cx - x, -(cz - z)) };
+      let view = sunAz + 180;
+      if (earthAz !== null) {
+        const d = ((earthAz - view + 540) % 360) - 180;
+        if (Math.abs(d) < 110 && Math.abs(d) > 30) view += d - Math.sign(d) * 32;
+      }
+      const a = view * D2R;
+      const cx = 8, cz = -14, r = 22;
+      return { x: cx - Math.sin(a) * r, z: cz + Math.cos(a) * r, yaw: a };
     })(),
     lander: { x: lpX, z: lpZ },
   };
