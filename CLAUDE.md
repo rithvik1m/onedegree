@@ -5,12 +5,13 @@ ONE DEGREE (team Beyond Million) is a NASA Space Apps 2026 entry for the
 decides everything."* Near the lunar south pole the Sun never rises more than a
 few degrees, so a ridge one degree high is the difference between power and night.
 
-The app is two layers on one state:
-1. **Explore** — a 3D Moon (CesiumJS): orbit view, land anywhere, walk in first person
-   (astronaut body visible when you look down).
-2. **Mission science** — real NASA/JPL Horizons Sun/Earth geometry tested against a
-   real LRO/LOLA terrain skyline: panorama, 30-day timeline, A/B compare, date-slip
-   slider, Reality Check.
+v2 is a science-first lunar research mission:
+1. **Surface** (Three.js, `src/surface/`) — a fictional outpost on a real, data-chosen
+   site on Shackleton's rim; walkable terrain built from the LOLA rays the skyline uses;
+   missions 01–05 with field instruments (`src/game/`, `src/ui/instrument.ts`).
+2. **Orbit** (CesiumJS, lazy-loaded, `src/cesium/`) — globe, landing preview, land anywhere.
+3. **Mission science** — Horizons Sun/Earth vs LOLA skylines: scanner, planner,
+   A/B compare, date slip, Reality Check. One engine feeds everything.
 
 ## Non-negotiables
 - Never fabricate a number. Every metric is computed from a named NASA source or is
@@ -30,7 +31,8 @@ The app is two layers on one state:
 - `public/data/` the small derived products the app ships (ephemeris table, horizon
   profiles, validation fixtures, sites).
 - `src/science/` pure maths (no DOM) — unit-tested in `tests/`.
-- `src/` UI and Cesium layers.
+- `src/surface/` Three.js world · `src/game/` missions · `src/ui/` panels · `src/cesium/` orbit globe.
+- `scripts/outpost.py` sites the outpost and writes `public/data/surface/*.{json,bin}`.
 
 ## Commands
 - `npm run dev` — local app · `npm test` — science tests · `npm run build` — typecheck + bundle.

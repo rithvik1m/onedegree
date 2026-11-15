@@ -12,7 +12,7 @@ import { analyse, loadCore, loadGrid, skyNow, type Data, type Place } from "./da
 import type { MoonScene } from "./cesium/moon";
 import { skyAt, subpointsAt, earthVectorKm, sunVectorKm } from "./science/sky";
 import { Store, readUrl, type State } from "./state";
-import { $, compass, fmtDate, fmtLat, fmtLon, fmtUtc } from "./ui/format";
+import { $, compass, fmtDate, fmtHours, fmtLat, fmtLon, fmtUtc } from "./ui/format";
 import { Planner, Scanner } from "./ui/panels";
 import { renderReality, runSkyCheck, type SkyCheck } from "./ui/reality";
 import { renderAbout } from "./ui/about";
@@ -248,7 +248,7 @@ async function boot(): Promise<void> {
     const name = (w: "a" | "b"): string => (w === "a" ? store.s.a.short : store.s.b.short);
     if (m.id === "m4") {
       const verdict = win === null ? "The two sites tie on this requirement." : win === chosen ? `Your choice matches the data: <b>${name(win)}</b>.` : `The data favour <b>${name(win)}</b> rather than your pick.`;
-      return `${verdict} Over ${store.s.windowDays} days from ${fmtDate(t)}, Sun <i>and</i> Earth are both in view <b>${a.toFixed(0)}%</b> of the time at ${store.s.a.short} and <b>${b.toFixed(0)}%</b> at ${store.s.b.short}. Sunlight alone: ${A.mReal.sunlitPct.toFixed(0)}% vs ${B.mReal.sunlitPct.toFixed(0)}%; longest night ${A.mReal.longestDarkH.toFixed(0)} h vs ${B.mReal.longestDarkH.toFixed(0)} h.`;
+      return `${verdict} Over ${store.s.windowDays} days from ${fmtDate(t)}, Sun <i>and</i> Earth are both in view <b>${a.toFixed(0)}%</b> of the time at ${store.s.a.short} and <b>${b.toFixed(0)}%</b> at ${store.s.b.short}. Sunlight alone: ${A.mReal.sunlitPct.toFixed(0)}% vs ${B.mReal.sunlitPct.toFixed(0)}%; longest night ${fmtHours(A.mReal.longestDarkH, A.mReal.longestDarkOpen)} vs ${fmtHours(B.mReal.longestDarkH, B.mReal.longestDarkOpen)}.`;
     }
     const A0 = analyse(data, store.s.a, store.s.landing, store.s.windowDays);
     const B0 = analyse(data, store.s.b, store.s.landing, store.s.windowDays);
@@ -350,7 +350,7 @@ async function boot(): Promise<void> {
       const a = analyse(data, outpost, windowT0, 30);
       instrument.skylineOn = !instrument.skylineOn;
       world.sky.setSkyline(instrument.skylineOn && a?.skyline ? a.skyline.horizon : null);
-      caption(instrument.skylineOn ? "Teal line: the horizon the scanner computes from NASA LOLA terrain (10 m → 240 m, 260 km rays). It follows the 3D ridges because both come from the same data." : "Horizon trace off", 7000);
+      caption(instrument.skylineOn ? "You are looking WSW into Shackleton crater — its floor lies about 4 km below this rim and never sees direct sunlight. The teal line is the horizon the scanner computes from NASA LOLA terrain; it traces the 3D ridges because both come from the same data." : "Horizon trace off", 9000);
     } else if (id === "lander") void goOrbit();
   }
   function openControl(): void {
