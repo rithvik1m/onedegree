@@ -31,16 +31,17 @@ float odNoise(vec2 p){
   return mix(mix(dot(odHash(i+vec2(0,0)), f-vec2(0,0)), dot(odHash(i+vec2(1,0)), f-vec2(1,0)), u.x),
              mix(dot(odHash(i+vec2(0,1)), f-vec2(0,1)), dot(odHash(i+vec2(1,1)), f-vec2(1,1)), u.x), u.y);
 }
-float odFbm(vec2 p){ float a=0.5, s=0.0; for(int i=0;i<4;i++){ s+=a*odNoise(p); p*=2.03; a*=0.5; } return s; }
-// small crater field: distance to nearest jittered cell centre gives a bowl + raised rim
-float odCraters(vec2 p){
+float odFbm(vec2 p){ float a=0.5, s=0.0; for(int i=0;i<3;i++){ s+=a*odNoise(p); p*=2.03; a*=0.5; } return s; }
+// sparse small-crater field: only some cells hold a crater (bowl + soft raised rim)
+float odCraters(vec2 p, float density){
   vec2 i = floor(p), f = fract(p); float h = 0.0;
   for(int y=-1;y<=1;y++) for(int x=-1;x<=1;x++){
     vec2 g = vec2(float(x),float(y));
     vec2 o = 0.5 + 0.5*odHash(i+g);
-    float rad = 0.18 + 0.22*fract(o.x*7.13);
+    if (fract(o.x*17.31 + o.y*5.13) > density) continue;
+    float rad = 0.12 + 0.33*pow(fract(o.y*9.71), 2.0);
     float d = length(g + o - f) / rad;
-    if (d < 1.4) h += (d < 1.0 ? (d*d - 1.0) * 0.6 : 0.0) + 0.25*exp(-pow((d-1.0)*5.0,2.0));
+    if (d < 1.5) h += (d < 1.0 ? (d*d - 1.0) * 0.5 : 0.0) + 0.18*exp(-pow((d-1.0)*4.0,2.0));
   }
   return h;
 }
@@ -101,10 +102,11 @@ export function regolithMaterial(far = false): THREE.MeshStandardMaterial {
           if (fade > 0.0) {
             float e = 0.08;
             vec2 q = wp / 2.2;
-            float h0 = odFbm(q) * 0.35 + odCraters(wp / 5.0) * 0.5 + odCraters(wp / 1.3) * 0.18;
-            float hx = odFbm(q + vec2(e/2.2, 0.0)) * 0.35 + odCraters((wp + vec2(e,0.0)) / 5.0) * 0.5 + odCraters((wp + vec2(e,0.0)) / 1.3) * 0.18;
-            float hz = odFbm(q + vec2(0.0, e/2.2)) * 0.35 + odCraters((wp + vec2(0.0,e)) / 5.0) * 0.5 + odCraters((wp + vec2(0.0,e)) / 1.3) * 0.18;
-            vec3 bw = vec3(-(hx - h0) / e, 0.0, -(hz - h0) / e) * 0.35 * fade * odDetail;
+            #define ODH(w) (odFbm((w) / 2.2) * 0.22 + odCraters((w) / 7.0, 0.22) * 0.55 + odCraters((w) / 1.8, 0.18) * 0.16)
+            float h0 = ODH(wp);
+            float hx = ODH(wp + vec2(e, 0.0));
+            float hz = ODH(wp + vec2(0.0, e));
+            vec3 bw = vec3(-(hx - h0) / e, 0.0, -(hz - h0) / e) * 0.16 * fade * odDetail;
             normal = normalize(normal + (viewMatrix * vec4(bw, 0.0)).xyz);
           }
         }`,

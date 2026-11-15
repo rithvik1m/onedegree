@@ -52,7 +52,7 @@ export class SurfaceWorld {
   readonly sky: Sky3D;
   readonly sun = new THREE.DirectionalLight(0xfff4e6, 3.4);
   readonly fill = new THREE.DirectionalLight(0xa9c1ff, 0.0);
-  readonly ambient = new THREE.AmbientLight(0x8a98b8, 0.0);
+  readonly ambient = new THREE.AmbientLight(0x8e95a6, 0.0);
   /** light bounced up from sunlit regolith (sky colour black: no atmosphere) */
   readonly bounce = new THREE.HemisphereLight(0x000000, 0x9a9282, 0.0);
   readonly lamp = new THREE.SpotLight(0xfff1dc, 0, 60, 0.55, 0.5, 1.2);
@@ -94,9 +94,9 @@ export class SurfaceWorld {
     this.sky = new Sky3D(62);
 
     this.sun.castShadow = true;
-    this.sun.shadow.mapSize.set(4096, 4096);
+    this.sun.shadow.mapSize.set(2048, 2048);
     const sc = this.sun.shadow.camera;
-    sc.left = -380; sc.right = 380; sc.top = 380; sc.bottom = -380; sc.near = 1; sc.far = 6000;
+    sc.left = -260; sc.right = 260; sc.top = 260; sc.bottom = -260; sc.near = 1; sc.far = 6000;
     this.sun.shadow.bias = -0.0004;
     this.sun.shadow.normalBias = 0.35;
     this.scene.add(this.sun, this.sun.target, this.fill, this.fill.target, this.ambient, this.bounce);
@@ -183,6 +183,7 @@ export class SurfaceWorld {
     for (const r of this.rocks) r.dispose();
     this.rocks = [];
     this.patch = p;
+    this.setWaypoint(null);
     const { near, far } = buildTerrain(p, regolithMaterial(false), regolithMaterial(true));
     this.terrain = [near, far];
     this.scene.add(near, far);
@@ -397,6 +398,7 @@ export class SurfaceWorld {
     }
 
     this.sky.syncCamera(this.camera);
+    this.afterFrame?.();
     const r = this.renderer;
     r.clear();
     r.render(this.sky.scene, this.sky.camera);
@@ -408,6 +410,16 @@ export class SurfaceWorld {
 
   beamOn = true;
   cineShowBody = true;
+  afterFrame: (() => void) | null = null;
+
+  /** Screen position (CSS px) of a sky direction; z > 1 means behind the camera. */
+  projectDir(dir: THREE.Vector3): { x: number; y: number; behind: boolean } {
+    const v = dir.clone().multiplyScalar(1000).applyQuaternion(this.camera.quaternion.clone().invert());
+    const behind = v.z > 0;
+    const p = dir.clone().multiplyScalar(1000).project(this.sky.camera);
+    const el = this.renderer.domElement;
+    return { x: ((p.x + 1) / 2) * el.clientWidth, y: ((1 - p.y) / 2) * el.clientHeight, behind };
+  }
   private waypoint: THREE.Group | null = null;
 
   /** Objective marker: a pulsing ring and a faint light column (UI, not scenery). */
@@ -438,7 +450,7 @@ export class SurfaceWorld {
       if (this.headBob && p.onGround) bob = Math.sin(p.stride * 2.2) * 0.025 * Math.min(1, p.horizontalSpeed / 1.6);
       const landing = Math.max(0, 1 - (now - p.landedAt) / 260) * 0.06;
       // eye sits inside the helmet, slightly forward of the body's centre line
-      const fx = Math.sin(p.yaw) * 0.12, fz = -Math.cos(p.yaw) * 0.12;
+      const fx = Math.sin(p.yaw) * 0.06, fz = -Math.cos(p.yaw) * 0.06;
       c.position.set(p.pos.x + fx, p.pos.y + EYE_HEIGHT + bob - landing, p.pos.z + fz);
       c.rotation.set(p.pitch, -p.yaw, 0);
     } else {

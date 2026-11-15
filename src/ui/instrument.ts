@@ -92,6 +92,7 @@ export class Instrument {
     $("instSub").textContent = sub;
     $("inst").classList.remove("hidden");
     $("inst").dataset.kind = kind;
+    $("inst").scrollTop = 0;
     ($("instPath") as HTMLInputElement).checked = this.pathOn;
     ($("instSky") as HTMLInputElement).checked = this.skylineOn;
     $("instPathLabel").textContent = kind === "comms" ? "Show Earth's path in the sky" : "Show the Sun's path in the sky";

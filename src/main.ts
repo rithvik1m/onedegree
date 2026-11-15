@@ -481,6 +481,7 @@ async function boot(): Promise<void> {
     const atOutpost = id === "outpost" || id === "survey";
     world.setSite(atOutpost ? (patches.get("outpost") as SurfacePatch) : patch, { outpost: atOutpost, survey, spawn: id === "survey" ? spawnAtSurvey() : undefined });
     store.set({ mode: "surface", here: target });
+    renderMission();
     live = { lon, lat };
     updateSky(store.s);
     if (moon) moon.pause(true);
@@ -597,6 +598,42 @@ async function boot(): Promise<void> {
     skyCheck = r;
     scanner.render(store.s);
   });
+
+  // ---------- Earth marker (always findable) ----------
+  let earthState = "";
+  const refreshEarthState = (): void => {
+    const a = analyse(data, store.s.here, windowT0, 30);
+    if (!a) { earthState = ""; return; }
+    const i = Math.max(0, Math.min(a.track.n - 1, Math.round((store.s.time - a.t0) / a.track.stepS)));
+    const up = a.real.earthUp[i] === 1;
+    const lit = Math.round(world.sky.earthLitFraction() * 100);
+    earthState = up ? `Earth · ${lit}% lit` : (a.track.earthEl[i] as number) > a.smoothDeg ? "Earth · behind terrain" : "Earth · below horizon";
+  };
+  world.afterFrame = () => {
+    const tag = $("earthTag");
+    if (store.s.mode !== "surface" || !earthState) { tag.classList.add("hidden"); return; }
+    const p = world.projectDir(world.sky.earthDir);
+    const W = window.innerWidth, H = window.innerHeight;
+    const on = !p.behind && p.x > 0 && p.x < W && p.y > 0 && p.y < H;
+    let x = p.x + 10, y = p.y - 12;
+    if (!on) {
+      const cx = W / 2, cy = H / 2;
+      let dx = p.x - cx, dy = p.y - cy;
+      if (p.behind) { dx = -dx; dy = -dy; }
+      const k = Math.min((W / 2 - 90) / Math.abs(dx || 1e-6), (H / 2 - 70) / Math.abs(dy || 1e-6));
+      x = cx + dx * k - 40; y = cy + dy * k - 12;
+    }
+    tag.classList.remove("hidden");
+    tag.classList.toggle("edge", !on);
+    tag.classList.toggle("blocked", !earthState.includes("lit"));
+    $("earthTagText").textContent = on ? earthState : `${dxArrow(p, W)} ${earthState}`;
+    tag.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
+  };
+  const dxArrow = (p: { x: number; behind: boolean }, W: number): string => ((p.behind ? W - p.x : p.x) < W / 2 ? "◂" : "▸");
+  store.on((_s, ch) => {
+    if (ch.has("time") || ch.has("here")) refreshEarthState();
+  });
+  refreshEarthState();
 
   // ---------- opening ----------
   updateSky(store.s);

@@ -68,6 +68,7 @@ export class Astronaut {
     const hips = box(0.38, 0.2, 0.26, SUIT_SHADE);
     hips.position.y = 0.98;
     this.body.add(hips);
+    this.fpHidden.push(hips);
     this.torso.position.y = 1.06;
     this.body.add(this.torso);
     const chest = box(0.5, 0.5, 0.32, SUIT);
@@ -103,7 +104,7 @@ export class Astronaut {
     const lampR = lampL.clone();
     lampR.position.x = 0.13;
     this.head.add(lampL, lampR);
-    this.fpHidden.push(this.head, plssTop);
+    this.fpHidden.push(this.head, plssTop, chest, dcm, stripe, plss);
 
     const arm = (side: number): Limb => {
       const root = new THREE.Group();
@@ -146,6 +147,8 @@ export class Astronaut {
     };
     this.armL = arm(-1);
     this.armR = arm(1);
+    // in first person the arms would sit right beside the lens; keep legs and boots
+    this.fpHidden.push(this.armL.root, this.armR.root);
     this.legL = leg(-1);
     this.legR = leg(1);
     this.root.traverse((o) => {

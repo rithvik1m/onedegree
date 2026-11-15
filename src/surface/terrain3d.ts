@@ -125,8 +125,9 @@ function ringMesh(p: SurfacePatch, i0: number, i1: number): THREE.BufferGeometry
     for (let j = 0; j < nA; j++) {
       const j1 = (j + 1) % nA;
       const a = i * nA + j, b = i * nA + j1, c = (i + 1) * nA + j, dd = (i + 1) * nA + j1;
-      idx[k++] = a; idx[k++] = c; idx[k++] = b;
-      idx[k++] = b; idx[k++] = c; idx[k++] = dd;
+      // counter-clockwise seen from above → normals point up
+      idx[k++] = a; idx[k++] = b; idx[k++] = c;
+      idx[k++] = b; idx[k++] = dd; idx[k++] = c;
     }
   }
   const g = new THREE.BufferGeometry();
