@@ -233,7 +233,13 @@ canvas.pano, canvas.strip { width: 100%; display: block; border-radius: var(--ra
   .hints { display: none; }
   .metrics { grid-template-columns: repeat(2, 1fr); }
   .scanner { top: auto; bottom: 72px; max-height: 62vh; }
-  .hud-actions .pill { height: 38px; padding: 0 12px; font-size: 12.5px; }
+  .hud-actions { flex-wrap: nowrap; gap: 6px; bottom: 10px; }
+  .hud-actions .pill { height: 36px; padding: 0 10px; font-size: 12px; }
+  .hud-actions .kbd { display: none; }
+  .scanner { bottom: 58px; }
+  .orbit-bar { bottom: 58px; }
+  .pl-head { padding: 10px 14px; }
+  .pl-head h2 { font-size: 16px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
