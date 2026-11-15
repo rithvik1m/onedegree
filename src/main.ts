@@ -23,6 +23,7 @@ import { SurfaceWorld } from "./surface/world";
 import { loadPatch, patchFromGrid, smoothPatch, groundY, lonLatToScene, type SurfacePatch } from "./surface/terrain3d";
 import { shared } from "./surface/materials";
 import { runDemo } from "./demo";
+import * as sfx from "./ui/sfx";
 
 const TOKEN_KEY = "onedegree.ionToken";
 const D2R = Math.PI / 180;
@@ -154,6 +155,7 @@ async function boot(): Promise<void> {
   let live = { lon: outpost.lon, lat: outpost.lat };
   const world = new SurfaceWorld($("surface"), {
     onPrompt: (t) => {
+      if (t) sfx.blip();
       $("prompt").classList.toggle("hidden", !t);
       if (t) $("promptText").textContent = t;
     },
@@ -227,6 +229,7 @@ async function boot(): Promise<void> {
   const stationName = (k: InstKind): string => (k === "solar" ? "Solar Monitoring Station" : k === "comms" ? "Comms Station" : "Survey point S-1");
 
   const showDebrief = (kicker: string, title: string, text: string, mission: boolean): void => {
+    sfx.chime();
     $("dbKicker").textContent = kicker;
     $("dbTitle").textContent = title;
     $("dbText").innerHTML = text;
@@ -341,6 +344,7 @@ async function boot(): Promise<void> {
 
   // ---------- interactions ----------
   function interact(id: string): void {
+    sfx.open();
     campaign.emit({ type: "interact", id });
     if (id === "solar") instrument.open("solar", outpost);
     else if (id === "comms") instrument.open("comms", outpost);
@@ -561,6 +565,7 @@ async function boot(): Promise<void> {
     updateSky(store.s);
   });
   ($("setBob") as HTMLInputElement).addEventListener("change", (e) => (world.headBob = (e.target as HTMLInputElement).checked));
+  ($("setSfx") as HTMLInputElement).addEventListener("change", (e) => sfx.setSfx((e.target as HTMLInputElement).checked));
   ($("setDetail") as HTMLInputElement).addEventListener("change", (e) => (shared.detail.value = (e.target as HTMLInputElement).checked ? 1 : 0));
   ($("setExp") as HTMLInputElement).addEventListener("input", (e) => {
     const v = Number((e.target as HTMLInputElement).value);
@@ -604,7 +609,9 @@ async function boot(): Promise<void> {
   });
 
   window.addEventListener("planner-tab", (ev) => {
-    if ((ev as CustomEvent).detail === "reality" && skyCheck) void renderReality(data, skyCheck, data.grid);
+    const prof = data.profiles.get("outpost");
+    const op = patches.get("outpost");
+    if ((ev as CustomEvent).detail === "reality" && skyCheck) void renderReality(data, skyCheck, data.grid, op && prof ? { patch: op, profile: prof } : null);
   });
   void runSkyCheck(data).then((r) => {
     skyCheck = r;

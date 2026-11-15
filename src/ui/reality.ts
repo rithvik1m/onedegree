@@ -4,9 +4,10 @@
  * visitor's browser, and the measured numbers are shown — including failures.
  */
 
+import { farHorizon, type SurfacePatch } from "../surface/terrain3d";
 import { analyse, skylineFor, type Data, type Place } from "../data";
 import { angularSeparationDeg, EARTH_RADIUS_DEG, skyAt, skyTrack } from "../science/sky";
-import { computeSkyline, elevationAngleDeg, horizonAt, smoothHorizonDeg, toPolarXY, type TerrainGrid } from "../science/terrain";
+import { computeSkyline, elevationAngleDeg, horizonAt, smoothHorizonDeg, toPolarXY, type PrecomputedProfile, type TerrainGrid } from "../science/terrain";
 import { discFractionAbove } from "../science/visibility";
 import { SUN_RADIUS_DEG } from "../science/sky";
 import { $, esc, fmtHours, fmtUtc } from "./format";
@@ -104,7 +105,7 @@ function longTermAverages(data: Data, p: Place): { sun: number; earthAny: number
   return { sun: sun / tr.n, earthAny: earth / tr.n };
 }
 
-export async function renderReality(data: Data, sky: SkyCheck, grid: TerrainGrid | null): Promise<void> {
+export async function renderReality(data: Data, sky: SkyCheck, grid: TerrainGrid | null, world: { patch: SurfacePatch; profile: PrecomputedProfile } | null = null): Promise<void> {
   const host = $("reality");
   const cards: string[] = [];
   const ok = (b: boolean): string => (b ? `<span class="pass">PASS</span>` : `<span class="fail">FAIL</span>`);
@@ -181,6 +182,26 @@ export async function renderReality(data: Data, sky: SkyCheck, grid: TerrainGrid
   cards.push(`<div class="rc-card glass"><h3>6 · Context: real landers and the lunar night</h3>
     <p>Predicted first sunset (Sun centre behind the real skyline) after each landing. Mission end times are public statements, not precise measurements, so this is context, not a pass/fail test. Athena is not listed: it tipped over, so its power loss was about orientation, not the horizon.</p>
     <table class="rc-table"><tr><th>Lander</th><th>Predicted sunset</th><th>What happened</th><th></th></tr>${ctx.join("")}</table></div>`);
+
+  if (world) {
+    // The walkable 3D terrain must show the same horizon the scanner computes.
+    const out = new Float32Array(720);
+    const t0 = performance.now();
+    farHorizon(world.patch, 0, 0, world.profile.eye_m ?? 2, 10, out);
+    const ms = performance.now() - t0;
+    let sum = 0, mx = 0, at = 0;
+    for (let k = 0; k < 720; k++) {
+      const d = Math.abs((out[k] as number) - (world.profile.horizon_deg[k] as number));
+      sum += d;
+      if (d > mx) { mx = d; at = k / 2; }
+    }
+    const mean = sum / 720;
+    cards.push(`<div class="rc-card glass"><h3>7 · The 3D world agrees with the science ${ok(mean < 0.05 && mx < 0.3)}</h3>
+      <p>The terrain you walk on at the outpost is a mesh of the same 720 great-circle rays the scanner uses (10 m near field). Just now, the horizon of that mesh, seen from the outpost at 2 m eye height, was traced in your browser (${ms.toFixed(0)} ms) and compared with the scanner's precomputed NASA LOLA skyline.</p>
+      <table class="rc-table"><tr><th>Directions</th><th>Mean |difference|</th><th>Max |difference|</th><th>Worst azimuth</th></tr>
+      <tr><td class="num">720</td><td class="num"><b>${mean.toFixed(3)}°</b></td><td class="num"><b>${mx.toFixed(3)}°</b></td><td class="num">${at.toFixed(1)}°</td></tr></table>
+      <p>So when the Sun slips behind a ridge in the 3D view, it is the ridge the numbers are about. Procedural rocks and micro-craters only change shading and are excluded from every calculation.</p></div>`);
+  }
 
   cards.push(`<div class="rc-card glass"><h3>What this does not check</h3><p>Solar-panel orientation and power, radio link budgets, boulders and slopes smaller than the DEM cells, and DEM errors (median ~0.3–0.5 m vertical in Goddard's best site DEMs). ONE DEGREE is a geometry tool for comparing sites and dates, not a landing-safety certification.</p></div>`);
   host.innerHTML = cards.join("");
