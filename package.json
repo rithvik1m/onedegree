@@ -1,0 +1,20 @@
+{
+  "name": "one-degree",
+  "private": true,
+  "version": "0.1.0",
+  "description": "ONE DEGREE — explore the Moon and test landing sites against the real terrain horizon (NASA Space Apps 2026, Lunar Landing Site Navigator).",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
+  }
+}

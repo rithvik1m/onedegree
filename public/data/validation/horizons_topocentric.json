@@ -1,0 +1,1807 @@
+{
+"source": "NASA/JPL Horizons API, OBSERVER table, CENTER='coord@301' (observer on the Moon), QUANTITIES='4'",
+"note": "Apparent azimuth (deg from north, eastward) and elevation (deg). Airless body: no refraction.",
+"retrieved_utc": "2026-11-15T20:10:32Z",
+"cases": [
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "sun",
+"t": 1708561800,
+"az": 31.31828,
+"el": 1.550648
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "sun",
+"t": 1708824600,
+"az": 354.377046,
+"el": 1.563651
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "sun",
+"t": 1709087400,
+"az": 317.427111,
+"el": 1.359903
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "sun",
+"t": 1709350200,
+"az": 280.444615,
+"el": 0.998438
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "sun",
+"t": 1709613000,
+"az": 243.409324,
+"el": 0.598143
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "sun",
+"t": 1709875800,
+"az": 206.314352,
+"el": 0.288985
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "sun",
+"t": 1710138600,
+"az": 169.181552,
+"el": 0.163835
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "sun",
+"t": 1710401400,
+"az": 132.057477,
+"el": 0.245316
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "sun",
+"t": 1710664200,
+"az": 94.977555,
+"el": 0.47093
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "sun",
+"t": 1710927000,
+"az": 57.946565,
+"el": 0.714452
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "earth",
+"t": 1708561800,
+"az": 4.025293,
+"el": 6.60793
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "earth",
+"t": 1708824600,
+"az": 0.294623,
+"el": 4.104178
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "earth",
+"t": 1709087400,
+"az": 356.08417,
+"el": 0.114769
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "earth",
+"t": 1709350200,
+"az": 352.743203,
+"el": -3.919003
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "earth",
+"t": 1709613000,
+"az": 352.250302,
+"el": -6.360646
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "earth",
+"t": 1709875800,
+"az": 355.900007,
+"el": -5.532575
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "earth",
+"t": 1710138600,
+"az": 1.967912,
+"el": -1.192578
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "earth",
+"t": 1710401400,
+"az": 6.445386,
+"el": 3.909961
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "earth",
+"t": 1710664200,
+"az": 7.211336,
+"el": 6.784285
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "earth",
+"t": 1710927000,
+"az": 4.888619,
+"el": 6.626151
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "sun",
+"t": 1830645000,
+"az": 84.304211,
+"el": 0.596685
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "sun",
+"t": 1830907800,
+"az": 47.355984,
+"el": 0.80574
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "sun",
+"t": 1831170600,
+"az": 10.456712,
+"el": 0.855995
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "sun",
+"t": 1831433400,
+"az": 333.575065,
+"el": 0.694855
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "sun",
+"t": 1831696200,
+"az": 296.66372,
+"el": 0.359404
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "sun",
+"t": 1831959000,
+"az": 259.691576,
+"el": -0.050165
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "sun",
+"t": 1832221800,
+"az": 222.658002,
+"el": -0.409496
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "sun",
+"t": 1832484600,
+"az": 185.584508,
+"el": -0.61055
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "sun",
+"t": 1832747400,
+"az": 148.503903,
+"el": -0.603827
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "sun",
+"t": 1833010200,
+"az": 111.449267,
+"el": -0.423705
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "earth",
+"t": 1830645000,
+"az": 353.833015,
+"el": 6.704697
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "earth",
+"t": 1830907800,
+"az": 352.904929,
+"el": 6.655189
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "earth",
+"t": 1831170600,
+"az": 355.823011,
+"el": 3.327758
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "earth",
+"t": 1831433400,
+"az": 1.15879,
+"el": -1.959195
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "earth",
+"t": 1831696200,
+"az": 5.613926,
+"el": -5.867684
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "earth",
+"t": 1831959000,
+"az": 7.043834,
+"el": -6.363733
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "earth",
+"t": 1832221800,
+"az": 5.514549,
+"el": -3.835364
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "earth",
+"t": 1832484600,
+"az": 2.085398,
+"el": 0.270049
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "earth",
+"t": 1832747400,
+"az": 357.8805,
+"el": 4.293647
+},
+{
+"site": "Near south pole (0 E, 89.5 S)",
+"lon": 0.0,
+"lat": -89.5,
+"body": "earth",
+"t": 1833010200,
+"az": 354.094252,
+"el": 6.774378
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "sun",
+"t": 1708561800,
+"az": 30.341029,
+"el": 9.667351
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "sun",
+"t": 1708824600,
+"az": 352.809948,
+"el": 10.86021
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "sun",
+"t": 1709087400,
+"az": 315.446772,
+"el": 8.066626
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "sun",
+"t": 1709350200,
+"az": 278.727564,
+"el": 2.433367
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "sun",
+"t": 1709613000,
+"az": 242.2026,
+"el": -3.8072
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "sun",
+"t": 1709875800,
+"az": 205.149544,
+"el": -8.211116
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "sun",
+"t": 1710138600,
+"az": 167.586905,
+"el": -8.988253
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "sun",
+"t": 1710401400,
+"az": 130.269566,
+"el": -5.831435
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "sun",
+"t": 1710664200,
+"az": 93.569208,
+"el": -0.098575
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "sun",
+"t": 1710927000,
+"az": 56.959228,
+"el": 5.87293
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "earth",
+"t": 1708561800,
+"az": 2.671707,
+"el": 15.976763
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "earth",
+"t": 1708824600,
+"az": 358.823465,
+"el": 13.47829
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "earth",
+"t": 1709087400,
+"az": 354.566524,
+"el": 9.445777
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "earth",
+"t": 1709350200,
+"az": 351.280172,
+"el": 5.342225
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "earth",
+"t": 1709613000,
+"az": 350.850214,
+"el": 2.887012
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "earth",
+"t": 1709875800,
+"az": 354.470634,
+"el": 3.792209
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "earth",
+"t": 1710138600,
+"az": 0.533904,
+"el": 8.180065
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "earth",
+"t": 1710401400,
+"az": 5.133659,
+"el": 13.251258
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "earth",
+"t": 1710664200,
+"az": 5.968725,
+"el": 16.115077
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "earth",
+"t": 1710927000,
+"az": 3.564513,
+"el": 15.987536
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "sun",
+"t": 1830645000,
+"az": 83.057082,
+"el": 1.760002
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "sun",
+"t": 1830907800,
+"az": 46.397212,
+"el": 7.312975
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "sun",
+"t": 1831170600,
+"az": 9.15902,
+"el": 10.111034
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "sun",
+"t": 1831433400,
+"az": 331.762087,
+"el": 8.962512
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "sun",
+"t": 1831696200,
+"az": 294.876669,
+"el": 4.322768
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "sun",
+"t": 1831959000,
+"az": 258.413973,
+"el": -1.961425
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "sun",
+"t": 1832221800,
+"az": 221.645255,
+"el": -7.449916
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "sun",
+"t": 1832484600,
+"az": 184.207671,
+"el": -9.95684
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "sun",
+"t": 1832747400,
+"az": 146.65782,
+"el": -8.448319
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "sun",
+"t": 1833010200,
+"az": 109.699977,
+"el": -3.60063
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "earth",
+"t": 1830645000,
+"az": 352.132116,
+"el": 15.996253
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "earth",
+"t": 1830907800,
+"az": 351.173926,
+"el": 15.924916
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "earth",
+"t": 1831170600,
+"az": 354.247189,
+"el": 12.656999
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "earth",
+"t": 1831433400,
+"az": 359.71679,
+"el": 7.412939
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "earth",
+"t": 1831696200,
+"az": 4.164167,
+"el": 3.477783
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "earth",
+"t": 1831959000,
+"az": 5.582168,
+"el": 2.961984
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "earth",
+"t": 1832221800,
+"az": 4.088092,
+"el": 5.512622
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "earth",
+"t": 1832484600,
+"az": 0.65504,
+"el": 9.643222
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "earth",
+"t": 1832747400,
+"az": 356.343693,
+"el": 13.650769
+},
+{
+"site": "IM-1 Odysseus landing site",
+"lon": 1.44,
+"lat": -80.13,
+"body": "earth",
+"t": 1833010200,
+"az": 352.400597,
+"el": 16.07169
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "sun",
+"t": 1708561800,
+"az": 2.195225,
+"el": 6.339688
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "sun",
+"t": 1708824600,
+"az": 325.080853,
+"el": 5.351584
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "sun",
+"t": 1709087400,
+"az": 288.14734,
+"el": 2.625306
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "sun",
+"t": 1709350200,
+"az": 251.316586,
+"el": -0.765179
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "sun",
+"t": 1709613000,
+"az": 214.353426,
+"el": -3.490268
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "sun",
+"t": 1709875800,
+"az": 177.17796,
+"el": -4.476526
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "sun",
+"t": 1710138600,
+"az": 139.972084,
+"el": -3.345619
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "sun",
+"t": 1710401400,
+"az": 102.92451,
+"el": -0.588076
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "sun",
+"t": 1710664200,
+"az": 65.974879,
+"el": 2.646256
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "sun",
+"t": 1710927000,
+"az": 28.932779,
+"el": 5.020957
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "earth",
+"t": 1708561800,
+"az": 334.549276,
+"el": 10.832644
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "earth",
+"t": 1708824600,
+"az": 330.892594,
+"el": 8.173573
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "earth",
+"t": 1709087400,
+"az": 326.852174,
+"el": 3.990488
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "earth",
+"t": 1709350200,
+"az": 323.72021,
+"el": -0.209528
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "earth",
+"t": 1709613000,
+"az": 323.358991,
+"el": -2.67459
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "earth",
+"t": 1709875800,
+"az": 326.944794,
+"el": -1.660869
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "earth",
+"t": 1710138600,
+"az": 332.800445,
+"el": 2.952255
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "earth",
+"t": 1710401400,
+"az": 337.09569,
+"el": 8.228019
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "earth",
+"t": 1710664200,
+"az": 337.764224,
+"el": 11.128877
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "earth",
+"t": 1710927000,
+"az": 335.421348,
+"el": 10.884649
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "sun",
+"t": 1830645000,
+"az": 55.32183,
+"el": 3.524151
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "sun",
+"t": 1830907800,
+"az": 18.306153,
+"el": 5.424375
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "sun",
+"t": 1831170600,
+"az": 341.24268,
+"el": 5.30863
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "sun",
+"t": 1831433400,
+"az": 304.317266,
+"el": 3.196264
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "sun",
+"t": 1831696200,
+"az": 267.533527,
+"el": -0.089681
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "sun",
+"t": 1831959000,
+"az": 230.675491,
+"el": -3.274051
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "sun",
+"t": 1832221800,
+"az": 193.581804,
+"el": -5.116591
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "sun",
+"t": 1832484600,
+"az": 156.362766,
+"el": -4.897175
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "sun",
+"t": 1832747400,
+"az": 119.259957,
+"el": -2.734821
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "sun",
+"t": 1833010200,
+"az": 82.331768,
+"el": 0.456602
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "earth",
+"t": 1830645000,
+"az": 324.251361,
+"el": 10.459707
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "earth",
+"t": 1830907800,
+"az": 323.317267,
+"el": 10.361404
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "earth",
+"t": 1831170600,
+"az": 326.429089,
+"el": 7.187707
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "earth",
+"t": 1831433400,
+"az": 332.023874,
+"el": 2.151761
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "earth",
+"t": 1831696200,
+"az": 336.62344,
+"el": -1.57697
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "earth",
+"t": 1831959000,
+"az": 338.063838,
+"el": -2.021277
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "earth",
+"t": 1832221800,
+"az": 336.44946,
+"el": 0.451021
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "earth",
+"t": 1832484600,
+"az": 332.858083,
+"el": 4.418966
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "earth",
+"t": 1832747400,
+"az": 328.453049,
+"el": 8.252342
+},
+{
+"site": "IM-2 Athena target",
+"lon": 29.13,
+"lat": -84.78,
+"body": "earth",
+"t": 1833010200,
+"az": 324.511314,
+"el": 10.542895
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "sun",
+"t": 1708561800,
+"az": 102.915048,
+"el": 81.957433
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "sun",
+"t": 1708824600,
+"az": 266.598829,
+"el": 60.85414
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "sun",
+"t": 1709087400,
+"az": 268.614746,
+"el": 23.94212
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "sun",
+"t": 1709350200,
+"az": 269.223502,
+"el": -13.02921
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "sun",
+"t": 1709613000,
+"az": 269.523698,
+"el": -50.061818
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "sun",
+"t": 1709875800,
+"az": 268.69803,
+"el": -87.156166
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "sun",
+"t": 1710138600,
+"az": 90.175193,
+"el": -55.710663
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "sun",
+"t": 1710401400,
+"az": 90.386229,
+"el": -18.58735
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "sun",
+"t": 1710664200,
+"az": 90.76849,
+"el": 18.49058
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "sun",
+"t": 1710927000,
+"az": 91.775946,
+"el": 55.512643
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "earth",
+"t": 1708561800,
+"az": 249.810093,
+"el": 69.263841
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "earth",
+"t": 1708824600,
+"az": 258.779236,
+"el": 66.300634
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "earth",
+"t": 1709087400,
+"az": 268.998417,
+"el": 62.49304
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "earth",
+"t": 1709350200,
+"az": 276.991262,
+"el": 58.970988
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "earth",
+"t": 1709613000,
+"az": 281.504452,
+"el": 58.151625
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "earth",
+"t": 1709875800,
+"az": 281.047133,
+"el": 61.881665
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "earth",
+"t": 1710138600,
+"az": 272.146455,
+"el": 68.383845
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "earth",
+"t": 1710401400,
+"az": 255.531381,
+"el": 72.348898
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "earth",
+"t": 1710664200,
+"az": 245.789125,
+"el": 72.153427
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "earth",
+"t": 1710927000,
+"az": 248.924588,
+"el": 70.067762
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "sun",
+"t": 1830645000,
+"az": 91.003481,
+"el": 29.162085
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "sun",
+"t": 1830907800,
+"az": 92.675945,
+"el": 66.093955
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "sun",
+"t": 1831170600,
+"az": 265.473491,
+"el": 76.941445
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "sun",
+"t": 1831433400,
+"az": 269.108468,
+"el": 40.095809
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "sun",
+"t": 1831696200,
+"az": 269.826505,
+"el": 3.190179
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "sun",
+"t": 1831959000,
+"az": 270.402819,
+"el": -33.779902
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "sun",
+"t": 1832221800,
+"az": 272.061625,
+"el": -70.803615
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "sun",
+"t": 1832484600,
+"az": 87.547762,
+"el": -72.094522
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "sun",
+"t": 1832747400,
+"az": 89.311561,
+"el": -35.027754
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "sun",
+"t": 1833010200,
+"az": 89.783475,
+"el": 2.023003
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "earth",
+"t": 1830645000,
+"az": 255.988631,
+"el": 59.449442
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "earth",
+"t": 1830907800,
+"az": 256.440287,
+"el": 58.547679
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "earth",
+"t": 1831170600,
+"az": 262.07226,
+"el": 61.978027
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "earth",
+"t": 1831433400,
+"az": 274.101143,
+"el": 67.537134
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "earth",
+"t": 1831696200,
+"az": 287.322437,
+"el": 71.290591
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "earth",
+"t": 1831959000,
+"az": 290.280481,
+"el": 72.500782
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "earth",
+"t": 1832221800,
+"az": 281.047931,
+"el": 71.663192
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "earth",
+"t": 1832484600,
+"az": 268.234418,
+"el": 68.511556
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "earth",
+"t": 1832747400,
+"az": 259.352711,
+"el": 63.888957
+},
+{
+"site": "Apollo 11 landing site",
+"lon": 23.47297,
+"lat": 0.67408,
+"body": "earth",
+"t": 1833010200,
+"az": 255.746096,
+"el": 59.689758
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "sun",
+"t": 1708561800,
+"az": 222.463983,
+"el": -34.720885
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "sun",
+"t": 1708824600,
+"az": 175.563981,
+"el": -43.406249
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "sun",
+"t": 1709087400,
+"az": 130.794487,
+"el": -31.586094
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "sun",
+"t": 1709350200,
+"az": 99.869643,
+"el": -8.32434
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "sun",
+"t": 1709613000,
+"az": 72.831394,
+"el": 17.316377
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "sun",
+"t": 1709875800,
+"az": 37.960771,
+"el": 38.643719
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "sun",
+"t": 1710138600,
+"az": 348.133656,
+"el": 44.603454
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "sun",
+"t": 1710401400,
+"az": 304.571379,
+"el": 29.906894
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "sun",
+"t": 1710664200,
+"az": 274.906387,
+"el": 5.533871
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "sun",
+"t": 1710927000,
+"az": 247.605696,
+"el": -19.974296
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "earth",
+"t": 1708561800,
+"az": 188.096109,
+"el": -38.081516
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "earth",
+"t": 1708824600,
+"az": 183.544473,
+"el": -40.838308
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "earth",
+"t": 1709087400,
+"az": 177.868097,
+"el": -44.852571
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "earth",
+"t": 1709350200,
+"az": 172.671238,
+"el": -48.671684
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "earth",
+"t": 1709613000,
+"az": 171.54771,
+"el": -51.042463
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "earth",
+"t": 1709875800,
+"az": 177.346733,
+"el": -50.464682
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "earth",
+"t": 1710138600,
+"az": 186.271007,
+"el": -45.999673
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "earth",
+"t": 1710401400,
+"az": 191.593815,
+"el": -40.455777
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "earth",
+"t": 1710664200,
+"az": 192.028282,
+"el": -37.513524
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "earth",
+"t": 1710927000,
+"az": 189.172687,
+"el": -37.972235
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "sun",
+"t": 1830645000,
+"az": 267.262675,
+"el": -1.925399
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "sun",
+"t": 1830907800,
+"az": 238.589553,
+"el": -26.584512
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "sun",
+"t": 1831170600,
+"az": 197.65371,
+"el": -42.806256
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "sun",
+"t": 1831433400,
+"az": 148.091808,
+"el": -39.627904
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "sun",
+"t": 1831696200,
+"az": 111.698759,
+"el": -19.827804
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "sun",
+"t": 1831959000,
+"az": 84.375494,
+"el": 5.567995
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "sun",
+"t": 1832221800,
+"az": 54.55601,
+"el": 29.678608
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "sun",
+"t": 1832484600,
+"az": 11.115244,
+"el": 43.903902
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "sun",
+"t": 1832747400,
+"az": 322.107216,
+"el": 37.655485
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "sun",
+"t": 1833010200,
+"az": 287.65342,
+"el": 16.303888
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "earth",
+"t": 1830645000,
+"az": 175.256262,
+"el": -38.191246
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "earth",
+"t": 1830907800,
+"az": 174.086748,
+"el": -38.177004
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "earth",
+"t": 1831170600,
+"az": 177.635891,
+"el": -41.636498
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "earth",
+"t": 1831433400,
+"az": 185.182824,
+"el": -46.818926
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "earth",
+"t": 1831696200,
+"az": 192.474167,
+"el": -50.217278
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "earth",
+"t": 1831959000,
+"az": 194.79649,
+"el": -50.471254
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "earth",
+"t": 1832221800,
+"az": 191.865508,
+"el": -48.234712
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "earth",
+"t": 1832484600,
+"az": 186.280858,
+"el": -44.546434
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "earth",
+"t": 1832747400,
+"az": 180.369899,
+"el": -40.706768
+},
+{
+"site": "Far side, Von Karman crater",
+"lon": 177.6,
+"lat": -45.44,
+"body": "earth",
+"t": 1833010200,
+"az": 175.589547,
+"el": -38.13712
+}
+]
+}
