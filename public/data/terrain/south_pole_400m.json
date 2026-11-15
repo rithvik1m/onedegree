@@ -1,0 +1,10 @@
+{
+ "source": "Downsampled (5x5 block mean) from NASA Goddard LDEM_80S_80MPP_ADJ (Barker et al. 2023, PGDA product 90)",
+ "crs": "+proj=stere +lat_0=-90 +lat_ts=-90 +lon_0=0 +x_0=0 +y_0=0 +R=1737400 +units=m +no_defs",
+ "width": 1520,
+ "height": 1520,
+ "x0": -304000.0,
+ "y0": 304000.0,
+ "px_m": 400.0,
+ "dtype": "int16 little-endian, metres above the 1737.4 km sphere, -32768 = no data"
+}
