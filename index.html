@@ -125,6 +125,16 @@
           <article class="site-col glass" id="colA"></article>
           <article class="site-col glass" id="colB"></article>
         </div>
+        <div class="map-card glass">
+          <div class="map-side">
+            <h3>South-pole map</h3>
+            <p class="dim">LOLA shaded relief, 80–90°S. <span style="color:#f2b544">Amber</span> = ground NASA Goddard's 18.6-year illumination map (Mazarico et al.) shows lit 15–55 %+ of the time; <span style="color:#7aa7e6">blue</span> = near-permanent shadow, where water ice can survive. Click anywhere to put Site A or B there — its skyline is computed live from LOLA terrain.</p>
+            <div class="seg small" id="mapTarget" role="radiogroup" aria-label="Map click sets"><button data-v="a" aria-checked="true">Click sets A</button><button data-v="b" aria-checked="false">Click sets B</button></div>
+            <label class="check"><input type="checkbox" id="mapSun" checked /> Show NASA sunlight map</label>
+            <p class="dim small">Rings: 85°S and 88°S. Top of the map faces 0°E (the near side).</p>
+          </div>
+          <canvas id="polarMap" width="520" height="520" aria-label="South polar map; click to choose a site"></canvas>
+        </div>
         <div class="custom glass">
           <b>Custom point</b>
           <label class="field inline"><span>Lat</span><input id="cuLat" type="number" step="0.01" value="-85.30" /></label>

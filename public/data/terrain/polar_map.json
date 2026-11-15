@@ -1,0 +1,7 @@
+{
+ "size": 1024,
+ "half_m": 304000.0,
+ "relief": "Hillshade of NASA Goddard LDEM_80S_80MPP_ADJ (Barker et al. 2023)",
+ "sunlight": "NASA Goddard AVGVISIB_75S_120M_201608 (Mazarico et al.), 18.6-year average solar visibility; amber ramps from 15% to 55% lit; blue = under 0.5% (near-permanent shadow), after averaging to ~594 m/px",
+ "max_fraction": 0.5699687600135803
+}

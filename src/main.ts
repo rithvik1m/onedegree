@@ -8,6 +8,7 @@ import { $, fmtLat, fmtLon, fmtUtc } from "./ui/format";
 import { Planner, Scanner } from "./ui/panels";
 import { renderReality, runSkyCheck, type SkyCheck } from "./ui/reality";
 import { renderAbout } from "./ui/about";
+import { PolarMap } from "./ui/polarmap";
 import { runDemo } from "./demo";
 
 const TOKEN_KEY = "onedegree.ionToken";
@@ -82,6 +83,7 @@ async function boot(): Promise<void> {
   const scanner = new Scanner(data, store, horizonsErr);
   const planner = new Planner(data, store, horizonsErr, allPlaces);
   renderAbout();
+  const polarMap = new PolarMap(store, allPlaces);
 
   // 3D Moon
   progress("Building the Moon…");
@@ -135,6 +137,7 @@ async function boot(): Promise<void> {
     updateReadout(s);
     scanner.render(s);
     if (planner.isOpen() && (ch.has("a") || ch.has("b") || ch.has("landing") || ch.has("slipDays") || ch.has("windowDays") || ch.has("terrain") || ch.has("plannerIndex"))) planner.render(s);
+    if (ch.has("a") || ch.has("b")) polarMap.draw(s);
     if (ch.has("here") || ch.has("time")) writeUrl(s);
   });
 
@@ -194,7 +197,10 @@ async function boot(): Promise<void> {
     store.set({ a: store.s.here, plannerIndex: 0, landing: Math.floor(store.s.time / 86400) * 86400 });
     planner.show("compare");
   });
-  $("btnPlanner").addEventListener("click", () => planner.show("compare"));
+  $("btnPlanner").addEventListener("click", () => {
+    planner.show("compare");
+    polarMap.draw(store.s);
+  });
   $("btnDemo").addEventListener("click", () => void runDemo({ store, scanner, planner, moon, caption, data }));
 
   window.addEventListener("keydown", (e) => {
