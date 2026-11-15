@@ -15,7 +15,7 @@ export function renderAbout(): void {
   <div class="rc-card glass"><h3>Data sources</h3><ul>
     <li>NASA/JPL Horizons API — <a href="https://ssd.jpl.nasa.gov/horizons/" target="_blank" rel="noopener">ssd.jpl.nasa.gov/horizons</a></li>
     <li>NASA Goddard PGDA — LOLA south-pole DEMs, Barker et al. 2023 (LDEM_80S_20MPP_ADJ, LDEM_80S_80MPP_ADJ, LDEM_60S_240MPP_ADJ) — <a href="https://pgda.gsfc.nasa.gov/products/90" target="_blank" rel="noopener">pgda.gsfc.nasa.gov/products/90</a></li>
-    <li>NASA Goddard PGDA — Lunar Polar Illumination, Mazarico et al. (AVGVISIB maps, used only for validation) — <a href="https://pgda.gsfc.nasa.gov/products/69" target="_blank" rel="noopener">pgda.gsfc.nasa.gov/products/69</a></li>
+    <li>NASA Goddard PGDA — Lunar Polar Illumination, Mazarico et al. (AVGVISIB maps: Reality Check and the planner's south-pole map) — <a href="https://pgda.gsfc.nasa.gov/products/69" target="_blank" rel="noopener">pgda.gsfc.nasa.gov/products/69</a></li>
     <li>NASA Moon Trek — LRO WAC global mosaic tiles for the 3D globe — <a href="https://trek.nasa.gov/moon/" target="_blank" rel="noopener">trek.nasa.gov/moon</a></li>
     <li>Cesium Moon Terrain (Cesium ion asset 2684829), when a token is supplied — <a href="https://cesium.com/platform/cesium-ion/content/cesium-moon/" target="_blank" rel="noopener">cesium.com</a></li>
     <li>Site coordinates — LROC (IM-1, IM-2), IAU/WGPSN (Statio Shiv Shakti); Artemis regions named per NASA (Oct 2024), not given as points.</li>

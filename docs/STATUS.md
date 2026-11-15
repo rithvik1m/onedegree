@@ -14,7 +14,10 @@
 | First person + astronaut body + third person (V) | Done (body is a T-posed NASA model) | screenshots |
 | Orbit, click-to-land, descent/ascent | Done | screenshots |
 | Scanner, planner, compare, date slip | Done | screenshots |
+| 2D south-pole map (relief + NASA sunlight/shadow), click to set A/B | Done | click at 89.38°S → live skyline, 0% sunlit vs 51% smooth |
+| Phone layout | Done | 390 px screenshots |
+| Production build | Done | `vite preview`, no console errors |
 | Reality Check (live) | Done | in-app |
-| 30-s guided demo | Implemented; recording pending | `src/demo.ts` |
+| 30-s guided demo | Done; 27 s recording at submission/onedegree_demo.mp4 (git-ignored) | `src/demo.ts` |
 | Vercel deploy | Waiting for owner to import the repo | `vercel.json` |
 | Submission copy | Draft | `submission/` |
