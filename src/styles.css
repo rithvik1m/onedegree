@@ -130,7 +130,7 @@ h2, h3 { margin: 0; font-weight: 650; letter-spacing: -0.01em; text-wrap: balanc
 .hints.fade { opacity: 0; }
 .toast { position: fixed; top: 76px; left: 50%; transform: translateX(-50%) translateY(-8px); z-index: 60; padding: 10px 16px; border-radius: var(--radius-pill); background: var(--material), var(--popover); box-shadow: var(--elev-panel); font-size: 13px; opacity: 0; pointer-events: none; transition: opacity 0.3s, transform 0.4s var(--ease-out); max-width: min(90vw, 620px); text-align: center; }
 .toast.show { opacity: 1; transform: translateX(-50%); }
-.caption { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); z-index: 70; font-size: clamp(18px, 2.6vw, 28px); font-weight: 650; text-align: center; max-width: min(92vw, 900px); text-shadow: 0 2px 6px #000, 0 0 30px #000; opacity: 0; transition: opacity 0.5s; pointer-events: none; }
+.caption { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); z-index: 70; font-size: clamp(18px, 2.4vw, 26px); font-weight: 650; text-align: center; max-width: min(92vw, 940px); padding: 12px 22px; border-radius: 16px; background: rgb(6 6 7 / 0.78); box-shadow: 0 10px 40px rgb(0 0 0 / 0.6), inset 0 0 0 1px rgb(255 255 255 / 0.08); backdrop-filter: blur(8px); opacity: 0; transition: opacity 0.45s; pointer-events: none; text-wrap: balance; }
 .caption.show { opacity: 1; }
 
 /* Orbit bar */
@@ -238,3 +238,6 @@ canvas.pano, canvas.strip { width: 100%; display: block; border-radius: var(--ra
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* Guided demo: keep the frame clean for the recording. */
+body.demo #orbitBar, body.demo #hints, body.demo #tokenDlg { display: none !important; }

@@ -424,7 +424,7 @@ export class MoonScene {
       const [clon, clat] = greatCircle(w.lon, w.lat, w.heading + Math.PI, 5);
       const cg = this.groundAt(clon, clat) ?? w.ground;
       const camH = Math.max(cg + 1.2, w.ground + 2.4 + w.z);
-      cam.setView({ destination: Cesium.Cartesian3.fromDegrees(clon, clat, camH, Cesium.Ellipsoid.MOON), orientation: { heading: w.heading, pitch: Math.max(-0.9, Math.min(0.6, w.pitch - 0.18)), roll: 0 } });
+      cam.setView({ destination: Cesium.Cartesian3.fromDegrees(clon, clat, camH, Cesium.Ellipsoid.MOON), orientation: { heading: w.heading, pitch: Math.max(-0.9, Math.min(0.6, w.pitch - 0.06)), roll: 0 } });
     } else {
       const eye = Cesium.Cartesian3.fromDegrees(w.lon, w.lat, w.ground + EYE + w.z, Cesium.Ellipsoid.MOON);
       cam.setView({ destination: eye, orientation: { heading: w.heading, pitch: w.pitch, roll: 0 } });

@@ -11,3 +11,4 @@ data_raw/
 test-results/
 playwright-report/
 __pycache__/
+*.mp4
