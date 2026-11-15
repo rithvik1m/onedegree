@@ -544,6 +544,18 @@ async function boot(): Promise<void> {
   $("btnPlanner").addEventListener("click", () => openControl());
   $("plClose").addEventListener("click", () => document.body.classList.remove("console"));
   $("btnSettings").addEventListener("click", () => $("settings").classList.toggle("hidden"));
+  $("setToken").addEventListener("click", () => {
+    const dlg = $("tokenDlg") as HTMLDialogElement;
+    dlg.addEventListener("close", () => {
+      const v = ($("tokenIn") as HTMLInputElement).value.trim();
+      if (dlg.returnValue === "save" && v) {
+        try { localStorage.setItem(TOKEN_KEY, v); } catch { /* storage blocked */ }
+        toast("Token saved in this browser only. It is used the next time the orbit globe loads (reload the page).", 6000);
+      }
+    }, { once: true });
+    if (document.pointerLockElement) document.exitPointerLock();
+    dlg.showModal();
+  });
   ($("setReal") as HTMLInputElement).addEventListener("change", (e) => {
     world.realisticDark = (e.target as HTMLInputElement).checked;
     updateSky(store.s);
@@ -598,6 +610,31 @@ async function boot(): Promise<void> {
     skyCheck = r;
     scanner.render(store.s);
   });
+
+  // ---------- touch controls ----------
+  const touch = matchMedia("(pointer: coarse)").matches;
+  $("prompt").addEventListener("click", () => world.useCurrent());
+  if (touch) {
+    $("stick").classList.remove("hidden");
+    $("btnJump").classList.remove("hidden");
+    $("btnJump").addEventListener("pointerdown", (e) => { e.preventDefault(); world.player.jump(); });
+    const stick = $("stick"), knob = $("stickKnob");
+    let id = -1;
+    const move = (e: PointerEvent): void => {
+      const r = stick.getBoundingClientRect();
+      let dx = (e.clientX - (r.left + r.width / 2)) / (r.width / 2);
+      let dy = (e.clientY - (r.top + r.height / 2)) / (r.height / 2);
+      const m = Math.hypot(dx, dy);
+      if (m > 1) { dx /= m; dy /= m; }
+      knob.style.transform = `translate(${dx * 34}px, ${dy * 34}px)`;
+      world.setStick(dx, -dy);
+    };
+    stick.addEventListener("pointerdown", (e) => { id = e.pointerId; stick.setPointerCapture(id); move(e); e.stopPropagation(); });
+    stick.addEventListener("pointermove", (e) => { if (e.pointerId === id) move(e); });
+    const end = (): void => { id = -1; knob.style.transform = ""; world.setStick(0, 0); };
+    stick.addEventListener("pointerup", end);
+    stick.addEventListener("pointercancel", end);
+  }
 
   // ---------- Earth marker (always findable) ----------
   let earthState = "";

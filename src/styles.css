@@ -403,3 +403,22 @@ body.demo .tutorial, body.demo .prompt, body.demo #mission, body.demo .settings,
 .sky-tag.edge { color: var(--text-dim); }
 .sky-tag.blocked { color: #ff9b82; box-shadow: inset 0 0 0 1px rgb(255 120 90 / 0.4); }
 body.intro-on .sky-tag, body.demo .sky-tag, body.in-orbit .sky-tag { display: none !important; }
+
+/* Touch controls */
+.stick { position: fixed; left: 18px; bottom: 74px; z-index: 22; width: 112px; height: 112px; border-radius: 50%; background: rgb(255 255 255 / 0.06); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.16), 0 6px 24px rgb(0 0 0 / 0.4); touch-action: none; backdrop-filter: blur(6px); }
+.stick-knob { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; background: var(--material), rgb(242 181 68 / 0.85); box-shadow: var(--elev-control); transition: transform 0.05s; }
+.touch-btn { position: fixed; right: 20px; bottom: 90px; z-index: 22; width: 64px; height: 64px; border: 0; border-radius: 50%; font-size: 26px; color: var(--text); background: var(--material), rgb(28 28 30 / 0.85); box-shadow: var(--elev-control); touch-action: none; }
+button.prompt { border: 0; color: var(--text); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+body.in-orbit .stick, body.in-orbit .touch-btn, body.intro-on .stick, body.intro-on .touch-btn, body.demo .stick, body.demo .touch-btn { display: none !important; }
+@media (max-width: 860px) {
+  .brand { display: none; }
+  .hud-top { justify-content: flex-end; }
+  .ro-item:nth-child(3), .ro-item:nth-child(4) { display: none; }
+  .mission { top: 70px; }
+  .hud-actions { left: 8px; right: 8px; transform: none; width: auto; max-width: none; overflow-x: auto; justify-content: flex-start; scrollbar-width: none; }
+  .hud-actions::-webkit-scrollbar { display: none; }
+  #btnDemo, #btnMissions { display: none; }
+  .caption { bottom: 150px; font-size: 17px; }
+  .prompt { bottom: 196px; }
+  .inst { bottom: 62px; max-height: 58vh; }
+}

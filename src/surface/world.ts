@@ -116,6 +116,22 @@ export class SurfaceWorld {
     this.bindInput();
   }
 
+  /** Use the current prompt (touch: tap the prompt). */
+  useCurrent(): void {
+    if (this.prompt && !this.cine) this.ev.onInteract(this.prompt.id);
+  }
+
+  /** Analog stick for touch screens: x right, y forward, each in [-1, 1]. */
+  setStick(x: number, y: number): void {
+    const k = this.player.keys;
+    for (const c of ["KeyW", "KeyA", "KeyS", "KeyD", "ShiftLeft"]) k.delete(c);
+    if (y > 0.3) k.add("KeyW");
+    if (y < -0.3) k.add("KeyS");
+    if (x > 0.3) k.add("KeyD");
+    if (x < -0.3) k.add("KeyA");
+    if (Math.hypot(x, y) > 0.92) k.add("ShiftLeft");
+  }
+
   // ---------- input ----------
   private bindInput(): void {
     const el = this.renderer.domElement;
