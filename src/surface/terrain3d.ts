@@ -45,12 +45,18 @@ export function ringRadii(): Float64Array {
   return Float64Array.from(r);
 }
 
+export interface PatchMeta {
+  lon: number; lat: number; ground_m: number; n_az: number; radii_m: number[]; n_rings: number; n_near: number; dems: string[]; finest_to_m: Record<string, number>;
+}
+
 /** Precomputed LOLA patch (public/data/surface/<id>.{json,bin}). */
 export async function loadPatch(id: string): Promise<SurfacePatch> {
-  const meta = (await (await fetch(`/data/surface/${id}.json`)).json()) as {
-    lon: number; lat: number; ground_m: number; n_az: number; radii_m: number[]; n_rings: number; n_near: number; dems: string[]; finest_to_m: Record<string, number>;
-  };
+  const meta = (await (await fetch(`/data/surface/${id}.json`)).json()) as PatchMeta;
   const buf = await (await fetch(`/data/surface/${id}.bin`)).arrayBuffer();
+  return parsePatch(id, meta, buf);
+}
+
+export function parsePatch(id: string, meta: PatchMeta, buf: ArrayBuffer): SurfacePatch {
   const nA = meta.n_az;
   const near = new Float32Array(buf, 0, meta.n_near * nA);
   const far = new Int16Array(buf, meta.n_near * nA * 4, (meta.n_rings - meta.n_near) * nA);
