@@ -77,6 +77,32 @@ export class Scanner {
       if (ev.buttons) seek(ev);
     });
     $("scClose").addEventListener("click", () => this.hide());
+    // Time-lapse: advance the shared clock; 3D light, sky, panorama and readouts follow.
+    let speed = 4;
+    let timer = 0;
+    const play = $("scPlay");
+    const stop = (): void => {
+      window.clearInterval(timer);
+      timer = 0;
+      play.textContent = "▶";
+      play.setAttribute("aria-pressed", "false");
+    };
+    play.addEventListener("click", () => {
+      if (timer) return stop();
+      play.textContent = "❚❚";
+      play.setAttribute("aria-pressed", "true");
+      timer = window.setInterval(() => {
+        const t = this.store.s.time + speed * 3600 * 0.1;
+        if (t > this.data.table.start_unix + (this.data.table.n - 2) * 3600) return stop();
+        this.store.set({ time: t });
+      }, 100);
+    });
+    for (const b of $("speedSeg").querySelectorAll<HTMLButtonElement>("button")) {
+      b.addEventListener("click", () => {
+        speed = Number(b.dataset.v);
+        for (const x of $("speedSeg").querySelectorAll("button")) x.setAttribute("aria-checked", String(x === b));
+      });
+    }
     for (const b of $("terrainSeg").querySelectorAll("button")) {
       b.addEventListener("click", () => this.store.set({ terrain: (b as HTMLElement).dataset.v as "real" | "smooth" }));
     }
@@ -106,6 +132,7 @@ export class Scanner {
     const a = analyse(this.data, p, t0, 30);
     this.analysis = a;
     $("scName").textContent = p.name;
+    $("scTime").textContent = `${fmtUtc(s.time)} UTC`;
     const g = groundHeightAt(this.data, p);
     $("scCoords").textContent = `${fmtLat(p.lat)} · ${fmtLon(p.lon)}${g !== null ? ` · ${Math.round(g).toLocaleString()} m` : ""}`;
     $("scBadges").innerHTML = statusBadges(a, this.horizonsErr());

@@ -89,6 +89,11 @@
         <button role="radio" data-v="real" aria-checked="true">Real LOLA terrain</button>
         <button role="radio" data-v="smooth" aria-checked="false">Smooth Moon</button>
       </div>
+      <div class="sc-time">
+        <button id="scPlay" class="round play" aria-label="Play time-lapse" title="Time-lapse: 4 hours per second">▶</button>
+        <div><div class="now-label">Time (UTC)</div><div id="scTime" class="mono">—</div></div>
+        <div class="seg small" id="speedSeg" role="radiogroup" aria-label="Time-lapse speed"><button data-v="1" aria-checked="false">1 h/s</button><button data-v="4" aria-checked="true">4 h/s</button><button data-v="24" aria-checked="false">1 d/s</button></div>
+      </div>
       <canvas id="scPano" class="pano" height="170" aria-label="360 degree skyline with Sun and Earth paths"></canvas>
       <canvas id="scStrip" class="strip" height="86" aria-label="Sunlight and Earth visibility over 30 days"></canvas>
       <div id="scMetrics" class="metrics compact"></div>

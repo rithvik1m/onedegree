@@ -258,3 +258,8 @@ body.demo #orbitBar, body.demo #hints, body.demo #tokenDlg { display: none !impo
 .check input { accent-color: var(--sun); }
 #polarMap { width: 100%; aspect-ratio: 1; border-radius: var(--radius); cursor: crosshair; background: #050506; box-shadow: inset 0 0 0 1px var(--hairline); }
 @media (max-width: 860px) { .map-card { grid-template-columns: 1fr; } }
+
+.sc-time { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; }
+.sc-time #scTime { font-size: 13px; }
+.round.play { color: var(--sun-ink); font-size: 12px; }
+.round.play[aria-pressed="true"] { background: var(--material), color-mix(in oklab, var(--sun) 30%, var(--popover)); }
