@@ -1,0 +1,75 @@
+{
+ "source": "NASA Goddard PGDA product 69 (Mazarico et al.), AVGVISIB_75S_120M_201608 and _EARTH: hourly visibility averaged over 18.6 years, 120 m/px",
+ "url": "https://pgda.gsfc.nasa.gov/products/69",
+ "rules": "Sun: fraction of the solar disc visible, averaged. Earth: visible if any part of its disc is above the terrain.",
+ "sun": {
+  "meta": {
+   "crs": "+proj=stere +lat_0=-90 +lat_ts=-90 +lon_0=0 +x_0=0 +y_0=0 +R=1737400 +units=m +no_defs=True",
+   "res_m": 120.0,
+   "dtype": "int16",
+   "nodata": -32768.0,
+   "global_min": 0.0,
+   "global_max": 22396.0
+  },
+  "sites": {
+   "im2": {
+    "value": 11616.0,
+    "neighbourhood_min": 11348.0,
+    "neighbourhood_max": 11640.0,
+    "fraction": 0.4646
+   },
+   "im1": {
+    "value": 8892.0,
+    "neighbourhood_min": 8546.0,
+    "neighbourhood_max": 10066.0,
+    "fraction": 0.3557
+   },
+   "ch3": {
+    "value": null,
+    "note": "outside map"
+   },
+   "sp895": {
+    "value": 3014.0,
+    "neighbourhood_min": 2899.0,
+    "neighbourhood_max": 3464.0,
+    "fraction": 0.1206
+   }
+  }
+ },
+ "earth": {
+  "meta": {
+   "crs": "+proj=stere +lat_0=-90 +lat_ts=-90 +lon_0=0 +x_0=0 +y_0=0 +R=1737400 +units=m +no_defs=True",
+   "res_m": 120.0,
+   "dtype": "int16",
+   "nodata": -32768.0,
+   "global_min": 0.0,
+   "global_max": 25000.0
+  },
+  "sites": {
+   "im2": {
+    "value": 23278.0,
+    "neighbourhood_min": 21979.0,
+    "neighbourhood_max": 23281.0,
+    "fraction": 0.9311
+   },
+   "im1": {
+    "value": 25000.0,
+    "neighbourhood_min": 25000.0,
+    "neighbourhood_max": 25000.0,
+    "fraction": 1.0
+   },
+   "ch3": {
+    "value": null,
+    "note": "outside map"
+   },
+   "sp895": {
+    "value": 11705.0,
+    "neighbourhood_min": 11528.0,
+    "neighbourhood_max": 12036.0,
+    "fraction": 0.4682
+   }
+  }
+ },
+ "scaling_factor": 4e-05,
+ "scaling_source": "PDS label AVGVISIB_75S_120M_201608.LBL: AVERAGE_VISIBILITY = DN * 0.00004 (DN 25000 = 1)"
+}

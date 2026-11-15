@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ONE DEGREE — Lunar Landing Site Navigator</title>
+    <meta name="description" content="Walk the Moon and test landing sites: NASA/JPL Horizons Sun and Earth positions against the real LRO/LOLA terrain horizon." />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&family=JetBrains+Mono:wght@400..600&display=swap" />
+    <script>window.CESIUM_BASE_URL = "https://cesium.com/downloads/cesiumjs/releases/1.143/Build/Cesium/";</script>
+    <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.143/Build/Cesium/Widgets/widgets.css" />
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.143/Build/Cesium/Cesium.js"></script>
+  </head>
+  <body>
+    <div id="viewer" aria-label="3D Moon"></div>
+
+    <!-- Launch screen -->
+    <div id="boot" class="boot" role="status" aria-live="polite">
+      <div class="boot-mark">ONE&nbsp;DEGREE</div>
+      <div class="boot-line" aria-hidden="true"><span></span></div>
+      <p id="bootText" class="boot-text">Loading NASA ephemeris…</p>
+    </div>
+
+    <!-- Persistent status strip -->
+    <header class="hud-top">
+      <div class="brand">
+        <span class="brand-mark">ONE DEGREE</span>
+        <span class="brand-sub">On the Moon, one degree decides everything.</span>
+      </div>
+      <div class="hud-readout glass" id="readout">
+        <span class="ro-item"><span class="ro-label">Site</span><span id="roSite" class="ro-value">—</span></span>
+        <span class="ro-item"><span class="ro-label">Lat / Lon</span><span id="roCoords" class="ro-value mono">—</span></span>
+        <span class="ro-item"><span class="ro-label">UTC</span><span id="roTime" class="ro-value mono">—</span></span>
+        <span class="ro-item"><span class="ro-label">Mode</span><span id="roMode" class="ro-value">—</span></span>
+      </div>
+    </header>
+
+    <!-- Primary actions -->
+    <nav class="hud-actions" aria-label="Main actions">
+      <button id="btnScan" class="pill primary" title="Scan this landing site (M)"><span class="kbd">M</span> Scan this site</button>
+      <button id="btnOrbit" class="pill" title="Launch to orbit (O)"><span class="kbd">O</span> <span id="btnOrbitLabel">Launch to orbit</span></button>
+      <button id="btnPlanner" class="pill" title="Open the mission planner (P)"><span class="kbd">P</span> Planner</button>
+      <button id="btnDemo" class="pill ghost" title="Play the 30-second guided demo">▶ 30s demo</button>
+    </nav>
+
+    <!-- Controls hint (first person) -->
+    <div id="hints" class="hints glass" aria-hidden="true">
+      <span><b>Click</b> to look</span><span><b>WASD</b> walk</span><span><b>Shift</b> run</span><span><b>Space</b> hop</span><span><b>Esc</b> release</span>
+    </div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <div id="caption" class="caption" aria-live="polite"></div>
+
+    <!-- Orbit picker -->
+    <div id="orbitBar" class="orbit-bar glass hidden">
+      <div class="orbit-copy"><b>Orbit.</b> Click anywhere on the Moon to choose a landing point, or jump to a site.</div>
+      <div class="orbit-sites" id="orbitSites"></div>
+      <div class="orbit-pick">
+        <span id="pickLabel" class="mono">No point chosen</span>
+        <button id="btnLand" class="pill primary" disabled>Land here</button>
+      </div>
+    </div>
+
+    <!-- Scanner -->
+    <aside id="scanner" class="scanner glass hidden" aria-label="Site scanner">
+      <div class="sc-head">
+        <div>
+          <div class="eyebrow">Field scanner</div>
+          <h2 id="scName">—</h2>
+          <div id="scCoords" class="mono dim">—</div>
+        </div>
+        <button class="round" id="scClose" aria-label="Close scanner">✕</button>
+      </div>
+      <div id="scBadges" class="badges"></div>
+      <div class="sc-now">
+        <div class="now-card sun">
+          <div class="now-label">Sun now</div>
+          <div class="now-big" id="scSunBig">—</div>
+          <div class="now-sub" id="scSunSub">—</div>
+        </div>
+        <div class="now-card earth">
+          <div class="now-label">Earth now</div>
+          <div class="now-big" id="scEarthBig">—</div>
+          <div class="now-sub" id="scEarthSub">—</div>
+        </div>
+      </div>
+      <div class="seg" role="radiogroup" aria-label="Horizon model" id="terrainSeg">
+        <button role="radio" data-v="real" aria-checked="true">Real LOLA terrain</button>
+        <button role="radio" data-v="smooth" aria-checked="false">Smooth Moon</button>
+      </div>
+      <canvas id="scPano" class="pano" height="170" aria-label="360 degree skyline with Sun and Earth paths"></canvas>
+      <canvas id="scStrip" class="strip" height="86" aria-label="Sunlight and Earth visibility over 30 days"></canvas>
+      <div id="scMetrics" class="metrics compact"></div>
+      <p id="scNote" class="note"></p>
+      <button id="scOpenPlanner" class="pill wide">Open full planner · compare &amp; date slip</button>
+    </aside>
+
+    <!-- Planner -->
+    <section id="planner" class="planner hidden" aria-label="Mission planner">
+      <div class="pl-head">
+        <div>
+          <div class="eyebrow">Mission planner</div>
+          <h2>Will the Sun and Earth clear the real horizon?</h2>
+        </div>
+        <div class="tabs" role="tablist">
+          <button role="tab" data-tab="compare" aria-selected="true">Compare &amp; slip</button>
+          <button role="tab" data-tab="reality" aria-selected="false">Reality check</button>
+          <button role="tab" data-tab="about" aria-selected="false">Data &amp; method</button>
+        </div>
+        <button class="round" id="plClose" aria-label="Close planner">✕</button>
+      </div>
+
+      <div class="pl-body" data-panel="compare">
+        <div class="pl-controls glass">
+          <label class="field"><span>Site A</span><select id="selA"></select></label>
+          <label class="field"><span>Site B</span><select id="selB"></select></label>
+          <label class="field"><span>Planned landing (UTC)</span><input id="dateIn" type="date" min="2023-08-01" max="2028-11-30" /></label>
+          <label class="field slip"><span>Schedule slip <b id="slipOut">0 days</b></span><input id="slipIn" type="range" min="-14" max="14" step="1" value="0" /></label>
+          <div class="field"><span>Window</span><div class="seg small" id="winSeg"><button data-v="14" aria-checked="false">14 d</button><button data-v="30" aria-checked="true">30 d</button></div></div>
+          <div class="field"><span>Horizon</span><div class="seg small" id="plTerrainSeg"><button data-v="real" aria-checked="true">Real terrain</button><button data-v="smooth" aria-checked="false">Smooth Moon</button></div></div>
+        </div>
+        <div id="verdict" class="verdict glass"></div>
+        <div class="pl-grid">
+          <article class="site-col glass" id="colA"></article>
+          <article class="site-col glass" id="colB"></article>
+        </div>
+        <div class="custom glass">
+          <b>Custom point</b>
+          <label class="field inline"><span>Lat</span><input id="cuLat" type="number" step="0.01" value="-85.30" /></label>
+          <label class="field inline"><span>Lon (E)</span><input id="cuLon" type="number" step="0.01" value="35.00" /></label>
+          <button id="cuAddA" class="pill small">Set as A</button>
+          <button id="cuAddB" class="pill small">Set as B</button>
+          <span class="dim">South of 80°S the skyline is computed live from NASA LOLA terrain (400 m); elsewhere it is labelled geometric-only.</span>
+        </div>
+      </div>
+
+      <div class="pl-body hidden" data-panel="reality" id="reality"></div>
+      <div class="pl-body hidden" data-panel="about" id="about"></div>
+    </section>
+
+    <!-- Cesium token dialog -->
+    <dialog id="tokenDlg" class="dlg">
+      <form method="dialog">
+        <h3>Real 3D terrain (optional)</h3>
+        <p>The walkable 3D surface uses <b>Cesium Moon</b> tiles, which need a free Cesium ion token. Without one you get NASA LRO imagery with LOLA relief near the south pole — the science works either way.</p>
+        <input id="tokenIn" type="text" placeholder="Paste a Cesium ion access token" autocomplete="off" />
+        <div class="dlg-actions">
+          <button value="skip" class="pill ghost">Continue without</button>
+          <button value="save" class="pill primary">Use token</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
