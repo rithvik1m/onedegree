@@ -12,6 +12,7 @@ import { regolithMaterial, shared } from "./materials";
 import { buildLander, buildOutpost, label, type Interactable, type OutpostRefs } from "./outpost";
 import { EYE_HEIGHT, Player } from "./player";
 import { Sky3D, dirFromAzEl } from "./sky3d";
+import { Interior } from "./interior";
 import { buildTerrain, farHorizon, groundY, lonLatToScene, sceneToLonLat, type SurfacePatch } from "./terrain3d";
 
 const D2R = Math.PI / 180;
@@ -237,6 +238,36 @@ export class SurfaceWorld {
 
   private siteInteractables: Interactable[] = [];
 
+  // ---------- Mission Control interior ----------
+  interior: Interior | null = null;
+  inside = false;
+  private returnSpot = { x: 0, z: 0, yaw: 0 };
+  private savedColliders: { x: number; z: number; r: number }[] = [];
+
+  enterInterior(returnSpot: { x: number; z: number; yaw: number }): void {
+    this.interior ??= new Interior();
+    this.returnSpot = returnSpot;
+    this.inside = true;
+    this.savedColliders = this.player.colliders;
+    this.player.colliders = [];
+    this.player.setGround(() => 0);
+    this.interior.scene.add(this.astro.root);
+    const e = this.interior.entry;
+    this.player.place(e.x, e.z, e.yaw);
+    this.prompt = null;
+  }
+
+  exitInterior(): void {
+    if (!this.inside) return;
+    this.inside = false;
+    this.player.colliders = this.savedColliders;
+    this.player.setGround((x, z) => (this.patch ? groundY(this.patch, x, z) : 0));
+    this.scene.add(this.astro.root);
+    const r = this.returnSpot;
+    this.player.place(r.x, r.z, r.yaw);
+    this.prompt = null;
+  }
+
   private scatterRocks(gy: (x: number, z: number) => number, exclude: { x: number; z: number; r: number }[], density: number): void {
     const r = rng(42);
     const mat = regolithMaterial(false);
@@ -348,6 +379,10 @@ export class SurfaceWorld {
       if (done) { const r = this.cine.resolve; this.cine = null; r(); }
     } else {
       p.update(dt, now);
+      if (this.inside && this.interior) {
+        this.interior.clamp(p.pos);
+        p.pos.y = Math.max(0, p.pos.y);
+      }
       this.placeCamera(now);
     }
     // body
@@ -382,7 +417,7 @@ export class SurfaceWorld {
       }
     }
     // interaction prompt
-    const list = [...(this.outpost?.interactables ?? []), ...this.siteInteractables];
+    const list = this.inside && this.interior ? this.interior.interactables : [...(this.outpost?.interactables ?? []), ...this.siteInteractables];
     let best: Interactable | null = null;
     let bd = Infinity;
     for (const it of list) {
@@ -416,6 +451,12 @@ export class SurfaceWorld {
     this.sky.syncCamera(this.camera);
     this.afterFrame?.();
     const r = this.renderer;
+    if (this.inside && this.interior) {
+      this.interior.tick(now);
+      r.clear();
+      r.render(this.interior.scene, this.camera);
+      return;
+    }
     r.clear();
     r.render(this.sky.scene, this.sky.camera);
     r.clearDepth();
@@ -469,6 +510,12 @@ export class SurfaceWorld {
       const fx = Math.sin(p.yaw) * 0.06, fz = -Math.cos(p.yaw) * 0.06;
       c.position.set(p.pos.x + fx, p.pos.y + EYE_HEIGHT + bob - landing, p.pos.z + fz);
       c.rotation.set(p.pitch, -p.yaw, 0);
+    } else if (this.inside) {
+      const dist = 2.4;
+      const cx = Math.max(-4.2, Math.min(4.2, p.pos.x - Math.sin(p.yaw) * dist));
+      const cz = Math.max(-2.9, Math.min(2.9, p.pos.z + Math.cos(p.yaw) * dist));
+      c.position.set(cx, 2.1, cz);
+      c.lookAt(p.pos.x, 1.3, p.pos.z);
     } else {
       const dist = 5.2;
       const back = new THREE.Vector3(-Math.sin(p.yaw) * Math.cos(p.pitch * 0.6), 0, Math.cos(p.yaw) * Math.cos(p.pitch * 0.6));

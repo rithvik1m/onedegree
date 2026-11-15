@@ -349,7 +349,9 @@ async function boot(): Promise<void> {
     if (id === "solar") instrument.open("solar", outpost);
     else if (id === "comms") instrument.open("comms", outpost);
     else if (id === "survey") instrument.open("survey", survey, outpost);
-    else if (id === "control") openControl();
+    else if (id === "control") openControl(); // walk-in interior (src/surface/interior.ts) is built but not yet polished enough to ship
+    else if (id === "console") openControl();
+    else if (id === "exit") void exitControl();
     else if (id === "deck") {
       const a = analyse(data, outpost, windowT0, 30);
       instrument.skylineOn = !instrument.skylineOn;
@@ -357,6 +359,56 @@ async function boot(): Promise<void> {
       caption(instrument.skylineOn ? "You are looking WSW into Shackleton crater — its floor lies about 4 km below this rim and never sees direct sunlight. The teal line is the horizon the scanner computes from NASA LOLA terrain; it traces the 3D ridges because both come from the same data." : "Horizon trace off", 9000);
     } else if (id === "lander") void goOrbit();
   }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async function enterControl(): Promise<void> {
+    if (world.inside) return;
+    instrument.close();
+    await fade(true, 300);
+    const it = world.outpost?.interactables.find((i) => i.id === "control");
+    world.enterInterior({ x: (it?.x ?? 0) + 1.5, z: it?.z ?? 0, yaw: Math.PI / 2 });
+    refreshScreens();
+    $("roMode").textContent = "Inside Mission Control (simulated set)";
+    document.body.classList.add("indoors");
+    await fade(false, 350);
+    caption("Mission Control (simulated). The console runs the same Horizons × LOLA engine as the field instruments.", 4200);
+  }
+  async function exitControl(): Promise<void> {
+    if (!world.inside) return;
+    planner.hide();
+    document.body.classList.remove("console");
+    await fade(true, 300);
+    world.exitInterior();
+    document.body.classList.remove("indoors");
+    $("roMode").textContent = modeLabel();
+    await fade(false, 350);
+  }
+  function refreshScreens(): void {
+    const inn = world.interior;
+    if (!inn || !world.inside) return;
+    const t = store.s.landing + store.s.slipDays * 86400;
+    const A = analyse(data, store.s.a, t, store.s.windowDays);
+    const B = analyse(data, store.s.b, t, store.s.windowDays);
+    const now = analyse(data, outpost, windowT0, 30);
+    const i = now ? Math.max(0, Math.min(now.track.n - 1, Math.round((store.s.time - now.t0) / now.track.stepS))) : 0;
+    const amber = "#ffd27a", blue = "#a9cdf0", teal = "#8fe0d4";
+    inn.setScreen(0, "OUTPOST · NOW", now ? [
+      ["Mission clock (UTC)", fmtUtc(store.s.time).slice(5)],
+      ["Sun elevation", `${(now.track.sunEl[i] as number).toFixed(2)}°`, amber],
+      ["Sun", now.real.sunLit[i] ? "DIRECT" : "SHADOW", now.real.sunLit[i] ? amber : "#ff9b82"],
+      ["Earth", now.real.earthUp[i] ? "IN VIEW" : "BLOCKED", now.real.earthUp[i] ? blue : "#ff9b82"],
+      ["Missions done", `${campaign.done.size} / ${MISSIONS.length}`],
+    ] : []);
+    inn.setScreen(1, `SITE COMPARISON · ${store.s.windowDays} d from ${fmtDate(t)}`, A && B ? [
+      [`Sunlit · ${store.s.a.short}`, `${A.mReal.sunlitPct.toFixed(0)}%`, amber],
+      [`Sunlit · ${store.s.b.short}`, `${B.mReal.sunlitPct.toFixed(0)}%`, amber],
+      [`Earth in view · ${store.s.a.short}`, `${A.mReal.earthPct.toFixed(0)}%`, blue],
+      [`Earth in view · ${store.s.b.short}`, `${B.mReal.earthPct.toFixed(0)}%`, blue],
+      [`Sun + Earth · A / B`, `${A.mReal.bothPct.toFixed(0)}% / ${B.mReal.bothPct.toFixed(0)}%`, teal],
+    ] : []);
+    polarMap.draw(store.s);
+    inn.setScreen(2, "SOUTH POLE · NASA SUNLIGHT MAP", [], $("polarMap") as HTMLCanvasElement);
+  }
+
   function openControl(): void {
     if (document.pointerLockElement) document.exitPointerLock();
     document.body.classList.add("console");
@@ -424,6 +476,7 @@ async function boot(): Promise<void> {
 
   async function goOrbit(): Promise<void> {
     if (busy || store.s.mode !== "surface") return;
+    if (world.inside) await exitControl();
     busy = true;
     instrument.close();
     scanner.hide();
@@ -584,6 +637,7 @@ async function boot(): Promise<void> {
       updateSky(s);
       instrument.render(s);
     }
+    if (world.inside) refreshScreens();
     updateReadout(s);
     scanner.render(s);
     if (planner.isOpen() && (ch.has("a") || ch.has("b") || ch.has("landing") || ch.has("slipDays") || ch.has("windowDays") || ch.has("terrain") || ch.has("plannerIndex"))) planner.render(s);
@@ -658,7 +712,7 @@ async function boot(): Promise<void> {
   };
   world.afterFrame = () => {
     const tag = $("earthTag");
-    if (store.s.mode !== "surface" || !earthState) { tag.classList.add("hidden"); $("sunTag").classList.add("hidden"); return; }
+    if (store.s.mode !== "surface" || !earthState || world.inside) { tag.classList.add("hidden"); $("sunTag").classList.add("hidden"); return; }
     const p = world.projectDir(world.sky.earthDir);
     const W = window.innerWidth, H = window.innerHeight;
     const on = !p.behind && p.x > 0 && p.x < W && p.y > 0 && p.y < H;
@@ -737,7 +791,7 @@ async function boot(): Promise<void> {
   $("introFree").addEventListener("click", () => void begin("free"));
   $("introSkip").addEventListener("click", () => void begin("mission"));
 
-  (window as unknown as { onedegree: unknown }).onedegree = { store, data, world, scanner, planner, instrument, campaign, get moon() { return moon; }, windowT0, interact, goOrbit, landAt };
+  (window as unknown as { onedegree: unknown }).onedegree = { enterControl, store, data, world, scanner, planner, instrument, campaign, get moon() { return moon; }, windowT0, interact, goOrbit, landAt };
   if (url.demo) {
     $("intro").classList.add("hidden");
     window.setTimeout(() => void runDemo({ store, scanner, planner, world, instrument, campaign, caption, data, windowT0, outpost, survey, interact }), 600);

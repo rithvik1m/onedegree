@@ -71,7 +71,7 @@ export const MISSIONS: Mission[] = [
     brief: "Which candidate site better serves a solar-powered lander?",
     why: "Requirement: the lander must both make power (Sun) and talk to Earth. Pick the site where both are true for the larger share of the window.",
     steps: [
-      { text: "Return to the outpost and Access Mission Control (or press P)", target: "control", done: (e) => e.type === "planner" },
+      { text: "Access Mission Control (E at its door) — or press P", target: "control", done: (e) => e.type === "planner" },
       { text: "Compare Athena and Odysseus, then submit your choice in the planner", done: (e) => e.type === "choose" },
     ],
   },

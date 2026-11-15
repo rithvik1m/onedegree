@@ -110,16 +110,20 @@ export async function runDemo(c: Ctx): Promise<void> {
     c.instrument.skylineOn = false;
     w.sky.setSkyline(null);
 
-    // 4. mission control: compare + slip
+    // 4. mission control: walk in, use the console (compare + slip)
     c.interact("control");
-    c.caption("Mission control: compare candidate landing sites and test a launch slip — same engine, same NASA data.", 3400);
-    await wait(3400);
+    c.caption("Mission control: compare candidate landing sites and test a launch slip — same engine, same NASA data.", 3600);
+    await wait(1700);
+    c.interact("console");
+    await wait(1900);
     store.set({ slipDays: 7 });
     c.caption("A one-week slip changes the light. Every polar plan must be re-checked for its launch date.", 3200);
     await wait(3200);
     c.planner.hide();
     document.body.classList.remove("console");
-    store.set({ slipDays: 0, time: c.windowT0 + 0 });
+    store.set({ slipDays: 0 });
+    c.interact("exit");
+    await wait(700);
 
     // 5. end card: the outpost with Earth in the sky
     store.set({ time: clock });
