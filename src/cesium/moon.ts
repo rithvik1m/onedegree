@@ -242,6 +242,34 @@ export class MoonScene {
     this.setMode("orbit");
   }
 
+  /** V2: ascent hand-off from the Three.js surface — start low over the site, fly out. */
+  async ascendFrom(lon: number, lat: number): Promise<void> {
+    this.pause(false);
+    const h = this.groundAt(lon, lat) ?? 0;
+    this.viewer.camera.setView({ destination: Cesium.Cartesian3.fromDegrees(lon, lat, h + 4_000, Cesium.Ellipsoid.MOON), orientation: { heading: 0, pitch: -Math.PI / 2 + 0.25, roll: 0 } });
+    this.setMode("transit");
+    await this.fly(Cesium.Cartesian3.fromDegrees(lon, lat, 120_000, Cesium.Ellipsoid.MOON), { heading: 0, pitch: -Math.PI / 2 + 0.1, roll: 0 }, 2.0);
+    await this.fly(Cesium.Cartesian3.fromDegrees(lon, lat, 3_000_000, Cesium.Ellipsoid.MOON), { heading: 0, pitch: -Math.PI / 2, roll: 0 }, 2.6);
+    this.setMode("orbit");
+  }
+
+  /** V2: descent hand-off — fly down over the site; the surface scene takes over at ~6 km. */
+  async approach(lon: number, lat: number): Promise<void> {
+    this.setMode("transit");
+    const h = this.groundAt(lon, lat) ?? 0;
+    await this.fly(Cesium.Cartesian3.fromDegrees(lon, lat, h + 60_000, Cesium.Ellipsoid.MOON), { heading: 0, pitch: -Math.PI / 2 + 0.05, roll: 0 }, 2.6);
+    await this.fly(Cesium.Cartesian3.fromDegrees(lon, lat, h + 6_000, Cesium.Ellipsoid.MOON), { heading: 0, pitch: -Math.PI / 2 + 0.3, roll: 0 }, 1.8);
+    if (this.pickMarker) {
+      this.viewer.entities.remove(this.pickMarker);
+      this.pickMarker = null;
+    }
+  }
+
+  /** Stop rendering while the surface scene owns the screen (saves GPU/battery). */
+  pause(p: boolean): void {
+    this.viewer.useDefaultRenderLoop = !p;
+  }
+
   /** Descend to a point and hand over to first person. */
   async land(lon: number, lat: number): Promise<void> {
     this.setMode("transit");

@@ -3,18 +3,92 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ONE DEGREE — Lunar Landing Site Navigator</title>
+    <title>ONE DEGREE — Lunar Research Mission</title>
     <meta name="description" content="Walk the Moon and test landing sites: NASA/JPL Horizons Sun and Earth positions against the real LRO/LOLA terrain horizon." />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&family=JetBrains+Mono:wght@400..600&display=swap" />
     <script>window.CESIUM_BASE_URL = "https://cesium.com/downloads/cesiumjs/releases/1.143/Build/Cesium/";</script>
-    <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.143/Build/Cesium/Widgets/widgets.css" />
-    <script src="https://cesium.com/downloads/cesiumjs/releases/1.143/Build/Cesium/Cesium.js"></script>
   </head>
   <body>
-    <div id="viewer" aria-label="3D Moon"></div>
+    <div id="surface" aria-label="Lunar surface (3D)"></div>
+    <div id="viewer" class="hidden" aria-label="3D Moon from orbit"></div>
+    <div id="fade" class="fade"></div>
+    <div id="crosshair" class="crosshair hidden"></div>
+
+    <!-- Opening -->
+    <section id="intro" class="intro hidden" aria-label="Introduction">
+      <div class="intro-inner">
+        <div class="intro-kicker">NASA Space Apps 2026 · Lunar Landing Site Navigator</div>
+        <h1 class="intro-title">ONE&nbsp;DEGREE</h1>
+        <p class="intro-tag">On the Moon, one degree decides everything.</p>
+        <p class="intro-brief" id="introBrief">You are part of a lunar research mission. Your task is to investigate where future lunar landers can receive sunlight and keep in contact with Earth.</p>
+        <div class="intro-actions">
+          <button id="introBegin" class="pill primary big">Begin Mission 01</button>
+          <button id="introFree" class="pill big">Free exploration</button>
+        </div>
+        <p class="intro-fine" id="introFine">The outpost is fictional. Its location, the terrain, and the Sun and Earth positions are real NASA data.</p>
+      </div>
+      <button id="introSkip" class="intro-skip">Skip ›</button>
+    </section>
+
+    <!-- Mission objective -->
+    <aside id="mission" class="mission hidden" aria-live="polite">
+      <div class="m-kicker"><span id="mNum">MISSION 01</span><span class="m-dot">·</span><span id="mTitle">First Light</span></div>
+      <p id="mText" class="m-text">—</p>
+      <div class="m-nav"><span id="mArrow" class="m-arrow">▲</span><span id="mDist" class="mono">—</span></div>
+      <button id="mWhy" class="m-why" aria-expanded="false">Why it matters</button>
+      <p id="mWhyText" class="m-why-text hidden"></p>
+    </aside>
+
+    <!-- Context prompt -->
+    <div id="prompt" class="prompt hidden"><span class="key">E</span><span id="promptText"></span></div>
+
+    <!-- Controls tutorial -->
+    <div id="tutorial" class="tutorial glass hidden">
+      <div class="tut-row"><span class="key wide">Click</span>look around</div>
+      <div class="tut-row"><span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span>walk</div>
+      <div class="tut-row"><span class="key wide">Shift</span>lope</div>
+      <div class="tut-row"><span class="key wide">Space</span>low-gravity jump</div>
+      <div class="tut-row"><span class="key">E</span>use</div>
+      <div class="tut-row"><span class="key">V</span>camera</div>
+      <div class="tut-row"><span class="key">L</span>helmet lamp</div>
+      <div class="tut-row"><span class="key wide">Esc</span>free the mouse</div>
+    </div>
+
+    <!-- Field instrument -->
+    <aside id="inst" class="inst hidden" aria-label="Field instrument">
+      <div class="inst-head">
+        <div><div class="eyebrow" id="instSub">—</div><h2 id="instTitle">—</h2></div>
+        <button class="round" id="instClose" aria-label="Close instrument">✕</button>
+      </div>
+      <div id="instBody"></div>
+      <canvas id="instPano" class="pano" height="150" aria-label="360 degree terrain horizon with Sun and Earth"></canvas>
+      <canvas id="instStrip" class="strip" height="86" aria-label="30-day visibility timeline; drag to scrub time"></canvas>
+      <div class="inst-time">
+        <button id="instBack" class="round" title="Back 1 day">«</button>
+        <button id="instPlay" class="round play" title="Time-lapse (4 h per second)">▶</button>
+        <button id="instFwd" class="round" title="Forward 1 day">»</button>
+        <span id="instTime" class="mono">—</span>
+        <button id="instNow" class="pill small ghost" title="Back to mission time">Mission time</button>
+      </div>
+      <div class="inst-toggles">
+        <label class="check"><input type="checkbox" id="instPath" checked /> <span id="instPathLabel">Show the Sun's path in the sky</span></label>
+        <label class="check"><input type="checkbox" id="instSky" /> Trace the LOLA horizon over the 3D terrain</label>
+      </div>
+      <button id="instRecord" class="pill primary wide">Record observation</button>
+      <p id="instFoot" class="inst-foot"></p>
+    </aside>
+
+    <!-- Mission debrief -->
+    <dialog id="debrief" class="dlg debrief">
+      <div class="eyebrow" id="dbKicker">Mission complete</div>
+      <h3 id="dbTitle">—</h3>
+      <p id="dbText"></p>
+      <p class="dim small" id="dbFine">Result computed from NASA/JPL Horizons and NASA LOLA terrain by the same engine as the scanner. It is an analysis, not a safety certification.</p>
+      <div class="dlg-actions"><button id="dbFree" class="pill ghost">Explore freely</button><button id="dbNext" class="pill primary">Next mission</button></div>
+    </dialog>
 
     <!-- Launch screen -->
     <div id="boot" class="boot" role="status" aria-live="polite">
@@ -34,20 +108,29 @@
         <span class="ro-item"><span class="ro-label">Lat / Lon</span><span id="roCoords" class="ro-value mono">—</span></span>
         <span class="ro-item"><span class="ro-label">UTC</span><span id="roTime" class="ro-value mono">—</span></span>
         <span class="ro-item"><span class="ro-label">Mode</span><span id="roMode" class="ro-value">—</span></span>
+        <button id="btnSettings" class="round small" aria-label="Display settings" title="Display settings">⚙</button>
       </div>
     </header>
 
     <!-- Primary actions -->
     <nav class="hud-actions" aria-label="Main actions">
-      <button id="btnScan" class="pill primary" title="Scan this landing site (M)"><span class="kbd">M</span> Scan this site</button>
+      <button id="btnScan" class="pill primary" title="Field scanner (M)"><span class="kbd">M</span> Scanner</button>
       <button id="btnOrbit" class="pill" title="Launch to orbit (O)"><span class="kbd">O</span> <span id="btnOrbitLabel">Launch to orbit</span></button>
       <button id="btnPlanner" class="pill" title="Open the mission planner (P)"><span class="kbd">P</span> Planner</button>
+      <button id="btnView" class="pill" title="First / third person (V)"><span class="kbd">V</span> View</button>
+      <button id="btnMissions" class="pill" title="Missions">Missions</button>
       <button id="btnDemo" class="pill ghost" title="Play the 30-second guided demo">▶ 30s demo</button>
     </nav>
 
     <!-- Controls hint (first person) -->
-    <div id="hints" class="hints glass" aria-hidden="true">
-      <span><b>Click</b> to look</span><span><b>WASD</b> walk</span><span><b>Shift</b> run</span><span><b>Space</b> hop</span><span><b>V</b> 1st/3rd person</span><span><b>Esc</b> release</span>
+    <div id="hints" class="hints glass hidden" aria-hidden="true"></div>
+    <div id="settings" class="settings glass hidden">
+      <div class="eyebrow">Display</div>
+      <label class="check"><input type="checkbox" id="setReal" /> Realistic darkness <small>(vacuum-black shadows; off = shadows lifted for readability — a visual aid, not sunlight)</small></label>
+      <label class="check"><input type="checkbox" id="setBob" checked /> Head bob</label>
+      <label class="check"><input type="checkbox" id="setDetail" checked /> Regolith detail <small>(procedural, not measured)</small></label>
+      <label class="field"><span>Exposure <b id="expOut">1.0</b></span><input type="range" id="setExp" min="0.4" max="2.2" step="0.05" value="1" /></label>
+      <p class="dim small" id="setInfo"></p>
     </div>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <div id="caption" class="caption" aria-live="polite"></div>
@@ -125,6 +208,7 @@
           <div class="field"><span>Window</span><div class="seg small" id="winSeg"><button data-v="14" aria-checked="false">14 d</button><button data-v="30" aria-checked="true">30 d</button></div></div>
           <div class="field"><span>Horizon</span><div class="seg small" id="plTerrainSeg"><button data-v="real" aria-checked="true">Real terrain</button><button data-v="smooth" aria-checked="false">Smooth Moon</button></div></div>
         </div>
+        <div id="missionBar" class="mission-bar hidden"></div>
         <div id="verdict" class="verdict glass"></div>
         <div class="pl-grid">
           <article class="site-col glass" id="colA"></article>
@@ -154,11 +238,14 @@
       <div class="pl-body hidden" data-panel="about" id="about"></div>
     </section>
 
+    <!-- Orbit landing preview -->
+    <div id="preview" class="preview glass hidden"></div>
+
     <!-- Cesium token dialog -->
     <dialog id="tokenDlg" class="dlg">
       <form method="dialog">
         <h3>Real 3D terrain (optional)</h3>
-        <p>The walkable 3D surface uses <b>Cesium Moon</b> tiles, which need a free Cesium ion token. Without one you get NASA LRO imagery with LOLA relief near the south pole — the science works either way.</p>
+        <p>The orbit view can stream <b>Cesium Moon</b> 3D tiles with a free Cesium ion token. Without one it uses NASA Moon Trek LRO imagery. The walkable surface and all science use NASA LOLA data either way.</p>
         <input id="tokenIn" type="text" placeholder="Paste a Cesium ion access token" autocomplete="off" />
         <div class="dlg-actions">
           <button value="skip" class="pill ghost">Continue without</button>

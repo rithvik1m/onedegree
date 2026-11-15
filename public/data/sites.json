@@ -2,6 +2,26 @@
   "note": "Exact points only where a source gives one. NASA's Artemis candidate regions are broad areas (about 15 x 15 km); they are listed separately as regions, never as certified landing points.",
   "sites": [
     {
+      "id": "outpost",
+      "name": "Outpost (simulated) — ridge site",
+      "short": "Outpost",
+      "lat": -89.68708,
+      "lon": -162.71081,
+      "kind": "outpost",
+      "event": "A fictional research outpost. The location is real and was chosen by code: the flattest-enough point within 25 km of the pole with the most long-term sunlight in NASA's 18.6-year illumination map, where Earth is up at least 30 % of the time.",
+      "source": "scripts/outpost.py — NASA PGDA product 69 map: sun 89.6 %, Earth 53.8 % (120 m pixel); slope 0.8 deg (LOLA 80 m)."
+    },
+    {
+      "id": "survey",
+      "name": "Survey point S-1 — the shadow problem",
+      "short": "Survey S-1",
+      "lat": -89.67337,
+      "lon": -162.00409,
+      "kind": "survey",
+      "event": "433 m from the outpost. Chosen by code as the nearby spot with the least long-term sunlight that is not permanently dark.",
+      "source": "scripts/outpost.py — NASA PGDA product 69 map: sun 11.3 %, Earth 0.1 %."
+    },
+    {
       "id": "im2",
       "name": "IM-2 Athena — target point",
       "short": "Athena (IM-2)",
@@ -48,7 +68,17 @@
   "regions": {
     "source": "NASA, 'NASA Provides Update on Artemis III Moon Landing Regions' (Oct 2024). NASA lists nine regions near the south pole; it does not publish single landing points, so the app shows their names only.",
     "url": "https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/",
-    "names": ["Peak near Cabeus B", "Haworth", "Malapert Massif", "Mons Mouton Plateau", "Mons Mouton", "Nobile Rim 1", "Nobile Rim 2", "de Gerlache Rim 2", "Slater Plain"]
+    "names": [
+      "Peak near Cabeus B",
+      "Haworth",
+      "Malapert Massif",
+      "Mons Mouton Plateau",
+      "Mons Mouton",
+      "Nobile Rim 1",
+      "Nobile Rim 2",
+      "de Gerlache Rim 2",
+      "Slater Plain"
+    ]
   },
   "reference": {
     "id": "a11",

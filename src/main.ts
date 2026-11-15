@@ -1,37 +1,98 @@
 // AI-assisted: written with Claude Code (Anthropic) during NASA Space Apps 2026 — see docs/AI_DISCLOSURE.md
+/**
+ * ONE DEGREE v2 — a science-first lunar research mission.
+ * Surface: Three.js world built from NASA LOLA terrain (src/surface).
+ * Orbit: CesiumJS globe (src/cesium), loaded on first launch to orbit.
+ * Science: one shared engine (src/science + data.ts) feeding instruments,
+ * scanner, planner and Reality Check.
+ */
+
 import "./styles.css";
-import { loadCore, loadGrid, skyNow, type Data, type Place } from "./data";
-import { MoonScene } from "./cesium/moon";
-import { earthVectorKm, subpointsAt, sunVectorKm } from "./science/sky";
-import { Store, readUrl, writeUrl, type State } from "./state";
-import { $, fmtLat, fmtLon, fmtUtc } from "./ui/format";
+import { analyse, loadCore, loadGrid, skyNow, type Data, type Place } from "./data";
+import type { MoonScene } from "./cesium/moon";
+import { skyAt, subpointsAt, earthVectorKm, sunVectorKm } from "./science/sky";
+import { Store, readUrl, type State } from "./state";
+import { $, compass, fmtDate, fmtLat, fmtLon, fmtUtc } from "./ui/format";
 import { Planner, Scanner } from "./ui/panels";
 import { renderReality, runSkyCheck, type SkyCheck } from "./ui/reality";
 import { renderAbout } from "./ui/about";
 import { PolarMap } from "./ui/polarmap";
+import { Instrument, type InstKind } from "./ui/instrument";
+import { Campaign, MISSIONS, type Mission } from "./game/missions";
+import { SurfaceWorld } from "./surface/world";
+import { loadPatch, patchFromGrid, smoothPatch, groundY, lonLatToScene, type SurfacePatch } from "./surface/terrain3d";
+import { shared } from "./surface/materials";
 import { runDemo } from "./demo";
 
 const TOKEN_KEY = "onedegree.ionToken";
+const D2R = Math.PI / 180;
 
 function toast(msg: string, ms = 3800): void {
   const t = $("toast");
-  t.textContent = msg;
+  t.innerHTML = msg;
   t.classList.add("show");
   window.clearTimeout((toast as unknown as { h?: number }).h);
   (toast as unknown as { h?: number }).h = window.setTimeout(() => t.classList.remove("show"), ms);
 }
 
-async function askToken(): Promise<string | null> {
+let captionTimer = 0;
+export function caption(text: string, ms = 3000): void {
+  const c = $("caption");
+  c.textContent = text;
+  c.classList.add("show");
+  window.clearTimeout(captionTimer);
+  captionTimer = window.setTimeout(() => c.classList.remove("show"), ms);
+}
+
+const wait = (ms: number): Promise<void> => new Promise((r) => window.setTimeout(r, ms));
+async function fade(on: boolean, ms = 450): Promise<void> {
+  const f = $("fade");
+  f.style.transitionDuration = `${ms}ms`;
+  f.classList.toggle("on", on);
+  await wait(ms);
+}
+
+function token(): string | null {
   const env = (import.meta.env.VITE_CESIUM_ION_TOKEN as string | undefined)?.trim();
   if (env) return env;
-  let saved: string | null = null;
   try {
-    saved = localStorage.getItem(TOKEN_KEY);
+    const v = localStorage.getItem(TOKEN_KEY);
+    return v || null;
   } catch {
-    /* storage blocked */
+    return null;
   }
-  if (saved !== null) return saved || null;
-  return null;
+}
+
+let cesiumLoading: Promise<boolean> | null = null;
+function loadCesium(): Promise<boolean> {
+  if ((window as unknown as { Cesium?: unknown }).Cesium) return Promise.resolve(true);
+  cesiumLoading ??= new Promise((res) => {
+    const base = "https://cesium.com/downloads/cesiumjs/releases/1.143/Build/Cesium/";
+    const css = document.createElement("link");
+    css.rel = "stylesheet";
+    css.href = `${base}Widgets/widgets.css`;
+    document.head.appendChild(css);
+    const s = document.createElement("script");
+    s.src = `${base}Cesium.js`;
+    s.onload = () => res(true);
+    s.onerror = () => res(false);
+    document.head.appendChild(s);
+  });
+  return cesiumLoading;
+}
+
+/** First mission hour from 15 Nov 2026 when the outpost has Sun AND Earth while S-1 is in shadow. */
+function chooseClock(data: Data, outpost: Place, survey: Place, windowT0: number): number {
+  const a = analyse(data, outpost, windowT0, 30);
+  const b = analyse(data, survey, windowT0, 30);
+  if (!a || !b) return windowT0;
+  let fallback = -1;
+  for (let i = 0; i < a.track.n; i++) {
+    const good = a.real.sunLit[i] && a.real.earthUp[i] && (a.track.sunEl[i] as number) > 0.6;
+    if (good && fallback < 0) fallback = i;
+    if (good && !b.real.sunLit[i]) return windowT0 + i * a.track.stepS;
+  }
+  return windowT0 + Math.max(0, fallback) * a.track.stepS;
 }
 
 async function boot(): Promise<void> {
@@ -52,26 +113,28 @@ async function boot(): Promise<void> {
   } catch {
     data.grid = null;
   }
-
   const sites = data.sites.sites;
-  const athena = sites.find((s) => s.id === "im2") as Place;
-  const odysseus = sites.find((s) => s.id === "im1") as Place;
+  const byId = (id: string): Place => sites.find((s) => s.id === id) as Place;
+  const outpost = byId("outpost");
+  const survey = byId("survey");
+  const athena = byId("im2");
+  const odysseus = byId("im1");
+  progress("Loading NASA LOLA 10 m terrain around the outpost…");
+  const patches = new Map<string, SurfacePatch>();
+  patches.set("outpost", await loadPatch("outpost"));
+
+  const windowT0 = Date.UTC(2026, 10, 15) / 1000;
+  const clock0 = chooseClock(data, outpost, survey, windowT0);
   const url = readUrl();
-  const startPlace: Place =
-    url.lat !== undefined && url.lon !== undefined
-      ? { name: `Point ${fmtLat(url.lat)}, ${fmtLon(url.lon)}`, short: "Shared point", lat: url.lat, lon: url.lon, kind: "custom" }
-      : athena;
-  const landing = Date.parse("2025-03-06T00:00:00Z") / 1000;
-  const startTime = url.t ?? Date.parse("2025-03-06T12:00:00Z") / 1000;
 
   const store = new Store({
-    here: startPlace,
-    time: startTime,
+    here: outpost,
+    time: url.t ?? clock0,
     terrain: "real",
     mode: "surface",
     a: athena,
     b: odysseus,
-    landing,
+    landing: Math.floor(clock0 / 86400) * 86400,
     slipDays: 0,
     windowDays: 30,
     plannerIndex: 0,
@@ -85,134 +148,448 @@ async function boot(): Promise<void> {
   renderAbout();
   const polarMap = new PolarMap(store, allPlaces);
 
-  // 3D Moon
-  progress("Building the Moon…");
   let moon: MoonScene | null = null;
-  const token = await askToken();
-  const typedCesium = (window as unknown as { Cesium?: unknown }).Cesium;
-  if (typedCesium) {
-    try {
-      moon = await MoonScene.create({
-        container: "viewer",
-        token,
-        grid: data.grid,
-        onPick: (lon, lat) => {
-          pending = { lon, lat };
-          $("pickLabel").textContent = `${fmtLat(lat)} · ${fmtLon(lon)}`;
-          ($("btnLand") as HTMLButtonElement).disabled = false;
-        },
-        onWalkMove: (lon, lat) => {
-          walkMoved = { lon, lat };
-        },
-        onStatus: (m) => toast(m, 6000),
-      });
-      moon.addSiteMarkers([...sites, data.sites.reference]);
-    } catch (e) {
-      toast(`3D view unavailable: ${(e as Error).message}. The planner still works.`, 8000);
-      moon = null;
-    }
-  } else {
-    toast("3D library failed to load — the planner and scanner still work.", 8000);
-  }
-
-  let pending: { lon: number; lat: number } | null = null;
-  let walkMoved: { lon: number; lat: number } | null = null;
+  // ---------- the surface world ----------
+  progress("Building the surface…");
+  let live = { lon: outpost.lon, lat: outpost.lat };
+  const world = new SurfaceWorld($("surface"), {
+    onPrompt: (t) => {
+      $("prompt").classList.toggle("hidden", !t);
+      if (t) $("promptText").textContent = t;
+    },
+    onInteract: (id) => interact(id),
+    onMove: (lon, lat) => {
+      live = { lon, lat };
+      $("roCoords").textContent = `${fmtLat(lat)} ${fmtLon(lon)}`;
+      // the scanner follows you between the outpost and S-1
+      if (world.outpost && store.s.mode === "surface") {
+        const [sx, sz] = world.sceneOf(survey.lon, survey.lat);
+        const nearSurvey = Math.hypot(world.player.pos.x - sx, world.player.pos.z - sz) < 40;
+        const want = nearSurvey ? survey : outpost;
+        if (store.s.here.id !== want.id) store.set({ here: want });
+      }
+    },
+    onPointerLock: (locked) => {
+      $("crosshair").classList.toggle("hidden", !locked || world.player.thirdPerson);
+      document.body.classList.toggle("locked", locked);
+    },
+  });
 
   const updateSky = (s: State): void => {
+    const p = world.patch;
+    const lon = p ? p.lon : s.here.lon, lat = p ? p.lat : s.here.lat;
+    const sk = skyAt(data.table, s.time, lon, lat, 0);
     const sp = subpointsAt(data.table, s.time);
-    if (moon && sp) moon.setSky(sunVectorKm(sp), earthVectorKm(sp));
+    if (!sk || !sp) return;
+    world.applySky({ sunAz: sk.sun.az, sunEl: sk.sun.el, earthAz: sk.earth.az, earthEl: sk.earth.el, distKm: sp.distKm, unix: s.time });
+    if (moon) moon.setSky(sunVectorKm(sp), earthVectorKm(sp));
+  };
+
+  updateSky(store.s);
+  world.setSite(patches.get("outpost") as SurfacePatch, { outpost: true, survey });
+
+  const modeLabel = (): string => {
+    if (store.s.mode === "orbit") return "Orbit · " + (moon?.usingTiles ? "Cesium Moon tiles" : "NASA Moon Trek imagery");
+    return world.patch ? world.patch.label : "Surface";
   };
   const updateReadout = (s: State): void => {
     $("roSite").textContent = s.here.short ?? s.here.name;
-    $("roCoords").textContent = `${fmtLat(s.here.lat)} ${fmtLon(s.here.lon)}`;
-    $("roTime").textContent = fmtUtc(s.time);
-    $("roMode").textContent = s.mode === "surface" ? (moon?.usingTiles ? "On foot · Cesium Moon" : "On foot · NASA imagery + LOLA") : "Orbit";
-    $("btnOrbitLabel").textContent = s.mode === "surface" ? "Launch to orbit" : "Back to surface";
+    $("roTime").textContent = `${fmtUtc(s.time)} UTC`;
+    $("roMode").textContent = modeLabel();
+    $("btnOrbitLabel").textContent = s.mode === "surface" ? "Orbit" : "Land";
     $("orbitBar").classList.toggle("hidden", s.mode !== "orbit");
-    $("hints").classList.toggle("hidden", s.mode !== "surface" || !moon);
+    document.body.classList.toggle("in-orbit", s.mode === "orbit");
   };
 
-  store.on((s, ch) => {
-    if (ch.has("time")) updateSky(s);
-    updateReadout(s);
-    scanner.render(s);
-    if (planner.isOpen() && (ch.has("a") || ch.has("b") || ch.has("landing") || ch.has("slipDays") || ch.has("windowDays") || ch.has("terrain") || ch.has("plannerIndex"))) planner.render(s);
-    if (ch.has("a") || ch.has("b")) polarMap.draw(s);
-    if (ch.has("here") || ch.has("time")) writeUrl(s);
+  // ---------- instruments & campaign ----------
+  let lastResult = "";
+  const instrument = new Instrument(data, store, () => windowT0, {
+    onRecord: (kind, result) => {
+      lastResult = result;
+      const m = campaign.mission;
+      const st = campaign.step;
+      const completes = !!(m && st && st.done({ type: "record", id: kind }) && campaign.si === m.steps.length - 1);
+      campaign.emit({ type: "record", id: kind });
+      if (!completes) showDebrief("Observation recorded", stationName(kind), result, false);
+    },
+    onPath: (kind, a) => {
+      if (!a) return world.sky.setPath(null, 0);
+      const pts: { az: number; el: number; visible: boolean }[] = [];
+      const tr = a.track;
+      for (let i = 0; i < tr.n; i += 1) {
+        if (kind === "comms") pts.push({ az: tr.earthAz[i] as number, el: tr.earthEl[i] as number, visible: a.real.earthUp[i] === 1 });
+        else pts.push({ az: tr.sunAz[i] as number, el: tr.sunEl[i] as number, visible: a.real.sunLit[i] === 1 });
+      }
+      world.sky.setPath(pts, kind === "comms" ? 0x6fa8dc : 0xf2b544);
+    },
+    onSkyline: (on, a) => world.sky.setSkyline(on && a?.skyline ? a.skyline.horizon : null),
+  });
+  const stationName = (k: InstKind): string => (k === "solar" ? "Solar Monitoring Station" : k === "comms" ? "Comms Station" : "Survey point S-1");
+
+  const showDebrief = (kicker: string, title: string, text: string, mission: boolean): void => {
+    $("dbKicker").textContent = kicker;
+    $("dbTitle").textContent = title;
+    $("dbText").innerHTML = text;
+    ($("dbNext") as HTMLButtonElement).style.display = mission ? "" : "none";
+    $("dbFree").textContent = mission ? "Explore freely" : "Close";
+    if (document.pointerLockElement) document.exitPointerLock();
+    const d = $("debrief") as HTMLDialogElement;
+    if (!d.open) d.showModal();
+  };
+
+  const missionResult = (m: Mission): string => {
+    if (m.id === "m1" || m.id === "m2" || m.id === "m3") return lastResult;
+    const t = store.s.landing + store.s.slipDays * 86400;
+    const A = analyse(data, store.s.a, t, store.s.windowDays);
+    const B = analyse(data, store.s.b, t, store.s.windowDays);
+    if (!A || !B) return "No ephemeris for that date.";
+    const a = A.mReal.bothPct, b = B.mReal.bothPct;
+    const win = a === b ? null : a > b ? "a" : "b";
+    const name = (w: "a" | "b"): string => (w === "a" ? store.s.a.short : store.s.b.short);
+    if (m.id === "m4") {
+      const verdict = win === null ? "The two sites tie on this requirement." : win === chosen ? `Your choice matches the data: <b>${name(win)}</b>.` : `The data favour <b>${name(win)}</b> rather than your pick.`;
+      return `${verdict} Over ${store.s.windowDays} days from ${fmtDate(t)}, Sun <i>and</i> Earth are both in view <b>${a.toFixed(0)}%</b> of the time at ${store.s.a.short} and <b>${b.toFixed(0)}%</b> at ${store.s.b.short}. Sunlight alone: ${A.mReal.sunlitPct.toFixed(0)}% vs ${B.mReal.sunlitPct.toFixed(0)}%; longest night ${A.mReal.longestDarkH.toFixed(0)} h vs ${B.mReal.longestDarkH.toFixed(0)} h.`;
+    }
+    const A0 = analyse(data, store.s.a, store.s.landing, store.s.windowDays);
+    const B0 = analyse(data, store.s.b, store.s.landing, store.s.windowDays);
+    const a0 = A0?.mReal.bothPct ?? 0, b0 = B0?.mReal.bothPct ?? 0;
+    const win0 = a0 === b0 ? null : a0 > b0 ? "a" : "b";
+    return `With a 7-day slip, Sun + Earth together: ${store.s.a.short} ${a0.toFixed(0)}% → <b>${a.toFixed(0)}%</b>, ${store.s.b.short} ${b0.toFixed(0)}% → <b>${b.toFixed(0)}%</b>. ${win0 === win ? "The better site stays the same — but the margins moved." : "The better site <b>changes</b> — a one-week slip flips the answer."} Polar mission plans must be re-checked for every launch date.`;
+  };
+  let chosen: "a" | "b" | null = null;
+
+  const campaign = new Campaign(
+    () => renderMission(),
+    (m) => {
+      renderMission();
+      const n = MISSIONS.findIndex((x) => x.id === m.id);
+      showDebrief(`Mission ${m.num} complete`, m.title, missionResult(m), n + 1 < MISSIONS.length);
+    },
+  );
+  $("dbNext").addEventListener("click", () => {
+    ($("debrief") as HTMLDialogElement).close();
+    campaign.next();
+    const m = campaign.mission;
+    if (m) caption(`Mission ${m.num} · ${m.title}`, 2600);
+  });
+  $("dbFree").addEventListener("click", () => {
+    ($("debrief") as HTMLDialogElement).close();
+    if (campaign.active && campaign.step === null) campaign.stop();
+  });
+  $("mWhy").addEventListener("click", () => {
+    const open = $("mWhyText").classList.toggle("hidden");
+    $("mWhy").setAttribute("aria-expanded", String(!open));
   });
 
-  // Walking updates the shared position at most 4x a second.
+  const targetPos = (id: string | undefined): { x: number; z: number } | null => {
+    if (!id || !world.outpost) return null;
+    const it = world.outpost.interactables.find((i) => i.id === id);
+    return it ? { x: it.x, z: it.z } : null;
+  };
+  function renderMission(): void {
+    const m = campaign.mission;
+    const st = campaign.step;
+    $("mission").classList.toggle("hidden", !m || !st);
+    renderMissionBar();
+    if (!m || !st) {
+      world.setWaypoint(null);
+      return;
+    }
+    $("mNum").textContent = `MISSION ${m.num}`;
+    $("mTitle").textContent = m.title;
+    $("mText").textContent = st.text;
+    $("mWhyText").textContent = m.why;
+    const tp = targetPos(st.target);
+    world.setWaypoint(tp);
+    $("mission").querySelector(".m-nav")?.classList.toggle("hidden", !tp);
+  }
+  // waypoint arrow + distance, 5x a second
   window.setInterval(() => {
-    if (!walkMoved) return;
-    const { lon, lat } = walkMoved;
-    walkMoved = null;
-    const cur = store.s.here;
-    if (Math.abs(cur.lat - lat) < 1e-6 && Math.abs(cur.lon - lon) < 1e-6) return;
-    const named = cur.kind !== "custom" && Math.abs(cur.lat - lat) < 0.002 && Math.abs(cur.lon - lon) < 0.02;
-    store.set({ here: named ? { ...cur, lat, lon } : { name: `On foot near ${fmtLat(lat)}, ${fmtLon(lon)}`, short: "On foot", lat, lon, kind: "custom", id: undefined } });
-  }, 250);
+    const st = campaign.step;
+    const tp = targetPos(st?.target);
+    if (!tp || store.s.mode !== "surface") return;
+    const p = world.player;
+    const dx = tp.x - p.pos.x, dz = tp.z - p.pos.z;
+    const d = Math.hypot(dx, dz);
+    const brg = Math.atan2(dx, -dz);
+    const rel = brg - (p.thirdPerson ? -world.camera.rotation.y : p.yaw);
+    ($("mArrow") as HTMLElement).style.transform = `rotate(${rel}rad)`;
+    $("mDist").textContent = d < 3 ? "here" : `${d < 1000 ? d.toFixed(0) + " m" : (d / 1000).toFixed(2) + " km"} · ${compass((brg / D2R + 360) % 360)}`;
+  }, 200);
 
-  // Orbit bar site chips
+  function renderMissionBar(): void {
+    const bar = $("missionBar");
+    const m = campaign.mission;
+    const st = campaign.step;
+    if (!m || !st || (m.id !== "m4" && m.id !== "m5") || campaign.si === 0 && m.id === "m4") {
+      bar.classList.add("hidden");
+      return;
+    }
+    bar.classList.remove("hidden");
+    if (m.id === "m4") {
+      bar.innerHTML = `<div><b>Mission 04 · requirement</b> — a solar-powered lander must make power <i>and</i> talk to Earth. Which site has Sun + Earth together for more of the window?</div>
+        <div class="mb-actions"><button class="pill primary small" data-c="a">Choose ${store.s.a.short}</button><button class="pill primary small" data-c="b">Choose ${store.s.b.short}</button></div>`;
+      for (const b of bar.querySelectorAll<HTMLButtonElement>("button")) b.addEventListener("click", () => {
+        chosen = b.dataset.c as "a" | "b";
+        planner.hide();
+        campaign.emit({ type: "choose", site: chosen });
+      });
+    } else {
+      bar.innerHTML = `<div><b>Mission 05 · the delay</b> — the launch slips one week. Move <i>Schedule slip</i> to <b>+7 days</b> and watch the verdict.</div>`;
+    }
+  }
+
+  // ---------- interactions ----------
+  function interact(id: string): void {
+    campaign.emit({ type: "interact", id });
+    if (id === "solar") instrument.open("solar", outpost);
+    else if (id === "comms") instrument.open("comms", outpost);
+    else if (id === "survey") instrument.open("survey", survey, outpost);
+    else if (id === "control") openControl();
+    else if (id === "deck") {
+      const a = analyse(data, outpost, windowT0, 30);
+      instrument.skylineOn = !instrument.skylineOn;
+      world.sky.setSkyline(instrument.skylineOn && a?.skyline ? a.skyline.horizon : null);
+      caption(instrument.skylineOn ? "Teal line: the horizon the scanner computes from NASA LOLA terrain (10 m → 240 m, 260 km rays). It follows the 3D ridges because both come from the same data." : "Horizon trace off", 7000);
+    } else if (id === "lander") void goOrbit();
+  }
+  function openControl(): void {
+    if (document.pointerLockElement) document.exitPointerLock();
+    document.body.classList.add("console");
+    planner.show("compare");
+    polarMap.draw(store.s);
+    campaign.emit({ type: "planner" });
+    renderMissionBar();
+  }
+
+  // ---------- orbit & landing ----------
+  let busy = false;
+  let pending: { lon: number; lat: number; place?: Place } | null = null;
+
+  async function ensureMoon(): Promise<MoonScene | null> {
+    if (moon) return moon;
+    const ok = await loadCesium();
+    if (!ok) {
+      toast("Could not load the orbit globe (CesiumJS). The surface and all science still work.", 7000);
+      return null;
+    }
+    const { MoonScene } = await import("./cesium/moon");
+    try {
+      $("viewer").classList.remove("hidden");
+      moon = await MoonScene.create({
+        container: "viewer",
+        token: token(),
+        grid: data.grid,
+        onPick: (lon, lat) => setPending(lon, lat),
+        onWalkMove: () => undefined,
+        onStatus: (m) => toast(m, 6000),
+      });
+      moon.addSiteMarkers(allPlaces());
+      const sp = subpointsAt(data.table, store.s.time);
+      if (sp) moon.setSky(sunVectorKm(sp), earthVectorKm(sp));
+      return moon;
+    } catch (e) {
+      toast(`Orbit view unavailable: ${(e as Error).message}`, 7000);
+      $("viewer").classList.add("hidden");
+      return null;
+    }
+  }
+
+  function setPending(lon: number, lat: number, place?: Place): void {
+    pending = { lon, lat, place };
+    const known = place ?? allPlaces().find((p) => Math.abs(p.lat - lat) < 0.01 && Math.abs(((p.lon - lon + 540) % 360) - 180) < 0.05);
+    pending.place = known;
+    $("pickLabel").textContent = `${known ? known.short + " · " : ""}${fmtLat(lat)} · ${fmtLon(lon)}`;
+    ($("btnLand") as HTMLButtonElement).disabled = false;
+    const p: Place = known ?? { name: `Point ${fmtLat(lat)}, ${fmtLon(lon)}`, short: "Landing point", lat, lon, kind: "custom" };
+    const now = skyNow(data, p, store.s.time);
+    const a = analyse(data, p, Math.floor(store.s.time / 3600) * 3600, 30);
+    const terr = patches.has(p.id ?? "") || p.id === "im1" || p.id === "im2" ? "NASA LOLA (precomputed)" : p.lat <= -80 && data.grid ? "NASA LOLA 400 m (coarse)" : "no terrain model — smooth sphere";
+    const pv = $("preview");
+    pv.innerHTML = `<div class="eyebrow">Landing preview</div><h3>${known ? known.name : "Selected point"}</h3>
+      <div class="mono dim">${fmtLat(lat)} · ${fmtLon(lon)}</div>
+      <div class="pv-grid">
+        <div><label>Sun now</label><b>${now ? (now.sun.el >= 0 ? "+" : "") + now.sun.el.toFixed(2) + "°" : "—"}</b></div>
+        <div><label>Earth now</label><b>${now ? (now.earth.el >= 0 ? "+" : "") + now.earth.el.toFixed(2) + "°" : "—"}</b></div>
+        <div><label>Sunlit · 30 d</label><b>${a ? a.mReal.sunlitPct.toFixed(0) + "%" : "—"}</b></div>
+        <div><label>Earth · 30 d</label><b>${a ? a.mReal.earthPct.toFixed(0) + "%" : "—"}</b></div>
+      </div>
+      <p class="dim small">Terrain: ${terr}. ${a?.status === "geometric" ? "Horizon is geometric only (smooth Moon)." : "Horizon from LOLA terrain."}</p>`;
+    pv.classList.remove("hidden");
+  }
+
+  async function goOrbit(): Promise<void> {
+    if (busy || store.s.mode !== "surface") return;
+    busy = true;
+    instrument.close();
+    scanner.hide();
+    planner.hide();
+    const p = world.player.pos.clone();
+    const yaw = world.player.yaw;
+    caption("Ascent · cinematic, not flight dynamics", 3000);
+    const lp = world.outpost ? world.outpost.lander : { x: 18, z: -18 };
+    const start = world.camera.position.clone();
+    const gy = world.groundAt(lp.x, lp.z);
+    await world.cinematic(3200, (u, cam) => {
+      const e = u * u * (3 - 2 * u);
+      const climb = Math.pow(u, 2.2) * 2600;
+      cam.position.set(start.x + (lp.x + 40 - start.x) * e, start.y + (gy + 25 - start.y) * e + climb, start.z + (lp.z + 40 - start.z) * e + climb * 0.3);
+      cam.lookAt(p.x + (lp.x - p.x) * e, gy + 5 - u * 40, p.z + (lp.z - p.z) * e);
+    }, false);
+    void yaw;
+    await fade(true, 400);
+    const m = await ensureMoon();
+    if (!m) {
+      await fade(false, 300);
+      world.player.place(world.player.pos.x, world.player.pos.z, world.player.yaw);
+      busy = false;
+      return;
+    }
+    world.stop();
+    $("surface").classList.add("hidden");
+    $("viewer").classList.remove("hidden");
+    store.set({ mode: "orbit" });
+    updateReadout(store.s);
+    await fade(false, 400);
+    await m.ascendFrom(live.lon, live.lat);
+    campaign.emit({ type: "orbit" });
+    busy = false;
+  }
+
+  async function landAt(lon: number, lat: number, place?: Place): Promise<void> {
+    if (busy) return;
+    busy = true;
+    $("preview").classList.add("hidden");
+    const target: Place = place ?? { name: `Landing point ${fmtLat(lat)}, ${fmtLon(lon)}`, short: "Landing point", lat, lon, kind: "custom" };
+    caption("Descent · cinematic, not flight dynamics", 3000);
+    if (moon) await moon.approach(lon, lat);
+    await fade(true, 350);
+    // terrain for the new site
+    let patch: SurfacePatch | null = null;
+    const id = target.id ?? "";
+    try {
+      if (patches.has(id)) patch = patches.get(id) as SurfacePatch;
+      else if (id === "im1" || id === "im2") {
+        patch = await loadPatch(id);
+        patches.set(id, patch);
+      }
+    } catch {
+      patch = null;
+    }
+    if (!patch && lat <= -80 && data.grid) patch = patchFromGrid(data.grid, lon, lat);
+    if (!patch) patch = smoothPatch(lon, lat);
+    const atOutpost = id === "outpost" || id === "survey";
+    world.setSite(atOutpost ? (patches.get("outpost") as SurfacePatch) : patch, { outpost: atOutpost, survey, spawn: id === "survey" ? spawnAtSurvey() : undefined });
+    store.set({ mode: "surface", here: target });
+    live = { lon, lat };
+    updateSky(store.s);
+    if (moon) moon.pause(true);
+    $("viewer").classList.add("hidden");
+    $("surface").classList.remove("hidden");
+    world.start();
+    // descent: from ~1.4 km up down to eye height
+    const pl = world.player;
+    const end = { x: pl.pos.x, y: pl.pos.y + 1.62, z: pl.pos.z };
+    const fwd = { x: Math.sin(pl.yaw), z: -Math.cos(pl.yaw) };
+    void fade(false, 500);
+    await world.cinematic(4200, (u, cam) => {
+      const e = 1 - Math.pow(1 - u, 3);
+      const h = (1 - e) * 1400;
+      cam.position.set(end.x - fwd.x * (1 - e) * 500, end.y + h, end.z - fwd.z * (1 - e) * 500);
+      const look = { x: end.x + fwd.x * 30, y: end.y - 2 + e * 1.5, z: end.z + fwd.z * 30 };
+      cam.lookAt(look.x, look.y, look.z);
+    }, false);
+    $("roMode").textContent = modeLabel();
+    toast(`Landed · ${patch.label}`, 5000);
+    campaign.emit({ type: "land" });
+    busy = false;
+  }
+  function spawnAtSurvey(): { x: number; z: number; yaw: number } {
+    const [sx, sz] = lonLatToScene(patches.get("outpost") as SurfacePatch, survey.lon, survey.lat);
+    return { x: sx + 3, z: sz + 3, yaw: Math.atan2(-sx, sz) };
+  }
+
+  // ---------- HUD wiring ----------
   $("orbitSites").innerHTML = "";
   for (const p of allPlaces()) {
     const b = document.createElement("button");
     b.className = "pill small";
     b.textContent = p.short;
     b.addEventListener("click", () => {
-      pending = { lon: p.lon, lat: p.lat };
       moon?.showPick(p.lon, p.lat);
-      $("pickLabel").textContent = `${p.short} · ${fmtLat(p.lat)} · ${fmtLon(p.lon)}`;
-      ($("btnLand") as HTMLButtonElement).disabled = false;
+      setPending(p.lon, p.lat, p);
     });
     $("orbitSites").appendChild(b);
   }
-
-  const goOrbit = async (): Promise<void> => {
-    if (!moon) return;
-    store.set({ mode: "orbit" });
-    caption("Ascent to orbit · cinematic visualisation, not flight dynamics", 3200);
-    await moon.toOrbit(store.s.here.lon, store.s.here.lat, true);
-  };
-  const landAt = async (lon: number, lat: number, place?: Place): Promise<void> => {
-    if (!moon) {
-      store.set({ here: place ?? { name: `Point ${fmtLat(lat)}, ${fmtLon(lon)}`, short: "Custom", lat, lon, kind: "custom" } });
-      return;
-    }
-    const known = place ?? allPlaces().find((p) => Math.abs(p.lat - lat) < 0.01 && Math.abs(((p.lon - lon + 540) % 360) - 180) < 0.05);
-    caption("Descent · cinematic visualisation", 2600);
-    await moon.land(lon, lat);
-    store.set({ mode: "surface", here: known ?? { name: `Landing point ${fmtLat(lat)}, ${fmtLon(lon)}`, short: "Landing point", lat, lon, kind: "custom" } });
-    $("hints").classList.remove("fade");
-    window.setTimeout(() => $("hints").classList.add("fade"), 7000);
-  };
   $("btnLand").addEventListener("click", () => {
-    if (pending) void landAt(pending.lon, pending.lat);
+    if (pending) void landAt(pending.lon, pending.lat, pending.place);
   });
   $("btnOrbit").addEventListener("click", () => {
     if (store.s.mode === "surface") void goOrbit();
+    else if (pending) void landAt(pending.lon, pending.lat, pending.place);
     else void landAt(store.s.here.lon, store.s.here.lat, store.s.here);
   });
   $("btnScan").addEventListener("click", () => scanner.toggle());
+  $("btnView").addEventListener("click", () => toggleView());
+  $("btnMissions").addEventListener("click", () => {
+    if (!campaign.active) campaign.start(firstOpenMission());
+    else $("mission").classList.toggle("collapsed");
+  });
+  const firstOpenMission = (): number => Math.max(0, MISSIONS.findIndex((m) => !campaign.done.has(m.id)));
   $("scOpenPlanner").addEventListener("click", () => {
     store.set({ a: store.s.here, plannerIndex: 0, landing: Math.floor(store.s.time / 86400) * 86400 });
     planner.show("compare");
   });
-  $("btnPlanner").addEventListener("click", () => {
-    planner.show("compare");
-    polarMap.draw(store.s);
+  $("btnPlanner").addEventListener("click", () => openControl());
+  $("plClose").addEventListener("click", () => document.body.classList.remove("console"));
+  $("btnSettings").addEventListener("click", () => $("settings").classList.toggle("hidden"));
+  ($("setReal") as HTMLInputElement).addEventListener("change", (e) => {
+    world.realisticDark = (e.target as HTMLInputElement).checked;
+    updateSky(store.s);
   });
-  $("btnDemo").addEventListener("click", () => void runDemo({ store, scanner, planner, moon, caption, data }));
+  ($("setBob") as HTMLInputElement).addEventListener("change", (e) => (world.headBob = (e.target as HTMLInputElement).checked));
+  ($("setDetail") as HTMLInputElement).addEventListener("change", (e) => (shared.detail.value = (e.target as HTMLInputElement).checked ? 1 : 0));
+  ($("setExp") as HTMLInputElement).addEventListener("input", (e) => {
+    const v = Number((e.target as HTMLInputElement).value);
+    world.renderer.toneMappingExposure = v;
+    $("expOut").textContent = v.toFixed(2);
+  });
+  function toggleView(): void {
+    if (store.s.mode !== "surface") return;
+    const tp = world.toggleView();
+    $("crosshair").classList.toggle("hidden", tp || !document.pointerLockElement);
+    toast(tp ? "Third-person view" : "First-person view — look down to see your suit", 2000);
+  }
+
+  store.on((s, ch) => {
+    if (ch.has("time")) {
+      updateSky(s);
+      instrument.render(s);
+    }
+    updateReadout(s);
+    scanner.render(s);
+    if (planner.isOpen() && (ch.has("a") || ch.has("b") || ch.has("landing") || ch.has("slipDays") || ch.has("windowDays") || ch.has("terrain") || ch.has("plannerIndex"))) planner.render(s);
+    if (ch.has("a") || ch.has("b")) {
+      polarMap.draw(s);
+      renderMissionBar();
+    }
+    if (ch.has("slipDays")) campaign.emit({ type: "slip", days: s.slipDays });
+  });
 
   window.addEventListener("keydown", (e) => {
     if ((e.target as HTMLElement)?.closest?.("input, select, textarea, dialog")) return;
+    if ($("intro").classList.contains("hidden") === false) return;
     if (e.code === "KeyM") scanner.toggle();
     else if (e.code === "KeyO") $("btnOrbit").click();
-    else if (e.code === "KeyP") (planner.isOpen() ? planner.hide() : planner.show("compare"));
-    else if (e.code === "KeyV" && moon && store.s.mode === "surface") toast(moon.toggleView() ? "Third-person view" : "First-person view — look down to see your suit", 2200);
-    else if (e.code === "Escape" && planner.isOpen()) planner.hide();
+    else if (e.code === "KeyP") (planner.isOpen() ? (planner.hide(), document.body.classList.remove("console")) : openControl());
+    else if (e.code === "KeyV") toggleView();
+    else if (e.code === "Escape") {
+      if (planner.isOpen()) { planner.hide(); document.body.classList.remove("console"); }
+      else if (instrument.isOpen()) instrument.close();
+      $("settings").classList.add("hidden");
+    }
   });
 
-  // Reality check runs in the background; its measured error feeds the badges.
   window.addEventListener("planner-tab", (ev) => {
     if ((ev as CustomEvent).detail === "reality" && skyCheck) void renderReality(data, skyCheck, data.grid);
   });
@@ -221,44 +598,66 @@ async function boot(): Promise<void> {
     scanner.render(store.s);
   });
 
-  // Token dialog, only offered once and never required.
-  if (moon && !moon.usingTiles && token === null) {
-    window.setTimeout(() => {
-      const dlg = $("tokenDlg") as HTMLDialogElement;
-      dlg.addEventListener("close", () => {
-        const v = ($("tokenIn") as HTMLInputElement).value.trim();
-        try {
-          localStorage.setItem(TOKEN_KEY, dlg.returnValue === "save" ? v : "");
-        } catch {
-          /* ignore */
-        }
-        if (dlg.returnValue === "save" && v) location.reload();
-      }, { once: true });
-      if (!url.demo) dlg.showModal();
-    }, 1500);
-  }
-
-  // Start on the surface at the start place.
+  // ---------- opening ----------
   updateSky(store.s);
   updateReadout(store.s);
-  if (moon) {
-    await moon.land(startPlace.lon, startPlace.lat).catch(() => undefined);
-    moon.startWalk(startPlace.lon, startPlace.lat, 0);
-  }
+  $("roCoords").textContent = `${fmtLat(outpost.lat)} ${fmtLon(outpost.lon)}`;
+  world.start();
   $("boot").classList.add("done");
-  scanner.show();
-  window.setTimeout(() => $("hints").classList.add("fade"), 9000);
-  (window as unknown as { onedegree: unknown }).onedegree = { store, data, moon, scanner, planner, skyNow };
-  if (url.demo) window.setTimeout(() => $("btnDemo").click(), 800);
-}
+  $("introBrief").textContent = `You are part of a lunar research mission. Your task is to investigate where future lunar landers can receive sunlight and keep in contact with Earth.`;
+  $("introFine").textContent = `The outpost is fictional. Its site — ${fmtLat(outpost.lat)}, ${fmtLon(outpost.lon)}, on the rim of Shackleton crater — was chosen by code from NASA's illumination maps. Terrain: NASA LOLA. Sun & Earth: NASA/JPL Horizons. Mission clock: ${fmtUtc(store.s.time)} UTC.`;
+  const flyover = (): void => {
+    const R = 150, gy = groundY(world.patch as SurfacePatch, 0, 0);
+    void world.cinematic(90_000, (u, cam) => {
+      const a = -1.2 + u * Math.PI * 1.4;
+      cam.position.set(Math.sin(a) * R, gy + 34 + Math.sin(u * 6) * 4, -Math.cos(a) * R);
+      cam.lookAt(-4, gy + 2, 2);
+    }, false);
+  };
+  const begin = async (mode: "mission" | "free"): Promise<void> => {
+    $("intro").classList.add("leaving");
+    const start = world.camera.position.clone();
+    const q0 = world.camera.quaternion.clone();
+    world.skipCinematic();
+    const pl = world.player;
+    const end = { x: pl.pos.x + Math.sin(pl.yaw) * 0.12, y: pl.pos.y + 1.62, z: pl.pos.z - Math.cos(pl.yaw) * 0.12 };
+    const tmp = world.camera.clone();
+    tmp.position.set(end.x, end.y, end.z);
+    tmp.rotation.order = "YXZ";
+    tmp.rotation.set(pl.pitch, -pl.yaw, 0);
+    const q1 = tmp.quaternion.clone();
+    await world.cinematic(2200, (u, cam) => {
+      const e = u * u * (3 - 2 * u);
+      cam.position.set(start.x + (end.x - start.x) * e, start.y + (end.y - start.y) * e, start.z + (end.z - start.z) * e);
+      cam.quaternion.copy(q0).slerp(q1, e);
+    }, false);
+    $("intro").classList.add("hidden");
+    $("intro").classList.remove("leaving");
+    document.body.classList.remove("intro-on");
+    if (mode === "mission") {
+      campaign.start(0);
+      caption("Mission 01 · First Light", 2600);
+    }
+    $("tutorial").classList.remove("hidden");
+    window.setTimeout(() => $("tutorial").classList.add("fade"), 16000);
+  };
+  $("introBegin").addEventListener("click", () => void begin("mission"));
+  $("introFree").addEventListener("click", () => void begin("free"));
+  $("introSkip").addEventListener("click", () => void begin("mission"));
 
-let captionTimer = 0;
-export function caption(text: string, ms = 3000): void {
-  const c = $("caption");
-  c.textContent = text;
-  c.classList.add("show");
-  window.clearTimeout(captionTimer);
-  captionTimer = window.setTimeout(() => c.classList.remove("show"), ms);
+  (window as unknown as { onedegree: unknown }).onedegree = { store, data, world, scanner, planner, instrument, campaign, get moon() { return moon; }, windowT0, interact, goOrbit, landAt };
+  if (url.demo) {
+    $("intro").classList.add("hidden");
+    window.setTimeout(() => void runDemo({ store, scanner, planner, world, instrument, campaign, caption, data, windowT0, outpost, survey, interact }), 600);
+  } else {
+    document.body.classList.add("intro-on");
+    $("intro").classList.remove("hidden");
+    flyover();
+  }
+  $("btnDemo").addEventListener("click", () => void runDemo({ store, scanner, planner, world, instrument, campaign, caption, data, windowT0, outpost, survey, interact }));
+
+  // token dialog: offered only from orbit, never required
+  void token;
 }
 
 void boot();
