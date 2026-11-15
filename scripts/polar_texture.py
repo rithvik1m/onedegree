@@ -1,3 +1,4 @@
+# AI-assisted: written with Claude Code (Anthropic) during NASA Space Apps 2026 — see docs/AI_DISCLOSURE.md
 """Shaded-relief texture of 80-90 S for the 3D fallback globe.
 
 NASA Moon Trek's global LRO WAC tiles are equirectangular, so near the pole they are

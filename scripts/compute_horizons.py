@@ -1,3 +1,4 @@
+# AI-assisted: written with Claude Code (Anthropic) during NASA Space Apps 2026 — see docs/AI_DISCLOSURE.md
 """Terrain skylines from NASA LRO/LOLA elevation models.
 
 For each curated site, trace 720 great-circle rays (every 0.5 deg of azimuth) out

@@ -1,3 +1,4 @@
+// AI-assisted: written with Claude Code (Anthropic) during NASA Space Apps 2026 — see docs/AI_DISCLOSURE.md
 /**
  * Loading the shipped NASA-derived data, and one cached analysis per site/window.
  * Everything the panels draw comes from `analyse()`, so the scanner, planner,

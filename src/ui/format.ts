@@ -1,3 +1,4 @@
+// AI-assisted: written with Claude Code (Anthropic) during NASA Space Apps 2026 — see docs/AI_DISCLOSURE.md
 export function fmtLat(lat: number): string {
   return `${Math.abs(lat).toFixed(3)}°${lat < 0 ? "S" : "N"}`;
 }

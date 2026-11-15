@@ -1,3 +1,4 @@
+# AI-assisted: written with Claude Code (Anthropic) during NASA Space Apps 2026 — see docs/AI_DISCLOSURE.md
 """Independent check data: Horizons' OWN topocentric Sun/Earth azimuth-elevation
 for observers standing on the Moon.
 

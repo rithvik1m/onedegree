@@ -1,3 +1,4 @@
+// AI-assisted: written with Claude Code (Anthropic) during NASA Space Apps 2026 — see docs/AI_DISCLOSURE.md
 import "./styles.css";
 import { loadCore, loadGrid, skyNow, type Data, type Place } from "./data";
 import { MoonScene } from "./cesium/moon";

@@ -1,3 +1,4 @@
+// AI-assisted: written with Claude Code (Anthropic) during NASA Space Apps 2026 — see docs/AI_DISCLOSURE.md
 import type { Place } from "./data";
 
 export type Mode = "surface" | "orbit";

@@ -1,3 +1,4 @@
+// AI-assisted: written with Claude Code (Anthropic) during NASA Space Apps 2026 — see docs/AI_DISCLOSURE.md
 /**
  * Scanner (slim field tool) and Planner (full-screen compare + date slip).
  */

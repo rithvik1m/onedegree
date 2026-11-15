@@ -1,3 +1,4 @@
+// AI-assisted: written with Claude Code (Anthropic) during NASA Space Apps 2026 — see docs/AI_DISCLOSURE.md
 /**
  * Reality Check: every claim the app makes is re-tested here, live, in the
  * visitor's browser, and the measured numbers are shown — including failures.

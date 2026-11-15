@@ -1,3 +1,4 @@
+// AI-assisted: written with Claude Code (Anthropic) during NASA Space Apps 2026 — see docs/AI_DISCLOSURE.md
 /**
  * The 30-second guided demo: a fixed, repeatable sequence of the real app, with
  * caption-only title cards. Every number on screen is computed live.

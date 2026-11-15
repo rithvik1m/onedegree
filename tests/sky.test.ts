@@ -1,3 +1,4 @@
+// AI-assisted: written with Claude Code (Anthropic) during NASA Space Apps 2026 — see docs/AI_DISCLOSURE.md
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { angularSeparationDeg, lerpAngleDeg, skyAt, subpointsAt, type SubpointTable } from "../src/science/sky";

@@ -1,3 +1,4 @@
+// AI-assisted: written with Claude Code (Anthropic) during NASA Space Apps 2026 — see docs/AI_DISCLOSURE.md
 /**
  * The two pictures the whole app is built around.
  *  - Panorama: the 360° skyline from LOLA terrain, with every Sun and Earth position

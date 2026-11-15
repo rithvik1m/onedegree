@@ -1,3 +1,4 @@
+# AI-assisted: written with Claude Code (Anthropic) during NASA Space Apps 2026 — see docs/AI_DISCLOSURE.md
 """NASA's own long-term Sun and Earth visibility at each site — an independent check.
 
 Mazarico et al. (NASA Goddard PGDA product 69, 2016 release): hourly illumination
