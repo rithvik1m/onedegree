@@ -18,3 +18,6 @@
 
 No NASA logos or insignia are used in the interface. Use of NASA data does not imply
 NASA endorsement.
+
+- NASA Scientific Visualization Studio — CGI Moon Kit, LRO LROC WAC colour mosaic (public domain, NASA). Used for the Moon map and orbit view.
+- OD-1 spacecraft, Shadow Station sensor and consoles: original geometry built in code for this project (Apache-2.0).

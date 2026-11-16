@@ -42,3 +42,15 @@ dynamics. There is no sound in vacuum; the app is silent.
 **Orbit globe.** Uses NASA Moon Trek LRO WAC imagery (~100 m/px at best); with an
 optional Cesium ion token it can stream Cesium Moon tiles (not tested by us without a
 token).
+
+## v5 (spacecraft, bases, missions, saving)
+- **Explorer flight is assisted game flight.** Gravity is a point mass (no mascons, no Earth/Sun perturbations),
+  the Moon's 27.3-day rotation is neglected, propellant is unlimited and the engine is strong (8 m/s²). The autopilot is a
+  feedback law, not trajectory optimisation. Time warp (×2–×50) compresses time; it does not change the physics.
+- **Terrain while flying:** below ~14 km the craft flies over the measured LOLA region of the nearest site; elsewhere the
+  orbit view shows a smooth textured sphere (no local relief). Custom landings use the 400 m LOLA grid near the pole or a
+  smooth sphere elsewhere — the HUD/landing label says which.
+- **Bases are fictional** facilities on real, data-chosen sites. Their buildings are decorative; colliders are simple circles.
+- **Saves are local to this browser** (localStorage). No cloud or cross-device sync. Clearing site data erases progress.
+- **Rapier physics** remains on the `physics-proto` branch; v5 gameplay does not depend on it.
+- **Not built:** Earth excursion; more than one rover per region; NPCs.

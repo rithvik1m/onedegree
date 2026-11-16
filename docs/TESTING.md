@@ -53,3 +53,12 @@ count rose from ~24 to 60 per second after the changes.
 - Historic: landed at Apollo 17 (card, quick scan: Sun clears the land by 28.4°, highest
   horizon 13.7° N) and Apollo 11 (scope view of the reconstruction from 83 m).
 - Physics prototype (branch `physics-proto`): 6 tests and the Physics Lab — docs/PHYSICS.md.
+
+## v5 browser journeys (Playwright, headless Chrome, dev build)
+- **Full loop:** mission board → start *Shadow Hunter* → Moon map → set Shadow Station as destination → walk to OD-1 →
+  E board → L autopilot → region hand-off → touchdown at the Shadow Station pad → E exit → measure at the Shadow Sensor →
+  measure at SH-2 → mission result → H scan → Save → reload → *Continue* restored region, mission state, notes and discoveries.
+  No console errors.
+- **Long range:** Outpost → Apollo 11 with the autopilot through the orbit view (see report for numbers).
+- **Unit tests:** `tests/flight.test.ts` — free fall vs √(2h/g); 100 km circular orbit closes with energy drift < 1e-8;
+  scene-frame transform equals the surface terrain frame; hover hold; two autopilot landings.

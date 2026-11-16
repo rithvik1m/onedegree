@@ -37,3 +37,11 @@ v1 is tagged `v1.0`, v2 `v2.0`; v3 work happened on branch `v3` and is merged to
 | Reality Check 7: 3D world vs LOLA skyline (live) | Done | mean 0.019°, max 0.153°, ~60 ms in browser |
 | 30-s guided demo | Done for v3 (`src/demo.ts`); 30 s recording at `submission/onedegree_demo.mp4` (git-ignored) | captions only |
 | Vercel deploy | Waiting for owner to import the repo | `vercel.json` |
+
+## v5 — 2026-11-15 (branch v5 → main)
+- Pilotable OD-1 spacecraft (src/flight/): Moon-centred flight dynamics, Explorer autopilot, orbit view.
+- Shadow Research Station + EarthLink Communications Station (scripts/bases.py, src/game/bases.ts).
+- Mission board + 5 optional activities (src/game/sidequests.ts); Moon map (src/ui/moonmap.ts);
+  versioned save/load (src/game/progress.ts).
+- Tests: 33 unit tests (7 new flight tests); browser journeys in docs/TESTING.md.
+- v4.0 tag = previous stable submission build.

@@ -42,6 +42,9 @@ export class MoonMap {
   private cv: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private tex: ImageData | null = null;
+  /** NASA LOLA 80 m hillshade south of 80°S (polar stereographic, R = 1737.4 km) */
+  private polar: ImageData | null = null;
+  private polarExt = { left: -304000, right: 304000, bottom: -304000, top: 304000 };
   private lon0 = 0;
   private lat0 = -60;
   private zoom = 1;
@@ -67,6 +70,17 @@ export class MoonMap {
       if (this.isOpen()) this.draw();
     };
     img.src = "textures/moon_lroc_2048.jpg";
+    const pimg = new Image();
+    pimg.onload = () => {
+      const c = document.createElement("canvas");
+      c.width = pimg.width;
+      c.height = pimg.height;
+      const x = c.getContext("2d") as CanvasRenderingContext2D;
+      x.drawImage(pimg, 0, 0);
+      this.polar = x.getImageData(0, 0, c.width, c.height);
+      if (this.isOpen()) this.draw();
+    };
+    pimg.src = "textures/south_pole_lola_1536.jpg";
     this.cv.addEventListener("pointerdown", (e) => {
       this.drag = { x: e.clientX, y: e.clientY, moved: false };
       this.cv.setPointerCapture(e.pointerId);
@@ -221,6 +235,20 @@ export class MoonMap {
         const lat = Math.asin(Math.max(-1, Math.min(1, cz * s0 + (rho > 0 ? (y * sc * c0) / rho : 0))));
         const lon = this.lon0 * D2R + Math.atan2(x * sc, rho * cz * c0 - y * sc * s0);
         const shade = 0.5 + 0.5 * cz;
+        const pt = this.polar;
+        if (pt && lat < -80 * D2R) {
+          // polar stereographic (south): rho = 2R tan(pi/4 + lat/2); x = rho sin(lon), y = rho cos(lon)
+          const rhoP = 2 * 1737400 * Math.tan(Math.PI / 4 + lat / 2);
+          const X = rhoP * Math.sin(lon), Y = rhoP * Math.cos(lon);
+          const e = this.polarExt;
+          const tx = Math.floor(((X - e.left) / (e.right - e.left)) * pt.width);
+          const ty = Math.floor(((e.top - Y) / (e.top - e.bottom)) * pt.height);
+          if (tx >= 0 && ty >= 0 && tx < pt.width && ty < pt.height) {
+            const q = (ty * pt.width + tx) * 4;
+            o[k] = pt.data[q] as number; o[k + 1] = pt.data[q + 1] as number; o[k + 2] = pt.data[q + 2] as number; o[k + 3] = 255;
+            continue;
+          }
+        }
         if (t) {
           let u = ((lon / (2 * Math.PI) + 0.5) % 1 + 1) % 1;
           const v = 0.5 - lat / Math.PI;

@@ -43,3 +43,12 @@ in this repository.
 | Apollo mission facts | NASA NSSDC — <https://nssdc.gsfc.nasa.gov/planetary/lunar/apolloland.html> | dates, EVA hours, traverse km, sample kg | historic site cards |
 | Global terrain | LRO LOLA global DEM 118 m/px (USGS Astrogeology mosaic, `Lunar_LRO_LOLA_Global_LDEM_118m_Mar2014.tif`, range-read ±25 km) | `scripts/historic.py` | walkable terrain + skylines at Apollo 11/15/17 |
 | Heritage distances | NASA 2011 "Recommendations to Space-Faring Entities" as reported (NBC News, Discover, NASASpaceflight, 2011–12): 75 m Apollo 11, 225 m Apollo 17 | — | keep-out rings (Apollo 15 uses 75 m as a labelled game choice) |
+
+## v5 additions
+- **Lunar globe imagery:** NASA Scientific Visualization Studio, *CGI Moon Kit* (svs.gsfc.nasa.gov/4720),
+  LRO LROC WAC colour mosaic, `lroc_color_poles_4k.tif` → `public/textures/moon_lroc_{4096,2048}.jpg` (resampled, JPEG). Public domain (NASA).
+- **South-polar map layer:** hillshade of NASA PGDA product 90 `LDEM_80S_80MPP_ADJ` (LOLA 80 m), averaged to 1536²,
+  sun az 300° el 18° → `public/textures/south_pole_lola_1536.jpg`; extent ±304 km polar stereographic, R = 1737.4 km.
+- **New station sites:** `scripts/bases.py` selects them from NASA PGDA product 69 long-term sun/Earth visibility maps
+  (AVGVISIB_75S_120M) and LOLA 80 m slopes; horizons and walkable terrain built exactly as for the outpost.
+- **Gravity:** GM(Moon) = 4902.800 km³/s² (JPL DE440); mean radius 1737.4 km.

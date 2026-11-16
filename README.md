@@ -48,6 +48,33 @@ does a one-week slip change the answer?* Every number comes from NASA data.
   The Delay (7-day slip). **Orbit and land anywhere** with a live landing preview.
 - **Scanner (M), Planner (P), Reality Check** — the v1 science tools, unchanged.
 
+## New in v5 — one connected Moon
+
+- **Pilotable spacecraft (OD-1).** Walk to your lander, press **E**, and fly. One Moon-centred flight
+  state (GM = 4902.800 km³/s², point-mass gravity, velocity-Verlet integration) drives two views:
+  the local NASA LOLA terrain below ~14 km and a true-scale whole-Moon orbit view above it (NASA LROC
+  colour mosaic, Sun and Earth placed from the Horizons table, predicted gravity-only trajectory,
+  periapsis / apoapsis / period). **Explorer mode is assisted, game-style flight** (strong engine,
+  unlimited propellant, vertical-speed hold, an autopilot that flies to your chosen destination and
+  lands) — not a mission-grade orbital simulator. Manual mode (F) gives raw throttle. Tested: a 100 km
+  circular orbit closes after one period (117.8 min) with relative energy drift < 1e-8; the autopilot
+  lands Outpost → Shadow Station (51 km) and Outpost → Apollo 11 (2,759 km) inside the test limits (miss < 15 m / < 25 m, touchdown < 2 m/s).
+- **Three explorable research stations** (fictional, on real sites chosen by `scripts/bases.py` from
+  NASA PGDA illumination maps; terrain NASA LOLA 10/20/80/240 m):
+  South Pole Research Center (the outpost, 89.6871°S 197.2892°E),
+  **Shadow Research Station** (88.6292°S 20.0043°E; sunlit 45 % long-term, beside SH-2 which is sunlit 1.4 %),
+  **EarthLink Communications Station** (88.4425°S 292.1663°E; Earth in view 62 % long-term; dishes track the real Earth).
+- **Mission board (B)** with Main / Side / Exploration / Challenge categories and five optional
+  activities built from reusable data (`src/game/sidequests.ts`): Lost Signal, Shadow Hunter, Lunar
+  Explorer, Heritage Explorer, One-Degree Hunter. Start, pause, resume, abandon, or ignore them.
+  Every result is computed by the science engine at the moment you finish.
+- **Moon map (G)**: rotatable, zoomable globe (NASA LROC mosaic; a NASA LOLA 80 m hillshade south
+  of 80°S), clustered markers with filters, coordinates, descriptions, flight destinations, custom
+  points, and fast travel to places you have already visited.
+- **Progress saving**: versioned save in this browser (autosave + Save now + Export/Import + New
+  exploration with confirmation; corrupted saves are set aside, never silently reinterpreted).
+  Measurements are stored with place, time and data source. No cloud sync.
+
 ## New in v4
 
 - **H — quick scan where you stand**: your own 360° NASA LOLA horizon traced over the
