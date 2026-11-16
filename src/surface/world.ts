@@ -453,6 +453,7 @@ export class SurfaceWorld {
     const r = this.renderer;
     if (this.inside && this.interior) {
       this.interior.tick(now);
+      this.camera.updateMatrixWorld(); // the camera lives in the outdoor scene, which is not rendered here
       r.clear();
       r.render(this.interior.scene, this.camera);
       return;
@@ -511,11 +512,9 @@ export class SurfaceWorld {
       c.position.set(p.pos.x + fx, p.pos.y + EYE_HEIGHT + bob - landing, p.pos.z + fz);
       c.rotation.set(p.pitch, -p.yaw, 0);
     } else if (this.inside) {
-      const dist = 2.4;
-      const cx = Math.max(-4.2, Math.min(4.2, p.pos.x - Math.sin(p.yaw) * dist));
-      const cz = Math.max(-2.9, Math.min(2.9, p.pos.z + Math.cos(p.yaw) * dist));
-      c.position.set(cx, 2.1, cz);
-      c.lookAt(p.pos.x, 1.3, p.pos.z);
+      // a corner camera, like the module's own monitoring camera
+      c.position.set(p.pos.x * 0.4 + (p.pos.x >= 0 ? -1.5 : 1.5), 2.7, 2.95);
+      c.lookAt(p.pos.x, 1.1, p.pos.z - 0.6);
     } else {
       const dist = 5.2;
       const back = new THREE.Vector3(-Math.sin(p.yaw) * Math.cos(p.pitch * 0.6), 0, Math.cos(p.yaw) * Math.cos(p.pitch * 0.6));

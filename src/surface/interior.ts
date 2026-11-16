@@ -83,22 +83,20 @@ export class Interior {
     wall(w, 0, d / 2, Math.PI);
     wall(d, -w / 2, 0, Math.PI / 2);
     wall(d, w / 2, 0, -Math.PI / 2);
-    // vaulted ceiling (module interior)
-    const ceil = new THREE.Mesh(new THREE.CylinderGeometry(d / 2, d / 2, w, 32, 1, true, Math.PI / 2, Math.PI), new THREE.MeshStandardMaterial({ color: 0xd8d4cb, side: THREE.BackSide, roughness: 0.8 }));
-    ceil.rotation.z = Math.PI / 2;
-    ceil.scale.set(1, 1, 0.35);
+    // ceiling with light strips
+    const ceil = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshStandardMaterial({ color: 0xbdb8ae, roughness: 0.85 }));
+    ceil.rotation.x = Math.PI / 2;
     ceil.position.y = h;
     s.add(ceil);
-    // light strips
     const strip = new THREE.MeshBasicMaterial({ color: 0xfff1d6 });
-    for (const z of [-1.2, 1.2]) {
-      const l = new THREE.Mesh(new THREE.BoxGeometry(w * 0.85, 0.04, 0.12), strip);
-      l.position.set(0, h + 0.62, z);
+    for (const z of [-1.4, 1.4]) {
+      const l = new THREE.Mesh(new THREE.BoxGeometry(w * 0.85, 0.03, 0.14), strip);
+      l.position.set(0, h - 0.02, z);
       s.add(l);
     }
     s.add(new THREE.AmbientLight(0xbfc6d4, 0.55));
     const p1 = new THREE.PointLight(0xfff0d8, 9, 14, 1.6);
-    p1.position.set(-2.5, h + 0.3, 0);
+    p1.position.set(-2.5, h - 0.3, 0);
     const p2 = p1.clone();
     p2.position.x = 2.5;
     s.add(p1, p2);
@@ -181,9 +179,9 @@ export class Interior {
     g.fillStyle = "#0b0b0c";
     g.fillRect(0, 0, 1024, 128);
     g.fillStyle = "#f2b544";
-    g.font = "700 64px Inter, system-ui, sans-serif";
+    g.font = "700 46px Inter, system-ui, sans-serif";
     g.textAlign = "center";
-    g.fillText("MISSION CONTROL · OUTPOST (SIMULATED)", 512, 86);
+    g.fillText("MISSION CONTROL · OUTPOST (SIMULATED)", 512, 80);
     const sign = new THREE.Mesh(new THREE.PlaneGeometry(4, 0.5), new THREE.MeshBasicMaterial({ map: t, toneMapped: false }));
     sign.position.set(0, 2.62, -d / 2 + 0.02);
     s.add(sign);

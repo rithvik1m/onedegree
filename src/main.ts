@@ -349,7 +349,7 @@ async function boot(): Promise<void> {
     if (id === "solar") instrument.open("solar", outpost);
     else if (id === "comms") instrument.open("comms", outpost);
     else if (id === "survey") instrument.open("survey", survey, outpost);
-    else if (id === "control") openControl(); // walk-in interior (src/surface/interior.ts) is built but not yet polished enough to ship
+    else if (id === "control") void enterControl();
     else if (id === "console") openControl();
     else if (id === "exit") void exitControl();
     else if (id === "deck") {
@@ -359,7 +359,6 @@ async function boot(): Promise<void> {
       caption(instrument.skylineOn ? "You are looking WSW into Shackleton crater — its floor lies about 4 km below this rim and never sees direct sunlight. The teal line is the horizon the scanner computes from NASA LOLA terrain; it traces the 3D ridges because both come from the same data." : "Horizon trace off", 9000);
     } else if (id === "lander") void goOrbit();
   }
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async function enterControl(): Promise<void> {
     if (world.inside) return;
     instrument.close();
