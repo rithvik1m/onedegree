@@ -245,7 +245,7 @@ export class SurfaceWorld {
   private bindInput(): void {
     const el = this.renderer.domElement;
     el.addEventListener("click", () => {
-      if (!this.cine && document.pointerLockElement !== el && matchMedia("(pointer: fine)").matches) void el.requestPointerLock?.();
+      if (!this.cine && !this.flight && document.pointerLockElement !== el && matchMedia("(pointer: fine)").matches) void el.requestPointerLock?.();
     });
     document.addEventListener("pointerlockchange", () => this.ev.onPointerLock(document.pointerLockElement === el));
     const look = (dx: number, dy: number, k: number): void => {
@@ -270,7 +270,7 @@ export class SurfaceWorld {
       tx = t.clientX; ty = t.clientY;
     }, { passive: true });
     window.addEventListener("keydown", (e) => {
-      if (!this.running || (e.target as HTMLElement)?.closest?.("input, select, textarea, dialog")) return;
+      if (!this.running || this.flight || (e.target as HTMLElement)?.closest?.("input, select, textarea, dialog")) return;
       releaseButtonFocus(e);
       const act = actionFor(e.code, this.driving);
       if (act === "forward" || act === "back" || act === "left" || act === "right" || act === "sprint" || e.code === "KeyQ") {
@@ -397,7 +397,7 @@ export class SurfaceWorld {
       lander.position.set(lx, gy(lx, lz) + 0.1, lz);
       this.props.add(lander);
       this.player.colliders.push({ x: lx, z: lz, r: 3.6 });
-      this.siteInteractables.push({ id: "lander", label: "Board spacecraft · launch to orbit", x: lx - 4.6, z: lz - 1, r: 3 });
+      this.siteInteractables.push({ id: "lander", label: "Board spacecraft · OD-1", x: lx - 4.6, z: lz - 1, r: 3 });
       exclude.push({ x: 0, z: 0, r: H.radius + 4 }, { x: lx, z: lz, r: 8 }, { x: sx, z: sz, r: 4 });
       const sp = opts.spawn ?? { x: sx + 1.5, z: sz + 3, yaw: Math.PI + 0.06 };
       this.player.place(sp.x, sp.z, sp.yaw);
@@ -413,11 +413,13 @@ export class SurfaceWorld {
       l.position.set(lx, gy(lx, lz) + 11, lz);
       this.props.add(l);
       this.player.colliders = [{ x: lx, z: lz, r: 3.6 }];
-      this.siteInteractables = [{ id: "lander", label: "Board spacecraft · launch to orbit", x: lx - 4.6, z: lz - 1, r: 3 }];
+      this.siteInteractables = [{ id: "lander", label: "Board spacecraft · OD-1", x: lx - 4.6, z: lz - 1, r: 3 }];
       exclude.push({ x: lx, z: lz, r: 8 }, { x: 0, z: 0, r: 4 });
       const sp = opts.spawn ?? { x: 0, z: 0, yaw: Math.atan2(lx, -lz) + 0.5 };
       this.player.place(sp.x, sp.z, sp.yaw);
     }
+    this.landerObj = this.outpost?.beacons.get("lander") ?? this.props.children.find((o) => o.name === "od1") ?? null;
+    this.landerHome = this.landerObj ? { x: this.landerObj.position.x, z: this.landerObj.position.z } : null;
     this.scatterRocks(gy, exclude, p.kind === "smooth" ? 0.5 : 1);
     this.indexProps();
     this.applyLighting();
@@ -427,6 +429,31 @@ export class SurfaceWorld {
   }
 
   private siteInteractables: Interactable[] = [];
+  /** every interactable in the current region (outdoor) */
+  allInteractables(): Interactable[] {
+    return [...(this.outpost?.interactables ?? []), ...this.siteInteractables];
+  }
+  /** the player's spacecraft in this region, and where setSite parked it */
+  landerObj: THREE.Object3D | null = null;
+  landerHome: { x: number; z: number } | null = null;
+  /** spacecraft controller (src/flight/flight.ts) — owns the camera while set */
+  flight: { tick(dt: number): "surface" | "orbit"; renderOrbit(r: THREE.WebGLRenderer): void } | null = null;
+
+  /** Park the spacecraft somewhere else in this region (its boarding point and collider follow). */
+  moveLander(x: number, z: number, yaw: number): void {
+    const o = this.landerObj;
+    if (!o || !this.patch) return;
+    const old = { x: o.position.x, z: o.position.z };
+    o.position.set(x, groundY(this.patch, x, z), z);
+    o.rotation.set(0, yaw, 0);
+    o.visible = true;
+    const hatch = { x: -Math.cos(yaw) * 4.6, z: Math.sin(yaw) * 4.6 };
+    for (const it of [...(this.outpost?.interactables ?? []), ...this.siteInteractables]) if (it.id === "lander") { it.x = x + hatch.x; it.z = z + hatch.z; }
+    for (const c of [...(this.outpost?.colliders ?? []), ...this.player.colliders]) if (Math.hypot(c.x - old.x, c.z - old.z) < 0.5 && Math.abs(c.r - 3.6) < 0.01) { c.x = x; c.z = z; }
+    for (const s of this.props.children) if ((s as THREE.Sprite).isSprite && s.position.distanceTo(new THREE.Vector3(old.x, s.position.y, old.z)) < 1) s.position.set(x, s.position.y, z);
+    const lab = this.outpost?.labels.find((l) => Math.hypot(l.position.x - old.x, l.position.z - old.z) < 1);
+    if (lab) lab.position.set(x, groundY(this.patch, x, z) + 12, z);
+  }
 
   // ---------- Mission Control interior ----------
   interior: Interior | null = null;
@@ -642,7 +669,14 @@ export class SurfaceWorld {
     if (now - fp.t0 > 1000) { fp.fps = (fp.frames * 1000) / (now - fp.t0); fp.frames = 0; fp.t0 = now; }
 
     const p = this.player;
-    if (this.cine) {
+    if (this.flight && !this.cine) {
+      if (this.flight.tick(dt) === "orbit") {
+        this.afterFrame?.();
+        this.adaptRes(dt);
+        if (!this.paused) this.flight.renderOrbit(this.renderer);
+        return;
+      }
+    } else if (this.cine) {
       const done = this.cine.update(now - this.cine.start);
       if (done) { const r = this.cine.resolve; this.cine = null; r(); }
     } else if (this.driving && this.rover && this.patch) {
@@ -679,12 +713,12 @@ export class SurfaceWorld {
       this.astro.root.rotation.y += d * Math.min(1, dt * 8);
     }
     this.astro.animate(dt, sp, !p.onGround ? "air" : sp > 4.2 ? "lope" : sp > 0.25 ? "walk" : "idle", p.vel.y);
-    this.emitDust(dt, sp);
+    if (!this.flight) this.emitDust(dt, sp);
     const fpView = !p.thirdPerson && !this.cine && !this.driving;
     this.astro.setFirstPerson(fpView);
     if (this.cine) this.astro.root.visible = this.cineShowBody;
-    if (this.driving) this.astro.root.visible = false;
-    this.handheld.group.visible = fpView && !this.hideHandheld;
+    if (this.driving || this.flight) this.astro.root.visible = false;
+    this.handheld.group.visible = fpView && !this.hideHandheld && !this.flight;
     if (fpView) this.handheld.update(dt, sp, p.stride, p.pitch);
 
     // sun / shadows follow the player
@@ -716,7 +750,7 @@ export class SurfaceWorld {
       const d = Math.hypot(p.pos.x - it.x, p.pos.z - it.z);
       if (d < it.r && d < bd) { best = it; bd = d; }
     }
-    if (this.cine) best = null;
+    if (this.cine || this.flight) best = null;
     if (best !== this.prompt) {
       this.prompt = best;
       this.ev.onPrompt(best ? best.label : null);

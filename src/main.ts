@@ -28,6 +28,12 @@ import { smoothHorizonDeg } from "./science/terrain";
 import { loadKit } from "./surface/assets";
 import { BASES, baseById } from "./game/bases";
 import { GlbAstronaut } from "./surface/character";
+import * as THREE from "three";
+import { Flight, type FlightDest } from "./flight/flight";
+import { R_MOON, SceneFrame, rangeBearing, unitLL } from "./flight/sim";
+import { MoonMap, type MapAction, type MapItem } from "./ui/moonmap";
+import { SIDEQUESTS, sideById, type SideEvent, type SideQuest } from "./game/sidequests";
+import { clearSave, emptySave, exportSave, importSave, loadSave, writeSave, type SaveData } from "./game/progress";
 import * as sfx from "./ui/sfx";
 
 const TOKEN_KEY = "onedegree.ionToken";
@@ -182,6 +188,7 @@ async function boot(): Promise<void> {
     onInteract: (id) => interact(id),
     onMove: (lon, lat) => {
       live = { lon, lat };
+      if (world.flight) { $("roCoords").textContent = `${fmtLat(lat)} ${fmtLon(lon)}`; return; }
       if (world.outpost && distToS1() < 28) campaign.emit({ type: "near-s1", driving: world.driving });
       $("roCoords").textContent = `${fmtLat(lat)} ${fmtLon(lon)}`;
       // the scanner follows you between a station and its survey point
@@ -240,6 +247,7 @@ async function boot(): Promise<void> {
   };
   const addNote = (k: Note["k"], t: string): void => {
     notes.push({ k, t });
+    scheduleSave();
     renderNotes();
     $("btnNotes").classList.add("pulse");
     window.setTimeout(() => $("btnNotes").classList.remove("pulse"), 2400);
@@ -267,10 +275,13 @@ async function boot(): Promise<void> {
   }
 
   // ---------- instruments & campaign ----------
+  let sideJustFinished = false;
   let lastResult = "";
   const instrument = new Instrument(data, store, () => windowT0, {
     onRecord: (kind, result) => {
       lastResult = result;
+      if (instrument.place?.id) onSideEvent({ type: "record", kind, placeId: instrument.place.id });
+      scheduleSave();
       const m = campaign.mission;
       const st = campaign.step;
       const completes = !!(m && st && st.done({ type: "record", id: kind }) && campaign.si === m.steps.length - 1);
@@ -287,7 +298,8 @@ async function boot(): Promise<void> {
         $("tutorial").classList.remove("fade");
         for (const r of $("tutorial").querySelectorAll(".more")) r.classList.remove("hidden");
         window.setTimeout(() => $("tutorial").classList.add("fade"), 12000);
-      } else if (!completes) showDebrief("Measurement recorded", stationName(kind), result, false);
+      } else if (!completes && !sideJustFinished) showDebrief("Measurement recorded", instrument.place && instrument.place.id !== "outpost" && instrument.place.id !== "survey" ? instrument.place.short : stationName(kind), result, false);
+      sideJustFinished = false;
     },
     onPath: (kind, a) => {
       if (!a) return world.sky.setPath(null, 0);
@@ -589,9 +601,15 @@ async function boot(): Promise<void> {
       instrument.skylineOn = !instrument.skylineOn;
       world.sky.setSkyline(instrument.skylineOn && a?.skyline ? a.skyline.horizon : null);
       caption(instrument.skylineOn ? "You are looking WSW into Shackleton crater — its floor lies about 4 km below this rim and never sees direct sunlight. The teal line is the horizon the scanner computes from NASA LOLA terrain; it traces the 3D ridges because both come from the same data." : "Horizon trace off", 9000);
-    } else if (id === "lander") void goOrbit();
+    } else if (id === "lander") {
+      instrument.close();
+      scanner.hide();
+      if (!flight.board()) void goOrbit();
+    }
+    else if (id === "board") toggleBoard(true);
     else if (id === "scope") {
       const on = world.toggleScope();
+      if (on) onSideEvent({ type: "scope" });
       caption(on ? "Observation scope: the descent stage, viewed from outside the heritage boundary. E again to step back." : "Scope off.", 4000);
     }
     else if (id === "rover") {
@@ -761,17 +779,20 @@ async function boot(): Promise<void> {
     busy = false;
   }
 
-  async function landAt(lon: number, lat: number, place?: Place): Promise<void> {
-    if (busy) return;
-    busy = true;
-    $("preview").classList.add("hidden");
-    const target: Place = place ?? { name: `Landing point ${fmtLat(lat)}, ${fmtLon(lon)}`, short: "Landing point", lat, lon, kind: "custom" };
-    caption("Descent · cinematic, not flight dynamics", 3000);
-    if (moon) await moon.approach(lon, lat);
-    await fade(true, 350);
-    // terrain for the new site
+  /** Load a region (terrain + base/site set-up) for a place, without any camera move. */
+  let regionKey = "outpost";
+  const keyOf = (p: Place): string => p.id ?? `custom:${p.lon.toFixed(5)},${p.lat.toFixed(5)}`;
+  const placeForKey = (k: string): Place | null => {
+    if (k.startsWith("custom:")) {
+      const [lo, la] = k.slice(7).split(",").map(Number) as [number, number];
+      return { name: `Landing point ${fmtLat(la)}, ${fmtLon(lo)}`, short: "Landing point", lat: la, lon: lo, kind: "custom" };
+    }
+    return sites.find((x) => x.id === k) ?? null;
+  };
+  async function loadRegion(target: Place): Promise<SurfacePatch> {
     let patch: SurfacePatch | null = null;
     const id = target.id ?? "";
+    const { lon, lat } = target;
     try {
       if (patches.has(id)) patch = patches.get(id) as SurfacePatch;
       else if (["im1", "im2", "a11", "a15", "a17", ...BASES.map((b) => b.id)].includes(id)) {
@@ -787,7 +808,7 @@ async function boot(): Promise<void> {
     const heritageM = (target as Place & { heritage_m?: number }).heritage_m;
     const baseDef = baseById(id) ?? BASES.find((b) => b.partner?.id === id);
     if (baseDef && baseDef.id !== id) {
-      // landing at a base's survey point: load the base's region, spawn near the point
+      // a base's survey point: load the base's region
       patch = patches.get(baseDef.id) ?? (await loadPatch(baseDef.id));
       patches.set(baseDef.id, patch);
     }
@@ -798,10 +819,46 @@ async function boot(): Promise<void> {
       base: baseDef, partner: partnerPlace,
     });
     region = atOutpost ? { place: outpost, partner: survey } : baseDef && partnerPlace ? { place: byId(baseDef.id), partner: partnerPlace } : null;
-    store.set({ mode: "surface", here: target });
+    regionKey = atOutpost ? "outpost" : baseDef ? baseDef.id : keyOf(target);
+    // the spacecraft is wherever you last parked it in this region
+    const pk = save.craft;
+    if (pk && pk.region === regionKey) world.moveLander(pk.x, pk.z, pk.yaw);
+    store.set({ mode: "surface", here: atOutpost ? outpost : baseDef ? byId(baseDef.id) : target });
     renderMission();
     live = { lon, lat };
     updateSky(store.s);
+    flight.refreshMarkers();
+    return atOutpost ? (patches.get("outpost") as SurfacePatch) : patch;
+  }
+
+  /** Arrival bookkeeping: discovery, missions, history card, autosave. */
+  function arrived(target: Place): void {
+    const id = target.id ?? keyOf(target);
+    const first = !save.discovered.includes(id);
+    if (first) save.discovered.push(id);
+    if (region && !save.discovered.includes(region.place.id ?? "")) save.discovered.push(region.place.id ?? "");
+    campaign.emit({ type: "land" });
+    onSideEvent({ type: "arrive", siteId: regionKey });
+    if (target.kind === "historic") {
+      showHistoric(target);
+      onSideEvent({ type: "historic", id });
+    } else if (first && (target.kind === "base" || baseById(id))) {
+      const b = baseById(regionKey);
+      if (b) caption(`Discovered: ${b.name} — ${b.theme}`, 6000);
+    }
+    moonMap.refresh();
+    scheduleSave();
+  }
+
+  async function landAt(lon: number, lat: number, place?: Place): Promise<void> {
+    if (busy) return;
+    busy = true;
+    $("preview").classList.add("hidden");
+    const target: Place = place ?? { name: `Landing point ${fmtLat(lat)}, ${fmtLon(lon)}`, short: "Landing point", lat, lon, kind: "custom" };
+    caption("Descent · cinematic, not flight dynamics (fast travel)", 3000);
+    if (moon) await moon.approach(lon, lat);
+    await fade(true, 350);
+    const patch = await loadRegion(target);
     if (moon) {
       // release the orbit globe on the surface: an 8 GB laptop should not hold two 3D engines
       moon.destroy();
@@ -825,9 +882,8 @@ async function boot(): Promise<void> {
     }, false);
     $("roMode").textContent = modeLabel();
     toast(`Landed · ${patch.label}`, 5000);
-    campaign.emit({ type: "land" });
-    if (target.kind === "historic") showHistoric(target);
     busy = false;
+    arrived(target);
   }
   function showHistoric(p: Place): void {
     const prof = data.profiles.get(p.id ?? "");
@@ -876,10 +932,6 @@ async function boot(): Promise<void> {
   });
   $("btnScan").addEventListener("click", () => scanner.toggle());
   $("btnView").addEventListener("click", () => toggleView());
-  $("btnMissions").addEventListener("click", () => {
-    if (!campaign.active) campaign.start(firstOpenMission());
-    else $("mission").classList.toggle("collapsed");
-  });
   const firstOpenMission = (): number => Math.max(0, MISSIONS.findIndex((m) => !campaign.done.has(m.id)));
   $("scOpenPlanner").addEventListener("click", () => {
     store.set({ a: store.s.here, plannerIndex: 0, landing: Math.floor(store.s.time / 86400) * 86400 });
@@ -1002,6 +1054,12 @@ async function boot(): Promise<void> {
       $("scanCard").classList.add("hidden");
       if (!instrument.skylineOn) world.sky.setSkyline(null);
     }, 10000);
+    save.observations.push({ id: `scan-${Date.now()}`, siteId: regionKey, lon: r.lon, lat: r.lat, unix: store.s.time, kind: "quickscan",
+      summary: `Sun ${sunOk ? "visible" : sk.sunEl > flat ? "hidden by terrain" : "below horizon"} (Sun ${sk.sunEl.toFixed(2)}°, land ${r.sunHz.toFixed(2)}°); Earth ${earthOk ? "in view" : "not in view"}; highest horizon ${hi.toFixed(1)}° ${compass(hiAz)}`,
+      provenance: `${src}; ${world.patch?.label ?? ""}; eye 2 m` });
+    if (save.observations.length > 120) save.observations.splice(0, save.observations.length - 120);
+    const pw = world.player.pos;
+    onSideEvent({ type: "scan", siteId: regionKey, x: pw.x, z: pw.z, earthOk, sunHidden: !sunOk && sk.sunEl > flat });
     // a real "one degree" spot: the Sun is above a flat horizon but the land hides it
     if (!sunOk && sk.sunEl > flat && !notes.some((n) => n.t.startsWith("★"))) addNote("obs", `★ Discovery: a one-degree spot at ${fmtLat(r.lat)} ${fmtLon(r.lon)} — the Sun (${sk.sunEl.toFixed(1)}°) is up, but the land rises to ${r.sunHz.toFixed(1)}° in front of it.`);
     if (campaign.mission?.id === "m1") return;
@@ -1052,6 +1110,10 @@ async function boot(): Promise<void> {
     if ($("intro").classList.contains("hidden") === false) return;
     releaseButtonFocus(e);
     const act = actionFor(e.code, world.driving);
+    if (act === "board") { toggleBoard(); return; }
+    if (act === "map") { openMap(); return; }
+    if (e.code === "Escape" && ($("board").classList.contains("hidden") === false || moonMap.isOpen())) { toggleBoard(false); moonMap.close(); return; }
+    if (flight.active) { if (act === "notes") $("notes").classList.toggle("hidden"); return; }
     if (act === "scanner") scanner.toggle();
     else if (act === "quickScan") quickScan();
     else if (act === "orbit") $("btnOrbit").click();
@@ -1172,6 +1234,501 @@ async function boot(): Promise<void> {
   });
   refreshEarthState();
 
+  // =====================================================================
+  // V5 — save game, spacecraft, side missions, mission board, Moon map
+  // =====================================================================
+  const loaded = loadSave();
+  let save: SaveData = loaded.data ?? emptySave();
+  const hadSave = !!loaded.data && (loaded.data.discovered.length > 1 || loaded.data.main.done.length > 0 || Object.keys(loaded.data.side).length > 0 || loaded.data.notes.length > 1 || !!loaded.data.location);
+  if (loaded.note) window.setTimeout(() => toast(loaded.note, 7000), 1500);
+  const placeName = (k: string): string => (k === "outpost" ? outpost.short : baseById(k)?.short ?? placeForKey(k)?.short ?? k);
+  function saveSummary(d: SaveData): string {
+    const ago = Math.max(0, (Date.now() - Date.parse(d.savedAt)) / 60000);
+    const t = ago < 1 ? "just now" : ago < 60 ? `${ago.toFixed(0)} min ago` : ago < 1440 ? `${(ago / 60).toFixed(0)} h ago` : `${(ago / 1440).toFixed(0)} d ago`;
+    const sideDone = Object.values(d.side).filter((x) => x.state === "done").length;
+    const nDone = d.main.done.length + sideDone;
+    return `${d.location ? placeName(d.location.siteId) : outpost.short} · ${nDone} mission${nDone === 1 ? "" : "s"} done · saved ${t}`;
+  }
+  function collect(): SaveData {
+    const m = campaign.mission;
+    save.main = { done: [...campaign.done], active: m && campaign.step ? { id: m.id, step: campaign.si } : null };
+    save.notes = notes.slice(-100).map((n) => ({ k: n.k, t: n.t }));
+    save.prediction = prediction;
+    if (store.s.mode === "surface" && !flight.active && !world.inside && world.patch) {
+      const p = world.driving && world.rover ? world.rover.pos : world.player.pos;
+      save.location = { siteId: regionKey, x: p.x, z: p.z, yaw: world.player.yaw };
+    }
+    save.controls = { ...save.controls, sens: world.sens };
+    return save;
+  }
+  let saveTimer = 0;
+  function doSave(manual = false): boolean {
+    const ok = writeSave(collect());
+    $("saveInfo").textContent = ok ? `Saved ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · this browser only (no cloud sync).` : "Could not save: browser storage is blocked or full.";
+    if (manual) toast(ok ? "Progress saved in this browser." : "Could not save — browser storage is blocked or full.", 2600);
+    return ok;
+  }
+  function scheduleSave(): void {
+    window.clearTimeout(saveTimer);
+    saveTimer = window.setTimeout(() => doSave(false), 1200);
+  }
+  window.setInterval(() => { if ($("intro").classList.contains("hidden")) doSave(false); }, 20_000);
+  window.addEventListener("pagehide", () => { if ($("intro").classList.contains("hidden")) doSave(false); });
+
+  async function restore(d: SaveData): Promise<void> {
+    campaign.done = new Set(d.main.done);
+    notes.length = 0;
+    for (const n of d.notes) notes.push(n);
+    renderNotes();
+    prediction = d.prediction as typeof prediction;
+    if (d.controls?.sens) world.sens = d.controls.sens;
+    dest = d.destination;
+    const loc = d.location;
+    if (loc && loc.siteId !== "outpost") {
+      const pl = loc.siteId.startsWith("custom:") ? placeForKey(loc.siteId) : byId(loc.siteId);
+      if (pl) {
+        await fade(true, 250);
+        await loadRegion(pl);
+        void fade(false, 400);
+      }
+    } else if (d.craft && d.craft.region === "outpost") world.moveLander(d.craft.x, d.craft.z, d.craft.yaw);
+    if (loc && loc.siteId === regionKey) {
+      world.player.place(loc.x, loc.z, loc.yaw);
+      if (world.rover && Math.hypot(world.rover.pos.x - loc.x, world.rover.pos.z - loc.z) < 2) world.player.place(loc.x + 4, loc.z, loc.yaw);
+    }
+    if (d.main.active) {
+      const i = MISSIONS.findIndex((m) => m.id === d.main.active?.id);
+      if (i >= 0) {
+        campaign.mi = i;
+        campaign.si = Math.min(d.main.active.step, (MISSIONS[i] as Mission).steps.length - 1);
+        campaign.active = true;
+      }
+    }
+    renderMission();
+    renderSideCard();
+    toast(`Welcome back. Restored: ${saveSummary(d)}.`, 5000);
+  }
+
+  // ---------- spacecraft ----------
+  let dest: SaveData["destination"] = save.destination;
+  function setDest(p: { id: string; lon: number; lat: number; name: string } | null): void {
+    dest = p;
+    save.destination = p;
+    scheduleSave();
+    if (p) toast(`Destination: <b>${p.name}</b>. ${flight.active ? "Press <b>L</b> for the autopilot, or fly there yourself." : "Walk to your spacecraft (OD-1), press <b>E</b> to board, then <b>L</b>."}`, 5200);
+    moonMap.refresh();
+  }
+  const groundOf = (id: string): number => {
+    const b = BASES.find((x) => x.partner?.id === id);
+    return data.profiles.get(b ? b.id : id)?.ground_m ?? data.profiles.get(id)?.ground_m ?? 0;
+  };
+  const destKey = (d: NonNullable<typeof dest>): string => {
+    if (d.id === "outpost" || d.id === "survey") return "outpost";
+    const b = baseById(d.id) ?? BASES.find((x) => x.partner?.id === d.id);
+    return b ? b.id : d.id.startsWith("custom") ? `custom:${d.lon.toFixed(5)},${d.lat.toFixed(5)}` : d.id;
+  };
+  const regionFrame = (): SceneFrame | null => (world.patch ? new SceneFrame(world.patch.lon, world.patch.lat, world.patch.groundM) : null);
+  let frameCache: { key: string; f: SceneFrame } | null = null;
+  const flight: Flight = new Flight({
+    world,
+    frame: () => {
+      if (!world.patch) return null;
+      const k = `${world.patch.id}:${world.patch.lon}:${world.patch.lat}`;
+      if (!frameCache || frameCache.key !== k) frameCache = { key: k, f: regionFrame() as SceneFrame };
+      return frameCache.f;
+    },
+    destination: (): FlightDest | null => {
+      if (!dest) return null;
+      const k = destKey(dest);
+      if (k === regionKey && world.landerHome && world.patch) {
+        const f = regionFrame() as SceneFrame;
+        const h = world.landerHome;
+        return { id: dest.id, name: dest.name, r: f.fromScene(new THREE.Vector3(h.x, world.groundAt(h.x, h.z), h.z)) };
+      }
+      return { id: dest.id, name: dest.name, r: unitLL(dest.lon, dest.lat).multiplyScalar(R_MOON + groundOf(dest.id)) };
+    },
+    ensureRegion: async (lon, lat) => {
+      let tgt: Place | null = null;
+      const here = unitLL(lon, lat);
+      if (dest && rangeBearing(here, unitLL(dest.lon, dest.lat)).d < 120_000) tgt = dest.id.startsWith("custom") ? placeForKey(destKey(dest)) : byId(dest.id);
+      if (!tgt) {
+        let best: Place | null = null, bd = 120_000;
+        for (const p of allPlaces()) {
+          if (!p.id || p.kind === "custom") continue;
+          const d = rangeBearing(here, unitLL(p.lon, p.lat)).d;
+          if (d < bd) { bd = d; best = p; }
+        }
+        tgt = best ?? placeForKey(`custom:${lon.toFixed(5)},${lat.toFixed(5)}`);
+      }
+      if (!tgt) return;
+      const k = tgt.id === "survey" || tgt.id === "outpost" ? "outpost" : baseById(tgt.id ?? "")?.id ?? BASES.find((b) => b.partner?.id === tgt?.id)?.id ?? keyOf(tgt);
+      if (k === regionKey) return;
+      const visible = flight.phase === "surface";
+      if (visible) await fade(true, 220);
+      await loadRegion(tgt);
+      if (visible) void fade(false, 380);
+    },
+    sky: () => {
+      const sp = subpointsAt(data.table, store.s.time);
+      if (!sp) return null;
+      const s3 = sunVectorKm(sp), e3 = earthVectorKm(sp);
+      return { sun: new THREE.Vector3(s3[0], s3[1], s3[2]).normalize(), earthKm: new THREE.Vector3(e3[0], e3[1], e3[2]) };
+    },
+    markers: () => allPlaces().filter((p) => p.id && p.kind !== "custom").map((p) => ({ id: p.id as string, label: p.short, lon: p.lon, lat: p.lat, kind: p.kind === "historic" ? "historic" : p.kind === "base" || p.id === "outpost" ? "base" : p.kind === "survey" ? "survey" : "mission", groundM: groundOf(p.id as string) })),
+    onLanded: () => {
+      const pl = store.s.here;
+      const f = regionFrame();
+      const lp = world.landerObj?.position;
+      const centre = pl && f && lp ? f.toScene(unitLL(pl.lon, pl.lat).multiplyScalar(R_MOON + (world.patch?.groundM ?? 0))) : null;
+      const near = centre && lp ? Math.hypot(centre.x - lp.x, centre.z - lp.z) < 2500 : false;
+      if (near && pl) arrived(pl);
+      else if (world.patch && lp) {
+        const [lo, la] = [world.patch.lon, world.patch.lat];
+        void lo; void la;
+        onSideEvent({ type: "arrive", siteId: regionKey });
+      }
+    },
+    onExit: (pos, yaw) => {
+      const o = world.landerObj;
+      if (o) {
+        const e = new THREE.Euler().setFromQuaternion(o.quaternion, "YXZ");
+        world.moveLander(o.position.x, o.position.z, e.y);
+        save.craft = { region: regionKey, x: o.position.x, z: o.position.z, yaw: e.y };
+      }
+      world.player.place(pos.x, pos.z, yaw);
+      world.astro.root.visible = true;
+      updateSky(store.s);
+      refreshEarthState();
+      renderMission();
+      renderSideCard();
+      doSave(false);
+    },
+    onPhase: (ph) => {
+      document.body.classList.toggle("flight-orbit", ph === "orbit");
+      if (ph === "surface") updateSky(store.s);
+    },
+    openMap: () => openMap(),
+    toast: (m, ms) => toast(m, ms),
+  });
+
+  // ---------- side missions ----------
+  type SideSt = SaveData["side"][string];
+  const sideLocked = (q: SideQuest): string | null => (q.id === "onedegree" && !(save.side.shadowhunter?.state === "done" || campaign.done.has("m1")) ? "Complete Shadow Hunter or Mission 01 to unlock" : null);
+  /** Lunar Explorer: three real terrain features around the outpost, found in the LOLA patch at runtime */
+  let explorerPts: { x: number; z: number; label: string }[] | null = null;
+  function explorerPoints(): { x: number; z: number; label: string }[] {
+    if (explorerPts) return explorerPts;
+    const op = patches.get("outpost") as SurfacePatch;
+    let hi = { x: 0, z: 0, y: -1e9 }, lo = { x: 0, z: 0, y: 1e9 };
+    for (let r = 250; r <= 1500; r += 50) for (let a = 0; a < 360; a += 4) {
+      const x = Math.sin(a * Math.PI / 180) * r, z = -Math.cos(a * Math.PI / 180) * r;
+      const y = groundY(op, x, z);
+      if (y > hi.y) hi = { x, z, y };
+      if (y < lo.y && y > -400) lo = { x, z, y };
+    }
+    const [sx, sz] = lonLatToScene(op, survey.lon, survey.lat);
+    explorerPts = [
+      { x: hi.x, z: hi.z, label: `Ridge crest — highest ground within 1.5 km (${hi.y >= 0 ? "+" : ""}${hi.y.toFixed(0)} m)` },
+      { x: lo.x, z: lo.z, label: `Low ground — lowest reachable point within 1.5 km (${lo.y.toFixed(0)} m)` },
+      { x: sx, z: sz, label: "S-1 slope — the survey point" },
+    ];
+    return explorerPts;
+  }
+  function sideStart(id: string): void {
+    const q = sideById(id);
+    if (!q || sideLocked(q)) return;
+    save.side[id] = { state: "active", step: 0, data: {} };
+    save.activeSide = id;
+    toggleBoard(false);
+    caption(`${q.title}: ${q.steps[0]?.text ?? ""}`, 5000);
+    // already there? the first "travel" step completes at once
+    onSideEvent({ type: "arrive", siteId: regionKey });
+    if (q.id === "heritage" && store.s.here.kind === "historic") onSideEvent({ type: "historic", id: store.s.here.id ?? "" });
+    renderSideCard();
+    scheduleSave();
+  }
+  function sideAbandon(id: string): void {
+    const st = save.side[id];
+    if (!st) return;
+    st.state = "abandoned";
+    if (save.activeSide === id) save.activeSide = null;
+    renderSideCard();
+    renderBoard();
+    scheduleSave();
+  }
+  function sideFinish(q: SideQuest, st: SideSt, result: string): void {
+    sideJustFinished = true;
+    st.state = "done";
+    if (save.activeSide === q.id) save.activeSide = null;
+    addNote("concl", `<b>${q.title}</b> — ${result}`);
+    showDebrief(`${q.cat === "side" ? "Side mission" : q.cat === "exploration" ? "Exploration" : "Field challenge"} complete`, q.title, result.replace(/<[^>]+>/g, ""), false);
+    if (q.id === "shadowhunter") toast("Unlocked: field challenge <b>One-Degree Hunter</b> (mission board, B).", 5000);
+    renderSideCard();
+    scheduleSave();
+  }
+  const pctTxt = (v: number | undefined): string => (v === undefined ? "—" : `${v.toFixed(0)}%`);
+  function onSideEvent(e: SideEvent): void {
+    for (const q of SIDEQUESTS) {
+      const st = save.side[q.id];
+      if (!st || st.state !== "active") continue;
+      const step = q.steps[st.step];
+      if (!step) continue;
+      const d = (st.data ??= {});
+      // ---- per-mission science hooks (results always computed from the engine) ----
+      if (q.id === "explorer" && e.type === "scan" && e.siteId === "outpost") {
+        const pts = explorerPoints();
+        const got = (d.got as number[] | undefined) ?? [];
+        pts.forEach((p, i) => {
+          if (!got.includes(i) && Math.hypot(p.x - e.x, p.z - e.z) < 35) {
+            got.push(i);
+            const r = world.quickScan();
+            const sk = world.skyStateNow;
+            if (r && sk) (d[`p${i}`] as unknown) = { sunHz: r.sunHz, sun: sk.sunEl, earthHz: r.earthHz, earth: sk.earthEl, hi: Math.max(...Array.from(r.horizon)) };
+            toast(`Lunar Explorer: surveyed <b>${p.label.split(" —")[0]}</b> (${got.length}/3).`, 3500);
+          }
+        });
+        d.got = got;
+        d.count = got.length;
+      }
+      if (q.id === "lostsignal" && e.type === "lostsignal") {
+        const ls = byId("ls1");
+        const a = analyse(data, ls, windowT0, 30);
+        const sk = skyNow(data, ls, store.s.time);
+        const prof = data.profiles.get("ls1");
+        let hzE = NaN;
+        if (prof && sk) { const k = Math.round(((sk.earth.az % 360) + 360) % 360 / 0.5) % prof.horizon_deg.length; hzE = prof.horizon_deg[k] as number; }
+        const nowTxt = sk ? (sk.earth.el > hzE ? `Right now Earth is <b>above</b> the land at LS-1 (Earth ${sk.earth.el.toFixed(1)}°, terrain ${hzE.toFixed(1)}°) — so terrain is not what silenced it this hour.` : sk.earth.el > 0 ? `Right now Earth is at ${sk.earth.el.toFixed(1)}°, but the land toward it rises to <b>${hzE.toFixed(1)}°</b>: the terrain blocks the line of sight.` : `Right now Earth is below the horizon (${sk.earth.el.toFixed(1)}°) for everyone here.`) : "";
+        d.earthPct = a?.mReal.earthPct;
+        showDebrief("Lost Signal · PROBE-7 inspected", "Is the land to blame?", `NASA LOLA terrain × NASA/JPL Horizons, next 30 days: Earth is in line of sight from LS-1 only ${pctTxt(a?.mReal.earthPct)} of the time (a flat Moon would give ${pctTxt(a?.mSmooth?.earthPct)}). ${nowTxt.replace(/<[^>]+>/g, "")} Next: find a spot nearby where Earth IS in view (press H to scan as you move). PROBE-7 and its fault are fiction; the geometry is real.`, false);
+      }
+      if (q.id === "lostsignal" && e.type === "scan" && st.step === 2 && e.earthOk && region) {
+        const [lx, lz] = world.sceneOf(region.partner.lon, region.partner.lat);
+        d.fix = Math.hypot(e.x - lx, e.z - lz);
+      }
+      if (!step.done(e, d)) continue;
+      st.step++;
+      if (st.step < q.steps.length) {
+        toast(`<b>${q.title}</b>: ${q.steps[st.step]?.text ?? ""}`, 5000);
+        continue;
+      }
+      // ---- results ----
+      if (q.id === "lostsignal") sideFinish(q, st, `From LS-1 the land blocks Earth most of the month (line of sight only ${pctTxt(d.earthPct as number | undefined)} of the next 30 days). You found Earth in view <b>${(d.fix as number ?? 0).toFixed(0)} m</b> from PROBE-7 — driving it there would restore a direct line of sight (geometry only; a real link also needs power, pointing and a ground station).`);
+      else if (q.id === "shadowhunter") {
+        const a1 = analyse(data, byId("shadow"), windowT0, 30), a2 = analyse(data, byId("sh2"), windowT0, 30);
+        const h1 = Math.max(...(data.profiles.get("shadow")?.horizon_deg ?? [0])), h2 = Math.max(...(data.profiles.get("sh2")?.horizon_deg ?? [0]));
+        const dist = rangeBearing(unitLL(byId("shadow").lon, byId("shadow").lat), unitLL(byId("sh2").lon, byId("sh2").lat)).d;
+        sideFinish(q, st, `Shadow Station gets direct sunlight <b>${pctTxt(a1?.mReal.sunlitPct)}</b> of the next 30 days; SH-2, only ${dist.toFixed(0)} m away and lower, gets <b>${pctTxt(a2?.mReal.sunlitPct)}</b>. Its horizon rises to ${h2.toFixed(1)}° vs ${h1.toFixed(1)}° at the station — near the pole the Sun never climbs above ~1.6°, so a few degrees of land is the difference between day and permanent shadow.`);
+      } else if (q.id === "explorer") {
+        const pts = explorerPoints();
+        const parts = pts.map((p, i) => {
+          const r = d[`p${i}`] as { sunHz: number; sun: number; hi: number } | undefined;
+          return r ? `${p.label.split(" —")[0]}: highest horizon ${r.hi.toFixed(1)}°, Sun ${r.sun > r.sunHz ? "visible" : "hidden"}` : "";
+        }).filter(Boolean);
+        sideFinish(q, st, `${parts.join(" · ")}. Height matters: the crest sees a lower horizon than the low ground — the reason the outpost sits on the rim. Survey date: ${fmtUtc(store.s.time)} UTC; terrain NASA LOLA.`);
+      } else if (q.id === "heritage") {
+        const h = store.s.here;
+        sideFinish(q, st, `You visited <b>${h.name}</b> (${h.event_date ?? ""}) and viewed it from outside NASA's recommended boundary. ${h.event ?? ""}`);
+      } else if (q.id === "onedegree") sideFinish(q, st, `Found it: a place where the Sun is above a flat horizon but the land hides it. Logged with position, time and data source in your notes.`);
+    }
+    renderSideCard();
+  }
+  function sideTarget(q: SideQuest, st: SideSt): { x: number; z: number; label: string } | null {
+    const step = q.steps[st.step];
+    if (!step?.target || !world.patch) return null;
+    if (step.site && step.site !== regionKey) return null;
+    if (step.target === "partner" && region) { const [x, z] = world.sceneOf(region.partner.lon, region.partner.lat); return { x, z, label: region.partner.short }; }
+    if (step.target === "point:next") {
+      const got = (st.data?.got as number[] | undefined) ?? [];
+      const p = explorerPoints().find((_, i) => !got.includes(i));
+      return p ? { x: p.x, z: p.z, label: p.label.split(" —")[0] as string } : null;
+    }
+    const it = world.allInteractables().find((i) => i.id === step.target);
+    return it ? { x: it.x, z: it.z, label: it.label.split("·").pop()?.trim() ?? "Target" } : null;
+  }
+  function renderSideCard(): void {
+    const id = save.activeSide;
+    const q = id ? sideById(id) : undefined;
+    const st = id ? save.side[id] : undefined;
+    $("sideCard").classList.toggle("hidden", !q || !st || st.state !== "active");
+    if (!q || !st) { if (!campaign.active) world.setWaypoint(null); return; }
+    $("sdCat").textContent = q.cat === "side" ? "SIDE MISSION" : q.cat === "exploration" ? "EXPLORATION" : "FIELD CHALLENGE";
+    $("sdTitle").textContent = q.title;
+    let txt = q.steps[st.step]?.text ?? "";
+    if (q.id === "explorer") txt = txt.replace("(0/3)", `(${Number(st.data?.count ?? 0)}/3)`);
+    const step = q.steps[st.step];
+    if (step?.site && step.site !== regionKey) txt += ` — first travel to ${placeName(step.site)} (G map → set destination → board OD-1).`;
+    $("sdText").textContent = txt;
+    const t = sideTarget(q, st);
+    if (!campaign.active) world.setWaypoint(t ? { x: t.x, z: t.z } : null);
+    $("sideCard").querySelector(".m-nav")?.classList.toggle("hidden", !t);
+  }
+  window.setInterval(() => {
+    const id = save.activeSide;
+    const q = id ? sideById(id) : undefined;
+    const st = id ? save.side[id] : undefined;
+    if (!q || !st || store.s.mode !== "surface" || flight.active) return;
+    const t = sideTarget(q, st);
+    if (!t) return;
+    const p = world.player;
+    const dx = t.x - p.pos.x, dz = t.z - p.pos.z;
+    const d = Math.hypot(dx, dz);
+    const brg = Math.atan2(dx, -dz);
+    const rel = brg - (p.thirdPerson ? -world.camera.rotation.y : p.yaw);
+    ($("sdArrow") as HTMLElement).style.transform = `rotate(${rel}rad)`;
+    $("sdDist").textContent = d < 4 ? `${t.label} · here` : `${t.label} · ${d < 1000 ? d.toFixed(0) + " m" : (d / 1000).toFixed(2) + " km"} ${compass((brg / D2R + 360) % 360)}`;
+  }, 250);
+
+  // ---------- mission board ----------
+  function toggleBoard(force?: boolean): void {
+    const open = force ?? $("board").classList.contains("hidden");
+    $("board").classList.toggle("hidden", !open);
+    if (open) {
+      if (document.pointerLockElement) document.exitPointerLock();
+      moonMap.close();
+      renderBoard();
+    }
+  }
+  function renderBoard(): void {
+    const body = $("boardBody");
+    const esc2 = (t: string): string => t.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c] as string);
+    const card = (o: { title: string; where: string; brief: string; status: string; cls: string; acts: string; fiction?: string }): string =>
+      `<div class="bq"><h5>${esc2(o.title)}<span class="st ${o.cls}">${o.status}</span></h5><div class="where">${esc2(o.where)}</div><p>${o.brief}</p>${o.fiction ? `<p class="dim tiny">${esc2(o.fiction)}</p>` : ""}<div class="acts">${o.acts}</div></div>`;
+    const mainCards = MISSIONS.map((m, i) => {
+      const done = campaign.done.has(m.id);
+      const active = campaign.active && campaign.mi === i;
+      return card({ title: `${m.num} · ${m.title}`, where: "Outpost & planner", brief: esc2(m.why), status: done ? "done" : active ? "in progress" : "available", cls: done ? "done" : active ? "active" : "",
+        acts: `<button class="pill small${active ? "" : " primary"}" data-main="${i}">${active ? "Tracking" : done ? "Replay" : "Start"}</button>` });
+    }).join("");
+    const sideCards = (cat: string): string => SIDEQUESTS.filter((q) => q.cat === cat).map((q) => {
+      const st = save.side[q.id];
+      const lock = sideLocked(q);
+      const where = placeName(q.where === "a11" ? "a11" : q.where) + (q.id === "heritage" ? " (or any Apollo site)" : "");
+      const tracked = save.activeSide === q.id;
+      const status = lock ? "locked" : !st ? "new" : st.state === "active" ? (tracked ? `tracking · step ${st.step + 1}/${q.steps.length}` : `paused · step ${st.step + 1}/${q.steps.length}`) : st.state;
+      let acts = "";
+      if (lock) acts = `<span class="dim tiny">${lock}</span>`;
+      else if (!st || st.state !== "active") acts = `<button class="pill small primary" data-start="${q.id}">${st?.state === "done" ? "Replay" : "Start"}</button>`;
+      else acts = `${tracked ? `<button class="pill small" data-untrack="${q.id}">Pause</button>` : `<button class="pill small primary" data-track="${q.id}">Resume</button>`}<button class="pill small ghost" data-abandon="${q.id}">Abandon</button>`;
+      acts += `<button class="pill small ghost" data-map="${q.where}">Show on map</button>`;
+      return card({ title: q.title, where, brief: esc2(q.brief), status, cls: st?.state === "done" ? "done" : st?.state === "active" ? "active" : "", acts, fiction: q.fiction });
+    }).join("");
+    const obs = save.observations.slice(-6).reverse().map((o) => `<li><b>${esc2(placeName(o.siteId))}</b> · ${fmtLat(o.lat)} ${fmtLon(o.lon)} · ${fmtUtc(o.unix)} UTC — ${esc2(o.summary)} <span class="dim tiny">(${esc2(o.provenance)})</span></li>`).join("");
+    const visited = save.discovered.map((k) => placeName(k)).join(" · ");
+    body.innerHTML = `<div class="board-cat"><h4>Main missions — landing-site science</h4><div class="board-list">${mainCards}</div></div>
+      <div class="board-cat"><h4>Side missions</h4><div class="board-list">${sideCards("side")}</div></div>
+      <div class="board-cat"><h4>Exploration</h4><div class="board-list">${sideCards("exploration")}</div></div>
+      <div class="board-cat"><h4>Field challenges</h4><div class="board-list">${sideCards("challenge")}</div></div>
+      <div class="board-cat"><h4>Your discoveries</h4><p class="small">Places visited: ${esc2(visited || "—")}</p>${obs ? `<ul class="small obs-list">${obs}</ul>` : `<p class="dim small">No measurements yet — press H anywhere to scan.</p>`}
+      <div class="acts"><button class="pill small ghost" id="bdFree">Stop tracking — explore freely</button></div></div>`;
+    for (const b of body.querySelectorAll<HTMLButtonElement>("[data-main]")) b.addEventListener("click", () => { campaign.start(Number(b.dataset.main)); toggleBoard(false); });
+    for (const b of body.querySelectorAll<HTMLButtonElement>("[data-start]")) b.addEventListener("click", () => sideStart(b.dataset.start as string));
+    for (const b of body.querySelectorAll<HTMLButtonElement>("[data-track]")) b.addEventListener("click", () => { save.activeSide = b.dataset.track as string; renderSideCard(); renderBoard(); scheduleSave(); });
+    for (const b of body.querySelectorAll<HTMLButtonElement>("[data-untrack]")) b.addEventListener("click", () => { save.activeSide = null; renderSideCard(); renderBoard(); scheduleSave(); });
+    for (const b of body.querySelectorAll<HTMLButtonElement>("[data-abandon]")) b.addEventListener("click", () => sideAbandon(b.dataset.abandon as string));
+    for (const b of body.querySelectorAll<HTMLButtonElement>("[data-map]")) b.addEventListener("click", () => {
+      const p = byId(b.dataset.map as string);
+      toggleBoard(false);
+      openMap({ lon: p.lon, lat: p.lat, zoom: p.lat < -85 ? 60 : 8 });
+      moonMap.select(mapItems().find((i) => i.id === p.id) ?? null);
+    });
+    $("bdFree").addEventListener("click", () => { save.activeSide = null; if (campaign.active) campaign.stop(); renderSideCard(); toggleBoard(false); scheduleSave(); });
+  }
+  $("boardClose").addEventListener("click", () => toggleBoard(false));
+  $("btnBoard").addEventListener("click", () => toggleBoard());
+
+  // ---------- Moon map ----------
+  function craftLonLat(): { lon: number; lat: number } | null {
+    if (flight.active) { const r = flight.craft.r; return { lon: Math.atan2(r.y, r.x) / D2R, lat: Math.asin(r.z / r.length()) / D2R }; }
+    const o = world.landerObj;
+    if (!o || !world.patch) return null;
+    const [lon, lat] = lonLatOfScene(o.position.x, o.position.z);
+    return { lon, lat };
+  }
+  const lonLatOfScene = (x: number, z: number): [number, number] => {
+    const p = world.patch as SurfacePatch;
+    const f = regionFrame() as SceneFrame;
+    const r = f.fromScene(new THREE.Vector3(x, groundY(p, x, z), z));
+    return [Math.atan2(r.y, r.x) / D2R, Math.asin(r.z / r.length()) / D2R];
+  };
+  function mapItems(): MapItem[] {
+    const items: MapItem[] = [];
+    const seen = new Set<string>();
+    for (const p of allPlaces()) {
+      if (!p.id || seen.has(p.id)) continue;
+      seen.add(p.id);
+      const cat = p.kind === "historic" ? "historic" : p.kind === "base" || p.id === "outpost" ? "base" : "site";
+      const visited = save.discovered.includes(p.id);
+      items.push({ id: p.id, name: p.name, lon: p.lon, lat: p.lat, cat, desc: p.event, meta: p.source, status: visited ? "Visited · fast travel unlocked" : cat === "base" ? "Not visited yet" : undefined });
+    }
+    if (dest) items.push({ id: `dest`, name: `Destination: ${dest.name}`, lon: dest.lon, lat: dest.lat, cat: "objective", desc: "Your flight destination. Board OD-1 and press L for the autopilot." });
+    const aq = save.activeSide ? sideById(save.activeSide) : undefined;
+    if (aq) { const p = byId(aq.where); if (p) items.push({ id: `obj-${aq.id}`, name: `Objective: ${aq.title}`, lon: p.lon, lat: p.lat, cat: "objective", desc: aq.brief }); }
+    for (const o of save.observations.filter((x) => x.summary.includes("hidden by terrain")).slice(-12)) items.push({ id: o.id, name: "One-degree spot", lon: o.lon, lat: o.lat, cat: "discovery", desc: o.summary, meta: `${fmtUtc(o.unix)} UTC · ${o.provenance}` });
+    if (save.custom) items.push({ id: "customsaved", name: "Custom point", lon: save.custom.lon, lat: save.custom.lat, cat: "custom" });
+    const me = flight.active ? craftLonLat() : live;
+    if (me) items.push({ id: "you", name: flight.active ? "You (aboard OD-1)" : "You", lon: me.lon, lat: me.lat, cat: "you", desc: `Region: ${placeName(regionKey)}.` });
+    const cr = !flight.active ? craftLonLat() : null;
+    if (cr) items.push({ id: "craft", name: "OD-1 (parked)", lon: cr.lon, lat: cr.lat, cat: "craft", desc: "Your spacecraft. Walk up and press E to board." });
+    return items;
+  }
+  function mapActions(it: MapItem): MapAction[] {
+    const acts: MapAction[] = [];
+    if (it.cat === "you" || it.cat === "craft" || it.cat === "discovery") return acts;
+    const pid = it.id.startsWith("obj-") ? sideById(it.id.slice(4))?.where ?? "" : it.id === "dest" ? dest?.id ?? "" : it.id;
+    const p = pid && !pid.startsWith("custom") ? sites.find((x) => x.id === pid) : undefined;
+    const lon = p?.lon ?? it.lon, lat = p?.lat ?? it.lat;
+    const name = p?.short ?? (it.cat === "custom" ? `Point ${fmtLat(lat)} ${fmtLon(lon)}` : it.name);
+    acts.push({ label: dest && dest.lon === lon && dest.lat === lat ? "✓ Flight destination" : "Set as flight destination", primary: true, fn: () => setDest({ id: p?.id ?? `custom:${lon.toFixed(5)},${lat.toFixed(5)}`, lon, lat, name }) });
+    const visited = p?.id ? save.discovered.includes(p.id) : false;
+    acts.push({ label: visited ? "Fast travel (skips the flight)" : "Fast travel — visit first", disabled: !visited || flight.active || busy, fn: () => { moonMap.close(); if (p) void landAt(p.lon, p.lat, p); } });
+    if (p) acts.push({ label: "Open in science planner", fn: () => { moonMap.close(); store.set({ a: p, plannerIndex: 0 }); openControl(); } });
+    if (it.cat === "custom") { save.custom = { lon, lat }; }
+    return acts;
+  }
+  const moonMap = new MoonMap({
+    items: mapItems,
+    actions: mapActions,
+    info: () => {
+      const parts = [`<b>You:</b> ${flight.active ? `aboard OD-1 (${flight.phase === "orbit" ? "orbit view" : "local flight"})` : placeName(regionKey) + " region"}.`];
+      const o = world.landerObj;
+      if (!flight.active && o) { const d = Math.hypot(o.position.x - world.player.pos.x, o.position.z - world.player.pos.z); parts.push(`<b>OD-1:</b> ${d < 1000 ? d.toFixed(0) + " m" : (d / 1000).toFixed(1) + " km"} away.`); }
+      if (world.rover && !flight.active) { const dx = world.rover.pos.x - world.player.pos.x, dz = world.rover.pos.z - world.player.pos.z; const d = Math.hypot(dx, dz); parts.push(`<b>Rover:</b> ${world.driving ? "you are driving it" : `${d.toFixed(0)} m ${compass((Math.atan2(dx, -dz) / D2R + 360) % 360)}`}.`); }
+      if (dest) parts.push(`<b>Destination:</b> ${dest.name}.`);
+      return parts.join(" ");
+    },
+  });
+  function openMap(focus?: { lon: number; lat: number; zoom?: number }): void {
+    toggleBoard(false);
+    const me = flight.active ? craftLonLat() : live;
+    moonMap.toggle(focus ?? (me ? { lon: me.lon, lat: me.lat, zoom: me.lat < -85 ? 40 : 3 } : undefined));
+  }
+  $("btnMap").addEventListener("click", () => openMap());
+
+  // ---------- save buttons ----------
+  $("saveNow").addEventListener("click", () => doSave(true));
+  $("saveExport").addEventListener("click", () => exportSave(collect()));
+  ($("saveImport") as HTMLInputElement).addEventListener("change", (e) => void (async () => {
+    const f = (e.target as HTMLInputElement).files?.[0];
+    if (!f) return;
+    const d = await importSave(f);
+    if (!d) { toast("That file is not a ONE DEGREE save (or comes from a newer version).", 4000); return; }
+    save = d;
+    writeSave(save);
+    await restore(save);
+  })());
+  $("saveNew").addEventListener("click", () => {
+    const dlg = $("confirmDlg") as HTMLDialogElement;
+    $("cfTitle").textContent = "Start a new exploration?";
+    $("cfText").textContent = "This erases the progress saved in this browser: missions, discoveries, field notes and where you left your spacecraft. Export first if you want a copy.";
+    dlg.addEventListener("close", () => {
+      if (dlg.returnValue !== "ok") return;
+      clearSave();
+      location.reload();
+    }, { once: true });
+    if (document.pointerLockElement) document.exitPointerLock();
+    dlg.showModal();
+  });
+
   // ---------- opening ----------
   updateSky(store.s);
   updateReadout(store.s);
@@ -1216,6 +1773,15 @@ async function boot(): Promise<void> {
     window.setTimeout(() => $("tutorial").classList.add("fade"), 16000);
   };
   $("introBegin").addEventListener("click", () => void begin("mission"));
+  if (hadSave) {
+    $("introContinue").classList.remove("hidden");
+    $("introContinue").textContent = `Continue · ${saveSummary(save)}`;
+    $("introBegin").textContent = "Replay Mission 01";
+    $("introContinue").addEventListener("click", () => void (async () => {
+      await begin("free");
+      await restore(save);
+    })());
+  }
   $("introFree").addEventListener("click", () => void begin("free"));
   $("introSkip").addEventListener("click", () => void begin("mission"));
   $("introPlanner").addEventListener("click", () => {
@@ -1225,7 +1791,7 @@ async function boot(): Promise<void> {
     openControl();
   });
 
-  (window as unknown as { onedegree: unknown }).onedegree = { enterControl, store, data, world, scanner, planner, instrument, campaign, get moon() { return moon; }, windowT0, interact, goOrbit, landAt };
+  (window as unknown as { onedegree: unknown }).onedegree = { enterControl, store, data, world, scanner, planner, instrument, campaign, get moon() { return moon; }, windowT0, interact, goOrbit, landAt, flight, moonMap, get save() { return save; }, doSave, setDest, sideStart, loadRegion, get regionKey() { return regionKey; } };
   if (url.demo) {
     $("intro").classList.add("hidden");
     window.setTimeout(() => void runDemo({ store, scanner, planner, world, instrument, campaign, caption, data, windowT0, outpost, survey, interact, openCompare }), 600);

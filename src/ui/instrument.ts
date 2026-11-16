@@ -44,7 +44,7 @@ export const REQUIREMENT_SUN_PCT = 50;
 
 export class Instrument {
   kind: InstKind | null = null;
-  private place: Place | null = null;
+  place: Place | null = null;
   private ref: Place | null = null;
   private timer = 0;
   pathOn = true;
@@ -281,7 +281,7 @@ export class Instrument {
     else if (this.ref) {
       const r = analyse(this.data, this.ref, this.t0(), 30);
       const hzMax = a.skyline ? Math.max(...Array.from(a.skyline.horizon)) : 0;
-      html += `<div class="inst-sum three"><div><label>S-1 · real terrain</label><b>${m.sunlitPct.toFixed(0)}%</b><small>dark up to ${fmtHours(m.longestDarkH, m.longestDarkOpen)}</small></div><div><label>S-1 · flat Moon</label><b>${sm.sunlitPct.toFixed(0)}%</b><small>ignoring terrain</small></div><div><label>Outpost · real</label><b>${r ? r.mReal.sunlitPct.toFixed(0) : "—"}%</b><small>${esc(this.distText())}</small></div></div><p class="inst-next">Highest point of S-1's horizon: ${hzMax.toFixed(1)}°. The Sun never climbs above ~${Math.max(...Array.from(tr.sunEl)).toFixed(1)}° here.</p>`;
+      html += `<div class="inst-sum three"><div><label>${esc(this.place?.id === "survey" || !this.place ? "S-1" : this.place.short)} · real terrain</label><b>${m.sunlitPct.toFixed(0)}%</b><small>dark up to ${fmtHours(m.longestDarkH, m.longestDarkOpen)}</small></div><div><label>${esc(this.place?.id === "survey" || !this.place ? "S-1" : this.place.short)} · flat Moon</label><b>${sm.sunlitPct.toFixed(0)}%</b><small>ignoring terrain</small></div><div><label>${esc(!this.ref || this.ref.id === "outpost" ? "Outpost" : this.ref.short)} · real</label><b>${r ? r.mReal.sunlitPct.toFixed(0) : "—"}%</b><small>${esc(this.distText())}</small></div></div><p class="inst-next">Highest point of ${esc(this.place?.id === "survey" || !this.place ? "S-1" : this.place.short)}'s horizon: ${hzMax.toFixed(1)}°. The Sun never climbs above ~${Math.max(...Array.from(tr.sunEl)).toFixed(1)}° here.</p>`;
     }
     body.innerHTML = html;
     drawPanorama($("instPano") as HTMLCanvasElement, a, { mode: "real", now: i, compact: true });
@@ -334,14 +334,16 @@ export class Instrument {
     const m = a.mReal, sm = a.mSmooth;
     const from = fmtDate(a.t0);
     if (this.kind === "solar") {
-      return `Over the 30 days from ${from}, the outpost gets direct sunlight <b>${m.sunlitPct.toFixed(0)}%</b> of the time (a flat-Moon model would say ${sm.sunlitPct.toFixed(0)}%). The longest dark spell is <b>${fmtHours(m.longestDarkH, m.longestDarkOpen)}</b> — the night a solar-powered lander's batteries must survive here.`;
+      return `Over the 30 days from ${from}, ${this.place?.id === "outpost" || !this.place ? "the outpost" : esc(this.place.short)} gets direct sunlight <b>${m.sunlitPct.toFixed(0)}%</b> of the time (a flat-Moon model would say ${sm.sunlitPct.toFixed(0)}%). The longest dark spell is <b>${fmtHours(m.longestDarkH, m.longestDarkOpen)}</b> — the night a solar-powered lander's batteries must survive here.`;
     }
     if (this.kind === "comms") {
       return `Earth is in direct line of sight <b>${m.earthPct.toFixed(0)}%</b> of the next 30 days; the longest gap is <b>${fmtHours(m.longestBlackoutH, m.longestBlackoutOpen)}</b>. During a gap a lander here cannot talk to Earth directly — it needs a relay orbiter or must work on its own.`;
     }
     const r = this.ref ? analyse(this.data, this.ref, this.t0(), 30) : null;
     const diff = sm.sunlitPct - m.sunlitPct;
-    return `S-1 is ${this.distText()} from the outpost, yet it gets direct sunlight <b>${m.sunlitPct.toFixed(0)}%</b> of the time versus <b>${r ? r.mReal.sunlitPct.toFixed(0) : "—"}%</b> at the outpost. A flat-Moon model predicts ${sm.sunlitPct.toFixed(0)}% at S-1 — ignoring the terrain ${diff >= 0 ? "overstates" : "understates"} its sunlight by <b>${Math.abs(diff).toFixed(0)} percentage points</b>.`;
+    const pn = this.place?.id === "survey" || !this.place ? "S-1" : esc(this.place.short);
+    const rn = !this.ref || this.ref.id === "outpost" ? "the outpost" : esc(this.ref.short);
+    return `${pn} is ${this.distText()} from ${rn}, yet it gets direct sunlight <b>${m.sunlitPct.toFixed(0)}%</b> of the time versus <b>${r ? r.mReal.sunlitPct.toFixed(0) : "—"}%</b> at ${rn}. A flat-Moon model predicts ${sm.sunlitPct.toFixed(0)}% at ${pn} — ignoring the terrain ${diff >= 0 ? "overstates" : "understates"} its sunlight by <b>${Math.abs(diff).toFixed(0)} percentage points</b>.`;
   }
 }
 

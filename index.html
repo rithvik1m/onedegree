@@ -127,6 +127,51 @@
     </aside>
 
     <!-- Historic site card -->
+    <!-- Moon map (G) -->
+    <section id="moonMap" class="moonmap glass hidden" aria-label="Moon map">
+      <div class="mm-stage">
+        <canvas id="mmCanvas" width="600" height="600" aria-label="Rotatable Moon globe with markers"></canvas>
+        <div class="mm-tools"><button id="mmZoomIn" class="round" aria-label="Zoom in">+</button><button id="mmZoomOut" class="round" aria-label="Zoom out">−</button><button id="mmPole" class="pill small">South pole</button><button id="mmGlobe" class="pill small">Whole Moon</button></div>
+        <div id="mmView" class="mm-view mono"></div>
+      </div>
+      <aside class="mm-side">
+        <div class="inst-head"><div><div class="eyebrow">Moon map · G</div><h2>Where next?</h2></div><button class="round" id="mmClose" aria-label="Close map">✕</button></div>
+        <div id="mmInfo" class="small"></div>
+        <div id="mmSel" class="mm-sel"></div>
+        <details class="mm-fwrap"><summary class="small">Marker filters</summary><div id="mmFilters" class="mm-filters"></div></details>
+        <p class="dim tiny">Imagery: NASA LRO LROC WAC colour mosaic (NASA SVS CGI Moon Kit). Research bases are fictional, on real sites chosen by code; Apollo positions from NASA NSSDC.</p>
+      </aside>
+    </section>
+
+    <!-- Spacecraft flight HUD -->
+    <section id="flightHud" class="fhud hidden">
+      <div class="fh-frame" aria-hidden="true"></div>
+      <div class="fh-top"><span id="fhMode">—</span><span id="fhPhase">—</span></div>
+      <div class="fh-left glass">
+        <div class="fh-row"><label id="fhAltL">HEIGHT</label><b id="fhAlt">—</b></div>
+        <div class="fh-row"><label>VERT SPEED</label><b id="fhVs">—</b></div>
+        <div class="fh-row"><label>HORIZ SPEED</label><b id="fhHs">—</b></div>
+        <div class="fh-row"><label>THRUST</label><b id="fhThr">—</b></div>
+        <div class="fh-bar"><i id="fhThrBar"></i></div>
+        <div class="fh-row"><label>SET</label><span id="fhTgt" class="dim">—</span></div>
+        <div class="fh-row"><label>TILT</label><b id="fhTilt">—</b></div>
+        <div class="fh-row"><label>Δv USED</label><b id="fhDv">—</b></div>
+        <div class="fh-row"><label>POSITION</label><span id="fhPos" class="mono">—</span></div>
+        <div id="fhOrbit" class="fh-row hidden"><label>ORBIT</label><span id="fhOrb">—</span></div>
+      </div>
+      <div id="fhNav" class="fh-nav glass hidden"><div class="eyebrow">Destination</div><b id="fhDest">—</b><div class="fh-navrow"><span id="fhArrow" class="m-arrow">▲</span><span id="fhDist" class="mono">—</span></div><div class="dim tiny">L autopilot · G map</div></div>
+      <div id="fhExit" class="fh-exit hidden"><span class="key">E</span> Exit spacecraft</div>
+      <div class="fh-keys"><b>W/S</b> pitch · <b>A/D</b> yaw · <b>Q/E</b> roll · <b>Shift/Ctrl</b> climb · <b>X</b> hold · <b>Space</b> brake · <b>R</b> level · <b>L</b> autopilot · <b>O</b> orbit · <b>T</b> time warp · <b>C</b> cockpit · <b>F</b> assist mode · <b>G</b> map · drag/scroll camera</div>
+    </section>
+
+    <dialog id="confirmDlg" class="dlg">
+      <form method="dialog">
+        <h3 id="cfTitle">Are you sure?</h3>
+        <p id="cfText"></p>
+        <div class="dlg-actions"><button value="cancel" class="pill">Cancel</button><button value="ok" class="pill primary" id="cfOk">Confirm</button></div>
+      </form>
+    </dialog>
+
     <dialog id="hist" class="dlg hist">
       <div class="eyebrow" id="histKicker">Historic site</div>
       <h3 id="histTitle">—</h3>

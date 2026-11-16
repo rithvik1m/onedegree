@@ -553,3 +553,41 @@ body.in-orbit .scan-card, body.demo .scan-card, body.demo .look-hint, body.intro
 .save-row { display: flex; gap: 6px; flex-wrap: wrap; }
 .save-row label.pill { cursor: pointer; }
 body.in-orbit #sideCard, body.demo #sideCard { display: none !important; }
+
+/* V5: Moon map */
+.moonmap { position: fixed; inset: 56px var(--edge) 70px; z-index: 42; display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 12px; padding: 12px; }
+.mm-stage { position: relative; display: grid; place-items: center; min-height: 0; overflow: hidden; border-radius: 12px; background: #060709; }
+.mm-stage canvas { width: min(100%, calc(100vh - 150px)); aspect-ratio: 1; height: auto; cursor: grab; touch-action: none; }
+.mm-stage canvas:active { cursor: grabbing; }
+.mm-tools { position: absolute; top: 10px; left: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
+.mm-view { position: absolute; bottom: 8px; left: 10px; font-size: 11px; color: var(--text-faint); }
+.mm-side { display: grid; align-content: start; gap: 10px; overflow-y: auto; min-height: 0; }
+.mm-sel h3 { margin: 2px 0; font-size: 17px; }
+.mm-sel p { margin: 6px 0; }
+.mm-status { display: inline-block; margin-top: 6px; font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: rgb(127 224 160 / 0.12); color: #9fe8b8; }
+.mm-acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.mm-filters { display: grid; gap: 4px; margin-top: 6px; }
+.mm-f { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-dim); cursor: pointer; }
+.mm-sw { width: 10px; height: 10px; border-radius: 3px; background: var(--c); }
+.tiny { font-size: 11px; line-height: 1.4; }
+@media (max-width: 760px) { .moonmap { grid-template-columns: 1fr; grid-template-rows: auto 1fr; inset: 56px 8px 64px; } }
+
+/* V5: flight HUD */
+.fhud { position: fixed; inset: 0; z-index: 19; pointer-events: none; font-variant-numeric: tabular-nums; }
+.fh-top { position: absolute; top: 62px; left: 50%; transform: translateX(-50%); display: grid; gap: 2px; text-align: center; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #9fe8b8; text-shadow: 0 1px 3px #000; }
+.fh-top #fhPhase { color: var(--text-dim); font-weight: 600; }
+.fh-left { position: absolute; left: var(--edge); top: 120px; width: 230px; padding: 10px 12px; display: grid; gap: 4px; border-radius: 12px; }
+.fh-row { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.fh-row label { font-size: 10.5px; letter-spacing: 0.1em; color: var(--text-faint); align-self: center; }
+.fh-bar { height: 5px; border-radius: 3px; background: rgb(255 255 255 / 0.08); overflow: hidden; }
+.fh-bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #6fa8dc, #ffb347); }
+.fh-nav { position: absolute; right: var(--edge); top: 120px; width: 220px; padding: 10px 12px; display: grid; gap: 4px; border-radius: 12px; }
+.fh-navrow { display: flex; align-items: center; gap: 10px; font-size: 15px; }
+.fh-keys { position: absolute; bottom: 74px; left: 50%; transform: translateX(-50%); width: min(980px, 94vw); text-align: center; font-size: 12px; color: var(--text-dim); text-shadow: 0 1px 3px #000; }
+.fh-keys b { color: var(--text); }
+.fh-exit { position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%); padding: 8px 14px; border-radius: 999px; background: rgb(12 14 16 / 0.85); font-weight: 700; }
+.fh-frame { position: absolute; inset: 0; display: none; background:
+  linear-gradient(180deg, #0c0d0f 0 9%, transparent 9% 72%, #0c0d0f 72%),
+  linear-gradient(90deg, #0c0d0f 0 6%, transparent 6% 49.6%, #1b1d21 49.6% 50.4%, transparent 50.4% 94%, #0c0d0f 94%); opacity: 0.92; }
+body.cockpit .fh-frame { display: block; }
+body.flying #mission, body.flying #sideCard, body.flying .tutorial, body.flying #roverHud, body.flying #earthTag, body.flying #sunTag, body.flying #crosshair, body.flying #lookHint, body.flying #prompt { display: none !important; }

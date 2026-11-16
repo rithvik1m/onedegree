@@ -189,14 +189,14 @@ export function guidance(c: Craft, t: Target | null, orbitAlt = 60_000, clearanc
   let phase: GuidanceOut["phase"] = vH.length() < vMaxH - 30 && ground > 3000 ? "climb" : ground > 20_000 ? "cruise" : ground > 1500 ? "brake" : "descent";
   if (ground < 60 && vH.length() < 3) {
     // terminal descent: slow steadily to touchdown at ~1 m/s
-    vzDes = -Math.max(1.0, Math.min(25, hAbove * 0.12));
+    vzDes = -Math.max(1.0, Math.min(25, hAbove * 0.18));
     phase = "terminal";
   }
   const vDes = dir.multiplyScalar(Math.max(0, vMaxH)).addScaledVector(up, vzDes);
   const centri = vH.lengthSq() / rn;
-  const tau = phase === "terminal" || phase === "descent" ? 2 : 4;
+  const tau = phase === "terminal" ? 1 : phase === "descent" ? 2 : 4;
   const acc = allocate(vDes.sub(c.v).divideScalar(tau).add(gComp).addScaledVector(up, -centri), up);
-  const warp = ground > 400_000 && hAbove > 8000 ? 50 : ground > 60_000 && hAbove > 6000 ? 20 : ground > 15_000 && hAbove > 4000 ? 5 : 1;
+  const warp = ground > 400_000 && hAbove > 8000 ? 50 : ground > 60_000 && hAbove > 6000 ? 20 : ground > 15_000 && hAbove > 2500 ? 10 : ground > 8000 && hAbove > 1500 ? 5 : ground > 2500 && hAbove > 700 ? 2 : 1;
   return { acc, phase, dist: ground, hAbove, warp };
 }
 

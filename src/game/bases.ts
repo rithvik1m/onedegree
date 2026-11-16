@@ -57,10 +57,12 @@ export const BASES: BaseDef[] = [
       { model: "roof_antenna", size: 8, by: "height", x: -20, z: -8, collide: 1.2 },
       { model: "pickup_crate", size: 1.4, x: 3, z: 18, collide: 0.9 },
       { model: "pickup_crate", size: 1.2, x: 4.6, z: 19, rot: 0.8, collide: 0.8 },
+      { model: "proc:console", size: 1, x: -3, z: -1.6, label: ["MISSION BOARD", "side missions · B"], collide: 0.7 },
       { model: "proc:sunsensor", size: 1, x: 6, z: -2, track: "sun", label: ["SHADOW SENSOR", "measure sunlight here"], collide: 0.7 },
     ],
     interacts: [
       { id: "inst:solar:shadow", label: "Measure sunlight · Shadow Sensor", x: 6, z: -3.4, r: 2.8 },
+      { id: "board", label: "Mission board terminal", x: -3, z: -3, r: 2.4 },
       { id: "inst:survey:sh2:shadow", label: "Measure sunlight at SH-2 · survey marker", x: 0, z: 0, r: 4 }, // placed at SH-2 at runtime
     ],
     spawn: { x: 22, z: -14, yaw: -2.2 },
@@ -81,10 +83,12 @@ export const BASES: BaseDef[] = [
       { model: "roof_radar", size: 6, by: "height", x: 2, z: -18, track: "earth", collide: 1.7 },
       { model: "solar_panel_structure", size: 9, x: -22, z: -10, rot: 0.3, collide: 4.8 },
       { model: "house_long", size: 9, x: -20, z: 16, rot: -0.5, collide: 4.2 },
+      { model: "proc:console", size: 1, x: 0, z: -2.6, label: ["MISSION BOARD", "side missions · B"], collide: 0.7 },
       { model: "proc:console", size: 1, x: 4, z: 4, label: ["LINK CONSOLE", "line of sight to Earth"], collide: 0.7 },
     ],
     interacts: [
       { id: "inst:comms:earthlink", label: "Check line of sight · Link Console", x: 4, z: 2.6, r: 2.8 },
+      { id: "board", label: "Mission board terminal", x: 0, z: -4, r: 2.4 },
       { id: "lostsignal", label: "Inspect PROBE-7 · lost signal", x: 0, z: 0, r: 5 }, // placed at LS-1 at runtime
     ],
     spawn: { x: 26, z: -22, yaw: -2.0 },

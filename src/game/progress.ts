@@ -29,7 +29,12 @@ export interface SaveData {
   notes: { k: "q" | "obs" | "pred" | "concl"; t: string }[];
   observations: Observation[];
   prediction: string | null;
+  /** last safe on-foot position (region key + scene metres) */
   location: { siteId: string; x: number; z: number; yaw: number } | null;
+  /** where the spacecraft is parked (region key + scene metres) */
+  craft: { region: string; x: number; z: number; yaw: number } | null;
+  destination: { id: string; lon: number; lat: number; name: string } | null;
+  custom?: { lon: number; lat: number } | null;
   controls: { speed: number; sens: number; bob: boolean; sfx: boolean };
 }
 
@@ -38,7 +43,7 @@ export function emptySave(): SaveData {
     v: SAVE_VERSION, savedAt: new Date().toISOString(),
     main: { done: [], active: null }, side: {}, activeSide: null,
     discovered: ["outpost"], notes: [], observations: [], prediction: null,
-    location: null, controls: { speed: 1, sens: 1, bob: true, sfx: false },
+    location: null, craft: null, destination: null, controls: { speed: 1, sens: 1, bob: true, sfx: false },
   };
 }
 

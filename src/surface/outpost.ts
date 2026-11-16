@@ -443,7 +443,7 @@ export function buildOutpost(groundY: (x: number, z: number) => number, survey: 
   lander.position.set(lpX, lpY + 0.15, lpZ);
   group.add(lander);
   colliders.push({ x: lpX, z: lpZ, r: 3.6 });
-  interactables.push({ id: "lander", label: "Board spacecraft · launch to orbit", x: lpX - 4.6, z: lpZ - 1, r: 3 });
+  interactables.push({ id: "lander", label: "Board spacecraft · OD-1", x: lpX - 4.6, z: lpZ - 1, r: 3 });
   addLabel("LANDER · OD-1", "your ride to orbit (fictional)", lpX, lpY + 12, lpZ);
   beacons.set("lander", lander);
 
@@ -537,50 +537,151 @@ export function buildOutpost(groundY: (x: number, z: number) => number, survey: 
   };
 }
 
+/**
+ * OD-1 "Meridian" — the player's lander (original design, built in code). Body frame:
+ * +Y = engine thrust axis, −Z = forward (cockpit windows), −X = hatch and ladder.
+ * Named children the flight controller animates: "plume", "rcs0..3", "nav", "flood".
+ */
 export function buildLander(): THREE.Group {
   const g = new THREE.Group();
-  const desc = mesh(new THREE.CylinderGeometry(2.4, 2.6, 2.2, 8), M.gold);
-  desc.position.y = 2.6;
+  g.name = "od1";
+  const foil = gated(new THREE.MeshStandardMaterial({ color: 0xc8962e, roughness: 0.28, metalness: 1 }));
+  const foilDark = gated(new THREE.MeshStandardMaterial({ color: 0x3a3226, roughness: 0.45, metalness: 0.8 }));
+  const hull = gated(new THREE.MeshStandardMaterial({ color: 0xe8e5de, roughness: 0.45, metalness: 0.15 }));
+  // descent stage: octagonal foil-wrapped box with dark side bays
+  const desc = mesh(new THREE.CylinderGeometry(2.5, 2.6, 2.0, 8), foil);
+  desc.position.y = 2.55;
+  desc.rotation.y = Math.PI / 8;
   g.add(desc);
-  const deck = mesh(new THREE.CylinderGeometry(2.7, 2.7, 0.2, 8), M.metal);
-  deck.position.y = 3.75;
-  g.add(deck);
-  const cabin = mesh(new THREE.CylinderGeometry(1.6, 1.9, 3.2, 20), M.white);
-  cabin.position.y = 5.45;
-  g.add(cabin);
-  const nose = mesh(new THREE.SphereGeometry(1.6, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2), M.white);
-  nose.position.y = 7.05;
-  nose.scale.y = 0.6;
-  g.add(nose);
-  const hatch = mesh(new THREE.BoxGeometry(0.1, 1.4, 0.9), M.dark);
-  hatch.position.set(-1.83, 5.2, 0);
-  g.add(hatch);
-  const win = mesh(new THREE.BoxGeometry(0.06, 0.35, 0.6), M.window, false);
-  win.position.set(-1.7, 6.3, 0);
-  g.add(win);
-  const ladder = mesh(new THREE.BoxGeometry(0.06, 3.8, 0.5), M.metal);
-  ladder.position.set(-2.75, 1.9, 0);
-  ladder.rotation.z = -0.12;
-  g.add(ladder);
-  for (let i = 0; i < 4; i++) {
-    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
-    const leg = mesh(new THREE.CylinderGeometry(0.1, 0.1, 3.4, 8), M.metal);
-    leg.position.set(Math.cos(a) * 3.1, 1.4, Math.sin(a) * 3.1);
-    leg.rotation.set(Math.sin(a) * 0.45, 0, -Math.cos(a) * 0.45);
-    g.add(leg);
-    const foot = mesh(new THREE.CylinderGeometry(0.45, 0.5, 0.12, 12), M.metal);
-    foot.position.set(Math.cos(a) * 3.85, 0.06, Math.sin(a) * 3.85);
-    g.add(foot);
-  }
-  const bell = mesh(new THREE.CylinderGeometry(0.5, 0.9, 1.0, 16, 1, true), M.dark);
-  bell.position.y = 1.1;
-  g.add(bell);
   for (let i = 0; i < 4; i++) {
     const a = (i / 4) * Math.PI * 2;
-    const rcs = mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), M.metal);
-    rcs.position.set(Math.cos(a) * 1.75, 6.4, Math.sin(a) * 1.75);
-    g.add(rcs);
+    const bay = mesh(new THREE.BoxGeometry(1.5, 1.3, 0.12), foilDark);
+    bay.position.set(Math.sin(a) * 2.42, 2.55, Math.cos(a) * 2.42);
+    bay.rotation.y = a;
+    g.add(bay);
   }
+  const deck = mesh(new THREE.CylinderGeometry(2.75, 2.75, 0.22, 8), M.metal);
+  deck.position.y = 3.62;
+  deck.rotation.y = Math.PI / 8;
+  g.add(deck);
+  // crew cabin: faceted ascent module with a forward window band
+  const cabin = mesh(new THREE.CylinderGeometry(1.75, 2.0, 2.6, 10), hull);
+  cabin.position.y = 5.05;
+  g.add(cabin);
+  const stripe = mesh(new THREE.CylinderGeometry(2.01, 2.01, 0.26, 10, 1, true), M.orange);
+  stripe.position.y = 4.1;
+  g.add(stripe);
+  const roof = mesh(new THREE.CylinderGeometry(1.1, 1.75, 0.8, 10), hull);
+  roof.position.y = 6.75;
+  g.add(roof);
+  const hatchTop = mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.16, 16), M.metal);
+  hatchTop.position.y = 7.2;
+  g.add(hatchTop);
+  // cockpit windows (forward = −Z), angled like a real lander's
+  for (const [x, w] of [[-0.62, 0.7], [0.62, 0.7], [0, 0.42]] as [number, number][]) {
+    const win = mesh(new THREE.PlaneGeometry(w, 0.62), M.window, false);
+    win.position.set(x, 5.7, -1.86 - (x === 0 ? 0.02 : 0));
+    win.rotation.set(-0.2, Math.PI + (x === 0 ? 0 : -x * 0.5), 0);
+    g.add(win);
+  }
+  const frame = mesh(new THREE.BoxGeometry(2.1, 0.08, 0.1), M.dark);
+  frame.position.set(0, 6.05, -1.84);
+  g.add(frame);
+  // hatch + porch + ladder on −X
+  const hatch = mesh(new THREE.BoxGeometry(0.1, 1.3, 0.95), M.dark);
+  hatch.position.set(-1.92, 4.75, 0);
+  g.add(hatch);
+  const porch = mesh(new THREE.BoxGeometry(1.0, 0.08, 1.1), M.metal);
+  porch.position.set(-3.0, 3.6, 0);
+  g.add(porch);
+  for (const dz of [-0.3, 0.3]) {
+    const rail = mesh(new THREE.BoxGeometry(0.06, 3.7, 0.06), M.metal);
+    rail.position.set(-3.5, 1.85, dz);
+    rail.rotation.z = -0.14;
+    g.add(rail);
+  }
+  for (let k = 0; k < 8; k++) {
+    const rung = mesh(new THREE.BoxGeometry(0.06, 0.05, 0.6), M.metal);
+    rung.position.set(-3.27 - k * 0.055 * 0.0 - (0.4 - k * 0.05), 0.45 + k * 0.4, 0);
+    g.add(rung);
+  }
+  // four legs: primary strut, secondary struts, footpad
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    const cx = Math.cos(a), cz = Math.sin(a);
+    const leg = mesh(new THREE.CylinderGeometry(0.11, 0.11, 3.6, 8), M.metal);
+    leg.position.set(cx * 3.15, 1.5, cz * 3.15);
+    leg.rotation.set(cz * 0.5, 0, -cx * 0.5);
+    g.add(leg);
+    for (const s of [-1, 1]) {
+      const st = mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.4, 6), M.metal);
+      const ox = -cz * s * 0.9, oz = cx * s * 0.9;
+      st.position.set(cx * 2.85 + ox * 0.5, 1.15, cz * 2.85 + oz * 0.5);
+      st.lookAt(cx * 3.9, -0.2, cz * 3.9);
+      st.rotateX(Math.PI / 2);
+      g.add(st);
+    }
+    const foot = mesh(new THREE.CylinderGeometry(0.5, 0.55, 0.14, 14), M.metal);
+    foot.position.set(cx * 3.95, 0.07, cz * 3.95);
+    g.add(foot);
+  }
+  // main engine bell + plume
+  const bell = mesh(new THREE.CylinderGeometry(0.45, 0.95, 1.1, 20, 1, true), M.dark);
+  bell.position.y = 1.05;
+  g.add(bell);
+  const plumeMat = new THREE.MeshBasicMaterial({ color: 0x9fd4ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+  const plume = new THREE.Mesh(new THREE.ConeGeometry(0.85, 6, 20, 1, true), plumeMat);
+  plume.name = "plume";
+  plume.rotation.x = Math.PI;
+  plume.position.y = 0.5 - 3;
+  plume.visible = false;
+  g.add(plume);
+  const core = new THREE.Mesh(new THREE.ConeGeometry(0.4, 3, 14, 1, true), plumeMat.clone());
+  core.name = "plumeCore";
+  core.rotation.x = Math.PI;
+  core.position.y = 0.5 - 1.5;
+  core.visible = false;
+  g.add(core);
+  // four RCS quads at the cabin corners
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    const q = new THREE.Group();
+    q.name = `rcs${i}`;
+    const box = mesh(new THREE.BoxGeometry(0.34, 0.34, 0.34), M.metal);
+    q.add(box);
+    for (const [dx, dy, dz] of [[0.24, 0, 0], [0, 0.24, 0], [0, -0.24, 0], [0, 0, 0.24]] as [number, number, number][]) {
+      const n = mesh(new THREE.ConeGeometry(0.07, 0.16, 8, 1, true), M.dark);
+      n.position.set(dx, dy, dz);
+      if (dx) n.rotation.z = -Math.PI / 2;
+      if (dy < 0) n.rotation.z = Math.PI;
+      if (dz) n.rotation.x = Math.PI / 2;
+      q.add(n);
+    }
+    q.position.set(Math.cos(a) * 2.05, 5.9, Math.sin(a) * 2.05);
+    q.rotation.y = -a;
+    g.add(q);
+  }
+  // high-gain dish + antenna mast
+  const mast = mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.2, 6), M.metal);
+  mast.position.set(1.0, 7.5, 0.6);
+  g.add(mast);
+  const dish = mesh(new THREE.SphereGeometry(0.55, 16, 8, 0, Math.PI * 2, 0, Math.PI / 3), M.white);
+  dish.position.set(1.0, 8.1, 0.6);
+  dish.rotation.x = -Math.PI / 2.4;
+  g.add(dish);
+  // nav lights (port red, starboard green, white strobe on top) and a landing floodlight
+  const nav = new THREE.Group();
+  nav.name = "nav";
+  for (const [x, y, z, c] of [[-2.1, 5.2, -0.9, 0xff3b30], [2.1, 5.2, -0.9, 0x34c759], [0, 7.32, 0, 0xffffff]] as [number, number, number, number][]) {
+    const l = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), new THREE.MeshBasicMaterial({ color: c }));
+    l.position.set(x, y, z);
+    nav.add(l);
+  }
+  g.add(nav);
+  const flood = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.18, 0.18), new THREE.MeshBasicMaterial({ color: 0xfff4d8 }));
+  flood.name = "flood";
+  flood.position.set(0, 3.3, -2.6);
+  g.add(flood);
   return g;
 }
 
@@ -726,7 +827,7 @@ export function buildBase(def: BaseDef, groundY: (x: number, z: number) => numbe
   lander.position.set(def.pad.x, pY + 0.15, def.pad.z);
   group.add(lander);
   colliders.push({ x: def.pad.x, z: def.pad.z, r: 3.6 });
-  interactables.push({ id: "lander", label: "Board spacecraft", x: def.pad.x - 4.6, z: def.pad.z - 1, r: 3 });
+  interactables.push({ id: "lander", label: "Board spacecraft · OD-1", x: def.pad.x - 4.6, z: def.pad.z - 1, r: 3 });
   addLabel("LANDER · OD-1", "your spacecraft", def.pad.x, pY + 12, def.pad.z);
   beacons.set("lander", lander);
   if (def.rover) {

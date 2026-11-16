@@ -188,6 +188,7 @@ export class Interior {
 
     this.interactables.push(
       { id: "console", label: "Use the planning console · compare sites & dates", x: 0, z: 0.25, r: 1.4 },
+      { id: "board", label: "Mission board · side missions & exploration", x: -1.9, z: 0.9, r: 1.1 },
       { id: "exit", label: "Exit to the surface", x: 0, z: d / 2 - 0.7, r: 1.0 },
     );
   }
