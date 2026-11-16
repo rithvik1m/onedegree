@@ -6,7 +6,9 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { farHorizon, groundY, lonLatToScene, parsePatch, ringRadii, sceneToLonLat, type PatchMeta } from "../src/surface/terrain3d";
+import * as THREE from "three";
 import { Player, G_MOON } from "../src/surface/player";
+import { Rover } from "../src/surface/rover";
 import { skyAt, skyTrack, type SubpointTable } from "../src/science/sky";
 
 const meta = JSON.parse(readFileSync("public/data/surface/outpost.json", "utf8")) as PatchMeta;
@@ -88,5 +90,39 @@ describe("time: the 3D sky and the instruments read the same instant", () => {
       expect(tr.sunEl[i]).toBeCloseTo(s!.sun.el, 4);
       expect(tr.earthAz[i]).toBeCloseTo(s!.earth.az, 3);
     }
+  });
+});
+
+describe("rover (gameplay vehicle on real terrain)", () => {
+  const fakeGltf = () => ({ scene: new THREE.Group(), animations: [] }) as unknown as import("three/examples/jsm/loaders/GLTFLoader.js").GLTF;
+  const run = (r: Rover, keys: string[], ground: (x: number, z: number) => number, secs: number, colliders: { x: number; z: number; r: number }[] = []): void => {
+    const k = new Set(keys);
+    for (let t = 0; t < secs; t += 1 / 60) r.update(1 / 60, k, ground, colliders, true);
+  };
+
+  it("drives, tops out at its game speed, and stays on the ground", () => {
+    const r = new Rover(fakeGltf());
+    const ground = (x: number, z: number): number => 0.02 * x + 0.01 * z; // gentle tilt
+    r.place(0, 0, 0, ground);
+    run(r, ["KeyW"], ground, 6);
+    expect(r.speed).toBeGreaterThan(7.5);
+    expect(r.speed).toBeLessThanOrEqual(8);
+    expect(Math.abs(r.pos.y - ground(r.pos.x, r.pos.z))).toBeLessThan(0.05);
+  });
+
+  it("cannot climb a slope steeper than ~28°", () => {
+    const r = new Rover(fakeGltf());
+    const wall = (_x: number, z: number): number => (z < -20 ? (-20 - z) * 0.8 : 0); // 39° rise to the north
+    r.place(0, 0, 0, wall);
+    run(r, ["KeyW"], wall, 12);
+    expect(r.pos.z).toBeGreaterThan(-24);
+  });
+
+  it("is stopped by structures", () => {
+    const r = new Rover(fakeGltf());
+    const flat = (): number => 0;
+    r.place(0, 0, 0, flat);
+    run(r, ["KeyW"], flat, 8, [{ x: 0, z: -30, r: 4 }]);
+    expect(r.pos.z).toBeGreaterThan(-30 + 4 + 2.0);
   });
 });

@@ -39,6 +39,7 @@ export class Rover {
   private roll = 0;
   private lights: THREE.SpotLight[] = [];
   headlights = false;
+  sign: THREE.Sprite;
 
   constructor(gltf: GLTF) {
     const model = gltf.scene.clone(true);
@@ -56,6 +57,23 @@ export class Rover {
     });
     this.body.add(model);
     this.root.add(this.body);
+    // a sign so it is obvious you can drive it (hidden while driving)
+    let tex: THREE.Texture | null = null;
+    if (typeof document !== "undefined") {
+      const c = document.createElement("canvas");
+      c.width = 512; c.height = 128;
+      const g = c.getContext("2d") as CanvasRenderingContext2D;
+      g.fillStyle = "rgba(10,11,13,0.78)"; g.beginPath(); g.roundRect(4, 14, 504, 100, 18); g.fill();
+      g.strokeStyle = "rgba(242,181,68,0.85)"; g.lineWidth = 4; g.stroke();
+      g.fillStyle = "#f4efe6"; g.font = "700 46px Inter, system-ui, sans-serif"; g.textAlign = "center"; g.fillText("ROVER", 256, 66);
+      g.fillStyle = "rgba(244,239,230,0.75)"; g.font = "600 26px Inter, system-ui, sans-serif"; g.fillText("walk up · press E to drive", 256, 100);
+      tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+    }
+    this.sign = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthWrite: false, transparent: true }));
+    this.sign.scale.set(4, 1, 1);
+    this.sign.position.y = 6.2;
+    this.root.add(this.sign);
     for (const sx of [-0.9, 0.9]) {
       const l = new THREE.SpotLight(0xfff3e0, 0, 70, 0.5, 0.6, 1.2);
       l.position.set(sx, 1.6, -2.3);

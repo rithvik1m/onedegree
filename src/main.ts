@@ -754,6 +754,11 @@ async function boot(): Promise<void> {
   ($("setBob") as HTMLInputElement).addEventListener("change", (e) => (world.headBob = (e.target as HTMLInputElement).checked));
   ($("setSfx") as HTMLInputElement).addEventListener("change", (e) => sfx.setSfx((e.target as HTMLInputElement).checked));
   ($("setDetail") as HTMLInputElement).addEventListener("change", (e) => (shared.detail.value = (e.target as HTMLInputElement).checked ? 1 : 0));
+  ($("setSpd") as HTMLInputElement).addEventListener("input", (e) => {
+    const v = Number((e.target as HTMLInputElement).value);
+    world.player.speedScale = v;
+    $("spdOut").textContent = `${v.toFixed(1)}×`;
+  });
   ($("setExp") as HTMLInputElement).addEventListener("input", (e) => {
     const v = Number((e.target as HTMLInputElement).value);
     world.renderer.toneMappingExposure = v;
@@ -949,13 +954,13 @@ async function boot(): Promise<void> {
   (window as unknown as { onedegree: unknown }).onedegree = { enterControl, store, data, world, scanner, planner, instrument, campaign, get moon() { return moon; }, windowT0, interact, goOrbit, landAt };
   if (url.demo) {
     $("intro").classList.add("hidden");
-    window.setTimeout(() => void runDemo({ store, scanner, planner, world, instrument, campaign, caption, data, windowT0, outpost, survey, interact }), 600);
+    window.setTimeout(() => void runDemo({ store, scanner, planner, world, instrument, campaign, caption, data, windowT0, outpost, survey, interact, openCompare }), 600);
   } else {
     document.body.classList.add("intro-on");
     $("intro").classList.remove("hidden");
     flyover();
   }
-  $("btnDemo").addEventListener("click", () => void runDemo({ store, scanner, planner, world, instrument, campaign, caption, data, windowT0, outpost, survey, interact }));
+  $("btnDemo").addEventListener("click", () => void runDemo({ store, scanner, planner, world, instrument, campaign, caption, data, windowT0, outpost, survey, interact, openCompare }));
 
   // token dialog: offered only from orbit, never required
   void token;

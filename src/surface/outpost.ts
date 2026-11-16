@@ -202,8 +202,8 @@ export function buildOutpost(groundY: (x: number, z: number) => number, survey: 
     addLabel("SCI-LAB", "regolith samples (simulated)", -25, lab.position.y + (lab.userData.size as THREE.Vector3).y + 1.2, 2);
     site("house_cylinder", 6, -21, 15, 0.6);
     colliders.push({ x: -21, z: 15, r: 3.4 });
-    site("roof_antenna", 7, -1, -14, 0, "height");
-    colliders.push({ x: -1, z: -14, r: 1.2 });
+    site("roof_antenna", 7, -19, -13, 0, "height");
+    colliders.push({ x: -19, z: -13, r: 1.2 });
     for (const [cx, cz, ry] of [[19.5, 33.5, 0.2], [21.2, 34.2, 0.9], [18.2, 31.8, 1.4]] as [number, number, number][]) {
       site("pickup_crate", 1.3, cx, cz, ry);
       colliders.push({ x: cx, z: cz, r: 0.8 });
@@ -268,6 +268,7 @@ export function buildOutpost(groundY: (x: number, z: number) => number, survey: 
     addLabel("SCI-LAB", "regolith samples (simulated)", -24, labY + 5.5, 2);
   }
 
+  const arrays: THREE.Object3D[] = [];
   // --- Solar monitoring station (Mission 01) ---
   const ssX = 13, ssZ = -13;
   const ssY = groundY(ssX, ssZ);
@@ -296,13 +297,24 @@ export function buildOutpost(groundY: (x: number, z: number) => number, survey: 
   station.add(scr);
   station.position.set(ssX, ssY, ssZ);
   group.add(station);
+  if (useKit) {
+    // a reference solar panel stood upright (the Sun is near the horizon here), turned to the Sun by the world
+    const panel = placeable("solar_panel_ground", 2.6);
+    const pv = new THREE.Group();
+    panel.rotation.x = -Math.PI / 2 + 0.05;
+    panel.position.y = 1.5;
+    pv.add(panel);
+    pv.position.set(ssX + 2.4, groundY(ssX + 2.4, ssZ + 0.6), ssZ + 0.6);
+    group.add(pv);
+    arrays.push(pv);
+    colliders.push({ x: ssX + 2.4, z: ssZ + 0.6, r: 1.2 });
+  }
   colliders.push({ x: ssX, z: ssZ, r: 0.6 });
   interactables.push({ id: "solar", label: "Analyze sunlight · Solar Monitoring Station", x: ssX, z: ssZ - 1.2, r: 2.8 });
   addLabel("SOLAR STATION", "Mission 01 · First Light", ssX, ssY + 3, ssZ, 0.9);
   beacons.set("solar", station);
 
   // --- Vertical solar arrays: they rotate to face the Sun's azimuth ---
-  const arrays: THREE.Object3D[] = [];
   for (const [ax, az] of [[26, -24], [38, -10], [30, -38]] as [number, number][]) {
     const gy = groundY(ax, az);
     const mast = mesh(new THREE.CylinderGeometry(0.18, 0.28, 13, 10), M.metal);

@@ -413,11 +413,13 @@ export class SurfaceWorld {
       this.rover.update(dt, p.keys, (x, z) => groundY(pt, x, z), this.outpost?.colliders ?? [], true);
       p.pos.copy(this.rover.pos);
       p.vel.set(0, 0, 0);
+      this.rover.sign.visible = false;
       this.placeRoverCamera(dt);
     } else {
       if (this.rover && this.patch) {
         const pt = this.patch;
         this.rover.update(dt, this.noKeys, (x, z) => groundY(pt, x, z), this.outpost?.colliders ?? [], false);
+        this.rover.sign.visible = true;
         this.roverCollider.x = this.rover.pos.x;
         this.roverCollider.z = this.rover.pos.z;
       }

@@ -63,9 +63,9 @@
     <div id="tutorial" class="tutorial glass hidden">
       <div class="tut-row"><span class="key wide">Click</span>look around</div>
       <div class="tut-row"><span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span>walk</div>
-      <div class="tut-row"><span class="key wide">Shift</span>lope</div>
+      <div class="tut-row"><span class="key wide">Shift</span>sprint</div>
       <div class="tut-row"><span class="key wide">Space</span>low-gravity jump</div>
-      <div class="tut-row"><span class="key">E</span>use</div>
+      <div class="tut-row"><span class="key">E</span>use · enter rover</div>
       <div class="tut-row"><span class="key">V</span>camera</div>
       <div class="tut-row"><span class="key">L</span>helmet lamp</div>
       <div class="tut-row"><span class="key wide">Esc</span>free the mouse</div>
@@ -170,6 +170,8 @@
       <label class="check"><input type="checkbox" id="setSfx" checked /> Suit-radio tones <small>(artistic — there is no sound in a vacuum)</small></label>
       <label class="check"><input type="checkbox" id="setDetail" checked /> Regolith detail <small>(procedural, not measured)</small></label>
       <label class="field"><span>Exposure <b id="expOut">1.0</b></span><input type="range" id="setExp" min="0.4" max="2.2" step="0.05" value="1" /></label>
+      <label class="field"><span>Movement speed <b id="spdOut">1.0×</b></span><input type="range" id="setSpd" min="0.6" max="1.8" step="0.1" value="1" /></label>
+      <p class="dim small">Walk 3 m/s and sprint 7.5 m/s are game assists — Apollo crews moved at about 1–2 m/s.</p>
       <button id="setToken" class="pill small ghost">Orbit globe: add a Cesium ion token (optional)</button>
       <p class="dim small" id="setInfo">Surface and science always use NASA LOLA + Horizons data.</p>
     </div>
