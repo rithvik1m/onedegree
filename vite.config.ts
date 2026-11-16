@@ -5,7 +5,8 @@ import { defineConfig } from "vite";
 export default defineConfig({
   build: {
     target: "es2022",
-    chunkSizeWarningLimit: 900,
+    chunkSizeWarningLimit: 2600,
+    rollupOptions: { input: { main: "index.html", lab: "physics-lab.html" } },
   },
   test: {
     include: ["tests/**/*.test.ts"],

@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ONE DEGREE — Physics Lab (prototype)</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #000; color: #ece6da; font: 14px/1.45 Inter, system-ui, sans-serif; overflow: hidden; }
+      #hud { position: fixed; left: 16px; top: 16px; padding: 12px 14px; border-radius: 12px; background: rgb(14 14 15 / 0.92); box-shadow: inset 0 2px 0 #f2b544; max-width: 420px; }
+      #hud h1 { margin: 0 0 4px; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: #ffd27a; }
+      #hud .mono { font-family: ui-monospace, monospace; font-size: 12.5px; white-space: pre; }
+      #hud p { margin: 6px 0 0; color: #c4bdb1; font-size: 12.5px; }
+    </style>
+  </head>
+  <body>
+    <div id="hud"><h1>Physics Lab · Rapier prototype</h1><div id="stats" class="mono">loading…</div>
+      <p>W/S drive · A/D steer · X assist mode · T drop test (1 kg vs 100 kg from 10 m) · R reset. Terrain: NASA LOLA (outpost, 10 m), same surface the game renders. Rover mass, friction and suspension are labelled model assumptions.</p></div>
+    <script type="module" src="/src/lab/lab.ts"></script>
+  </body>
+</html>
