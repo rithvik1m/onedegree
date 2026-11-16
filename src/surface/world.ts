@@ -17,7 +17,8 @@ import { buildLander, buildOutpost, label, type Interactable, type OutpostRefs }
 import { EYE_HEIGHT, Player } from "./player";
 import { Sky3D, dirFromAzEl } from "./sky3d";
 import { Interior } from "./interior";
-import { buildTerrain, farHorizon, groundY, lonLatToScene, sceneToLonLat, type SurfacePatch } from "./terrain3d";
+import { buildTerrain, groundY, horizonToward, lonLatToScene, sceneToLonLat, type SurfacePatch } from "./terrain3d";
+import { DPR_CAP, TERRAIN_LOD, loadGfx, saveGfx, type Gfx } from "./graphics";
 
 const D2R = Math.PI / 180;
 
@@ -72,7 +73,8 @@ export class SurfaceWorld {
   private props = new THREE.Group();
   private rocks: THREE.InstancedMesh[] = [];
   private skyState: SkyState | null = null;
-  private horizonHere = new Float32Array(360);
+  private gateHz = -90;
+  private horizonAz = -999;
   private horizonAt = new THREE.Vector2(1e9, 1e9);
   private prompt: Interactable | null = null;
   private last = performance.now();
@@ -95,8 +97,9 @@ export class SurfaceWorld {
   private dragging = false;
 
   constructor(private host: HTMLElement, private ev: WorldEvents) {
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance", logarithmicDepthBuffer: true });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+    // No logarithmic depth buffer: it writes gl_FragDepth and so disables early-z, making
+    // every hidden terrain pixel run the full shader. Depth is split into two passes instead.
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.0;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -105,17 +108,19 @@ export class SurfaceWorld {
     this.renderer.autoClear = false;
     host.appendChild(this.renderer.domElement);
     this.renderer.domElement.className = "surface-canvas";
-    this.camera = new THREE.PerspectiveCamera(62, 1, 0.05, 400_000);
+    this.camera = new THREE.PerspectiveCamera(62, 1, 0.08, 3200);
     this.camera.rotation.order = "YXZ";
+    this.farCam = new THREE.PerspectiveCamera(62, 1, 150, 260_000);
+    this.farCam.layers.set(1);
     this.sky = new Sky3D(62);
 
     this.sun.castShadow = true;
-    this.sun.shadow.mapSize.set(2048, 2048);
-    const sc = this.sun.shadow.camera;
-    sc.left = -260; sc.right = 260; sc.top = 260; sc.bottom = -260; sc.near = 1; sc.far = 6000;
     this.sun.shadow.bias = -0.0004;
     this.sun.shadow.normalBias = 0.35;
-    this.scene.add(this.sun, this.sun.target, this.fill, this.fill.target, this.ambient, this.bounce);
+    this.renderer.shadowMap.autoUpdate = false; // updated once per frame, in the near pass only
+    this.scene.add(this.sun, this.sun.target, this.fill, this.fill.target, this.ambient, this.bounce, this.flood);
+    // lights must reach both depth passes (far terrain is on layer 1)
+    for (const l of [this.sun, this.fill, this.ambient, this.bounce, this.flood, this.lamp]) l.layers.enableAll();
     this.lamp.castShadow = false;
     this.camera.add(this.lamp);
     this.lamp.position.set(0, 0.1, 0);
@@ -129,9 +134,81 @@ export class SurfaceWorld {
     this.camera.add(this.handheld.group);
 
     window.addEventListener("resize", () => this.resize());
+    this.applyGfx(this.gfx, false);
     this.resize();
     this.bindInput();
   }
+
+  // ---------- graphics settings ----------
+  gfx: Gfx = loadGfx();
+  readonly farCam: THREE.PerspectiveCamera;
+  /** runtime resolution factor from adaptive resolution (1 = preset value) */
+  private dynScale = 1;
+  readonly flood = new THREE.PointLight(0xeef0f4, 0, 50, 1.4); // base floodlight (fictional outpost lighting)
+
+  applyGfx(g: Gfx, rebuild = true): void {
+    const prev = this.gfx;
+    this.gfx = g;
+    saveGfx(g);
+    // shadows
+    const sh = g.shadows;
+    this.sun.castShadow = sh !== "off";
+    const size = sh === "high" ? 2048 : 1024;
+    const half = sh === "high" ? 260 : 120;
+    if (this.sun.shadow.mapSize.x !== size) {
+      this.sun.shadow.mapSize.set(size, size);
+      this.sun.shadow.map?.dispose();
+      (this.sun.shadow as unknown as { map: unknown }).map = null;
+    }
+    const sc = this.sun.shadow.camera;
+    sc.left = -half; sc.right = half; sc.top = half; sc.bottom = -half; sc.near = 1; sc.far = 6000;
+    sc.updateProjectionMatrix();
+    this.renderer.shadowMap.type = sh === "high" ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
+    for (const t of this.terrain) if (t.name === "terrain-near") t.castShadow = sh === "high";
+    this.horizonAt.set(1e9, 1e9);
+    this.resize();
+    if (rebuild && this.patch && (prev.preset !== g.preset || prev.detail !== g.detail)) this.rebuildTerrain();
+    this.applyLighting();
+    this.cullTick = 0;
+  }
+
+  private detailLevel(): number {
+    return this.gfx.detail === "high" ? 2 : this.gfx.detail === "medium" ? 1 : 0;
+  }
+
+  private rebuildTerrain(): void {
+    if (!this.patch) return;
+    for (const m of this.terrain) {
+      this.scene.remove(m);
+      m.geometry.dispose();
+      (m.material as THREE.Material).dispose();
+    }
+    const [az, ring] = TERRAIN_LOD[this.gfx.preset];
+    const d = this.detailLevel();
+    const { near, far } = buildTerrain(this.patch, regolithMaterial(false, d), regolithMaterial(true, d), az, ring);
+    near.castShadow = this.gfx.shadows === "high";
+    far.layers.set(1); // drawn in the far depth pass
+    this.terrain = [near, far];
+    this.scene.add(near, far);
+  }
+
+  /** Lighting mode: realistic (vacuum-black shadows) / balanced / bright (accessibility). Never changes the science. */
+  applyLighting(): void {
+    const mode = this.realisticDark ? "realistic" : this.gfx.lighting;
+    this.renderer.toneMappingExposure = this.userExposure * (mode === "bright" ? 1.3 : mode === "balanced" ? 1.12 : 1);
+    this.flood.intensity = mode === "realistic" ? 0 : mode === "bright" ? 200 : 110;
+    const em = mode === "realistic" ? 0 : mode === "bright" ? 0.22 : 0.12;
+    this.outpost?.group.traverse((o) => {
+      const m = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
+      if (m && (m as THREE.MeshStandardMaterial).isMeshStandardMaterial && !m.userData.glow) {
+        if (m.userData.baseEmissive === undefined) m.userData.baseEmissive = m.emissive.getHex();
+        if (m.userData.baseEmissive === 0) m.emissive.copy(m.color).multiplyScalar(em);
+      }
+    });
+    if (this.skyState) this.applySky(this.skyState);
+  }
+  userExposure = 1;
+  sens = 1;
 
   /** Use the current prompt (touch: tap the prompt). */
   useCurrent(): void {
@@ -161,8 +238,8 @@ export class SurfaceWorld {
       this.player.pitch = Math.max(-1.45, Math.min(1.35, this.player.pitch - dy * k));
     };
     document.addEventListener("mousemove", (e) => {
-      if (document.pointerLockElement === el) look(e.movementX, e.movementY, 0.0022);
-      else if (this.dragging) look(e.movementX, e.movementY, 0.004);
+      if (document.pointerLockElement === el) look(e.movementX, e.movementY, 0.0022 * this.sens);
+      else if (this.dragging) look(e.movementX, e.movementY, 0.004 * this.sens);
     });
     el.addEventListener("pointerdown", (e) => {
       if (e.pointerType !== "mouse") this.dragging = true;
@@ -201,9 +278,13 @@ export class SurfaceWorld {
   resize(): void {
     const w = this.host.clientWidth || window.innerWidth;
     const h = this.host.clientHeight || window.innerHeight;
+    const pr = Math.min(window.devicePixelRatio || 1, DPR_CAP[this.gfx.preset]) * this.gfx.resScale * this.dynScale;
+    this.renderer.setPixelRatio(Math.max(0.5, pr));
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+    this.farCam.aspect = w / h;
+    this.farCam.updateProjectionMatrix();
   }
 
   // ---------- site ----------
@@ -220,9 +301,7 @@ export class SurfaceWorld {
     this.rocks = [];
     this.patch = p;
     this.setWaypoint(null);
-    const { near, far } = buildTerrain(p, regolithMaterial(false), regolithMaterial(true));
-    this.terrain = [near, far];
-    this.scene.add(near, far);
+    this.rebuildTerrain();
     const gy = (x: number, z: number): number => groundY(p, x, z);
     this.outpost = null;
     const exclude: { x: number; z: number; r: number }[] = [];
@@ -262,7 +341,10 @@ export class SurfaceWorld {
       this.player.place(sp.x, sp.z, sp.yaw);
     }
     this.scatterRocks(gy, exclude, p.kind === "smooth" ? 0.5 : 1);
+    this.indexProps();
+    this.applyLighting();
     this.horizonAt.set(1e9, 1e9);
+    this.warmShaders();
     if (this.skyState) this.applySky(this.skyState);
   }
 
@@ -298,40 +380,109 @@ export class SurfaceWorld {
     this.prompt = null;
   }
 
+  /** Decorative rocks, instanced per 250 m chunk so whole chunks can be culled by distance and frustum. */
   private scatterRocks(gy: (x: number, z: number) => number, exclude: { x: number; z: number; r: number }[], density: number): void {
     const r = rng(42);
-    const mat = regolithMaterial(false);
+    const mat = regolithMaterial(false, 0);
     (mat as THREE.MeshStandardMaterial).color.set(0x85817a);
     const variants = [rockGeometry(1), rockGeometry(2), rockGeometry(3)];
     const counts = [520, 380, 260].map((c) => Math.round(c * density));
-    const m4 = new THREE.Matrix4();
-    const q = new THREE.Quaternion();
+    const CH = 250;
+    const buckets = new Map<string, THREE.Matrix4[][]>();
     const e = new THREE.Euler();
-    variants.forEach((geo, vi) => {
+    const q = new THREE.Quaternion();
+    variants.forEach((_, vi) => {
       const n = counts[vi] as number;
-      const im = new THREE.InstancedMesh(geo, mat, n);
-      im.castShadow = true;
-      im.receiveShadow = true;
       let k = 0;
       for (let tries = 0; k < n && tries < n * 4; tries++) {
         const rad = 6 + Math.pow(r(), 0.7) * 700;
         const a = r() * Math.PI * 2;
         const x = Math.sin(a) * rad, z = -Math.cos(a) * rad;
         if (exclude.some((ex) => Math.hypot(x - ex.x, z - ex.z) < ex.r)) continue;
-        // size distribution: many pebbles, few boulders (power law)
         const s = 0.14 + Math.pow(r(), 5) * 1.5 + (r() < 0.012 ? 1.6 : 0);
         e.set(r() * 0.4, r() * Math.PI * 2, r() * 0.4);
         q.setFromEuler(e);
-        m4.compose(new THREE.Vector3(x, gy(x, z) - s * 0.25, z), q, new THREE.Vector3(s, s, s));
-        im.setMatrixAt(k++, m4);
+        const key = `${Math.floor(x / CH)},${Math.floor(z / CH)}`;
+        if (!buckets.has(key)) buckets.set(key, [[], [], []]);
+        (buckets.get(key) as THREE.Matrix4[][])[vi]!.push(new THREE.Matrix4().compose(new THREE.Vector3(x, gy(x, z) - s * 0.25, z), q.clone(), new THREE.Vector3(s, s, s)));
+        k++;
       }
-      im.count = k;
-      im.instanceMatrix.needsUpdate = true;
-      im.name = "decorative-rocks";
-      this.props.add(im);
-      this.rocks.push(im);
     });
+    for (const [, lists] of buckets) {
+      lists.forEach((mats, vi) => {
+        if (!mats.length) return;
+        const im = new THREE.InstancedMesh(variants[vi] as THREE.BufferGeometry, mat, mats.length);
+        mats.forEach((m, i) => im.setMatrixAt(i, m));
+        im.instanceMatrix.needsUpdate = true;
+        im.computeBoundingSphere();
+        im.castShadow = true;
+        im.receiveShadow = true;
+        im.name = "decorative-rocks";
+        this.props.add(im);
+        this.rocks.push(im);
+      });
+    }
   }
+
+  // ---------- distance culling (props only; terrain and science untouched) ----------
+  private cullables: { o: THREE.Object3D; c: THREE.Vector3; r: number; keep: boolean }[] = [];
+  private cullTick = 0;
+  private indexProps(): void {
+    this.cullables = [];
+    const keepSet = new Set<THREE.Object3D>([...(this.outpost?.beacons.values() ?? [])]);
+    const add = (o: THREE.Object3D): void => {
+      const box = new THREE.Box3().setFromObject(o);
+      if (box.isEmpty()) return;
+      const sph = box.getBoundingSphere(new THREE.Sphere());
+      this.cullables.push({ o, c: sph.center.clone(), r: sph.radius, keep: keepSet.has(o) });
+    };
+    for (const o of this.props.children) {
+      if (o === this.outpost?.group) for (const c of o.children) { if (!(c as THREE.Sprite).isSprite) add(c); }
+      else if (!(o as THREE.Sprite).isSprite && o !== this.rover?.root) add(o);
+    }
+  }
+  private cull(): void {
+    const cam = this.camera.position;
+    const lim = this.gfx.renderDist;
+    for (const it of this.cullables) {
+      if (it.keep) continue;
+      it.o.visible = it.c.distanceTo(cam) - it.r < lim;
+    }
+  }
+
+  /** Compile every material up front so the first look at the astronaut or rover never stalls. */
+  private warmShaders(): void {
+    // Render the scene once, offscreen, from a third-person viewpoint with the suit,
+    // rover and scanner visible: compiles every program and uploads textures and skin
+    // data now, instead of stalling the first time the player presses V.
+    const vis = this.astro.root.visible;
+    this.astro.root.visible = true;
+    this.handheld.group.visible = true;
+    const rt = new THREE.WebGLRenderTarget(64, 64);
+    const cam = this.camera.clone();
+    const p = this.player.pos;
+    cam.position.set(p.x - 4, p.y + 2.2, p.z + 4);
+    cam.lookAt(p.x, p.y + 1, p.z);
+    cam.updateMatrixWorld();
+    try {
+      this.renderer.setRenderTarget(rt);
+      this.renderer.shadowMap.needsUpdate = true;
+      this.renderer.render(this.scene, cam);
+      if (this.rover) {
+        cam.position.set(this.rover.pos.x - 6, this.rover.pos.y + 3, this.rover.pos.z + 6);
+        cam.lookAt(this.rover.pos);
+        cam.updateMatrixWorld();
+        this.renderer.render(this.scene, cam);
+      }
+    } catch {
+      /* best effort */
+    } finally {
+      this.renderer.setRenderTarget(null);
+      rt.dispose();
+    }
+    this.astro.root.visible = vis;
+  }
+
 
   // ---------- sky / time ----------
   applySky(s: SkyState): void {
@@ -340,8 +491,9 @@ export class SurfaceWorld {
     // Earthshine fill: from Earth's direction, scaled by how much of Earth is lit.
     const lit = this.sky.earthLitFraction();
     const earthUp = s.earthEl > -1 ? 1 : 0;
-    this.fill.intensity = this.realisticDark ? 0.004 * lit * earthUp : (0.08 + 0.35 * lit * earthUp);
-    this.ambient.intensity = this.realisticDark ? 0.0 : 0.34;
+    const mode = this.realisticDark ? "realistic" : this.gfx.lighting;
+    this.fill.intensity = mode === "realistic" ? 0.004 * lit * earthUp : (mode === "bright" ? 0.2 : 0.1) + 0.35 * lit * earthUp;
+    this.ambient.intensity = mode === "realistic" ? 0 : mode === "bright" ? 0.85 : 0.5;
     if (this.outpost) {
       for (const a of this.outpost.arrays) a.rotation.y = -s.sunAz * D2R; // panel normal (+z) → Sun azimuth
       this.outpost.dish.yaw.rotation.y = -s.earthAz * D2R;
@@ -356,19 +508,19 @@ export class SurfaceWorld {
   private updateGate(): void {
     if (!this.patch || !this.skyState) return;
     const px = this.player.pos.x, pz = this.player.pos.z;
-    if (Math.hypot(px - this.horizonAt.x, pz - this.horizonAt.y) > 15) {
-      farHorizon(this.patch, px, pz, EYE_HEIGHT, 350, this.horizonHere);
+    const az = this.skyState.sunAz;
+    if (Math.hypot(px - this.horizonAt.x, pz - this.horizonAt.y) > 3 || Math.abs(az - this.horizonAz) > 0.05) {
+      // terrain that the shadow map covers (high shadows: within ~260 m) is skipped here
+      const minDist = this.gfx.shadows === "high" ? 300 : 12;
+      this.gateHz = horizonToward(this.patch, px, pz, EYE_HEIGHT, minDist, az);
       this.horizonAt.set(px, pz);
+      this.horizonAz = az;
     }
-    const n = this.horizonHere.length;
-    const f = (((this.skyState.sunAz % 360) + 360) % 360) / (360 / n);
-    const i = Math.floor(f) % n, t = f - Math.floor(f);
-    const hz = (this.horizonHere[i] as number) * (1 - t) + (this.horizonHere[(i + 1) % n] as number) * t;
-    this.sunGateValue = discFractionAbove(this.skyState.sunEl, hz, 0.2666);
+    this.sunGateValue = discFractionAbove(this.skyState.sunEl, this.gateHz, 0.2666);
     shared.sunGate.value = this.sunGateValue;
     // bounce light exists only while the ground around you is sunlit
     const up = this.skyState.sunEl > -0.3 ? 1 : 0;
-    this.bounce.intensity = (this.realisticDark ? 0.25 : 1.1) * this.sunGateValue * up;
+    this.bounce.intensity = (this.realisticDark ? 0.25 : this.gfx.lighting === "bright" ? 1.8 : 1.4) * this.sunGateValue * up;
   }
 
   // ---------- loop ----------
@@ -419,7 +571,8 @@ export class SurfaceWorld {
       if (this.rover && this.patch) {
         const pt = this.patch;
         this.rover.update(dt, this.noKeys, (x, z) => groundY(pt, x, z), this.outpost?.colliders ?? [], false);
-        this.rover.sign.visible = true;
+        const rd = this.rover.pos.distanceTo(this.camera.position);
+        this.rover.sign.visible = rd > 7 && rd < 220;
         this.roverCollider.x = this.rover.pos.x;
         this.roverCollider.z = this.rover.pos.z;
       }
@@ -483,11 +636,15 @@ export class SurfaceWorld {
       this.ev.onPrompt(best ? best.label : null);
     }
     // labels: fade with distance
-    for (const l of this.outpost?.labels ?? []) {
-      const d = l.position.distanceTo(this.camera.position);
-      (l.material as THREE.SpriteMaterial).opacity = d < 7 ? 0 : d < 12 ? (d - 7) / 5 : d > 160 ? Math.max(0, 1 - (d - 160) / 140) : 1;
-      const s = Math.max(0.35, d / 42);
-      l.scale.set(4 * s * (l.userData.k ?? 1), 1 * s * (l.userData.k ?? 1), 1);
+    if (this.labelTick++ % 6 === 0) {
+      // labels: fixed on-screen size (sizeAttenuation off), shown between 6 m and the label range
+      const range = Math.min(260, Math.max(120, this.gfx.renderDist));
+      for (const l of this.outpost?.labels ?? []) {
+        const d = l.position.distanceTo(this.camera.position);
+        const op = d < 6 ? 0 : d < 10 ? (d - 6) / 4 : d > range ? Math.max(0, 1 - (d - range) / 60) : 1;
+        (l.material as THREE.SpriteMaterial).opacity = op;
+        l.visible = op > 0.01;
+      }
     }
     if (this.waypoint) {
       const ring = this.waypoint.getObjectByName("ring") as THREE.Mesh;
@@ -504,6 +661,10 @@ export class SurfaceWorld {
     this.sky.syncCamera(this.camera);
     this.afterFrame?.();
     const r = this.renderer;
+    if (this.paused) return;
+    if (++this.cullTick % 15 === 1) this.cull();
+    this.flood.position.set(-3, (this.outpost ? this.groundAt(-3, 2) : 0) + 9, 2);
+    this.adaptRes(dt);
     if (this.inside && this.interior) {
       this.interior.tick(now);
       this.camera.updateMatrixWorld(); // the camera lives in the outdoor scene, which is not rendered here
@@ -513,7 +674,15 @@ export class SurfaceWorld {
     }
     r.clear();
     r.render(this.sky.scene, this.sky.camera);
+    // far terrain (2–220 km) with its own depth range, then everything near with a tight one
     r.clearDepth();
+    this.farCam.position.copy(this.camera.position);
+    this.farCam.quaternion.copy(this.camera.quaternion);
+    this.farCam.fov = this.camera.fov;
+    this.farCam.updateMatrixWorld();
+    r.render(this.scene, this.farCam);
+    r.clearDepth();
+    r.shadowMap.needsUpdate = this.sun.castShadow;
     r.render(this.scene, this.camera);
     r.clearDepth();
     r.render(this.sky.overlay, this.sky.camera);
@@ -521,6 +690,25 @@ export class SurfaceWorld {
 
   beamOn = true;
   cineShowBody = true;
+  paused = false;
+  private labelTick = 0;
+  /** smoothed frame time (ms) for the fps counter and adaptive resolution */
+  frameMs = 16;
+  private slowFor = 0;
+  private fastFor = 0;
+
+  /** Adaptive resolution: if frames stay slow (< ~36 fps) drop the render scale a notch; recover when fast. */
+  private adaptRes(dt: number): void {
+    const ms = dt * 1000;
+    this.frameMs += (ms - this.frameMs) * 0.05;
+    if (!this.gfx.adaptive) return;
+    if (this.frameMs > 28) { this.slowFor += dt; this.fastFor = 0; } else if (this.frameMs < 18) { this.fastFor += dt; this.slowFor = 0; } else { this.slowFor = 0; this.fastFor = 0; }
+    if (this.slowFor > 2 && this.dynScale > 0.6) { this.dynScale = Math.max(0.6, this.dynScale - 0.1); this.slowFor = 0; this.resize(); }
+    if (this.fastFor > 5 && this.dynScale < 1) { this.dynScale = Math.min(1, this.dynScale + 0.1); this.fastFor = 0; this.resize(); }
+  }
+  get renderScale(): number {
+    return this.renderer.getPixelRatio();
+  }
   afterFrame: (() => void) | null = null;
 
   /** Screen position (CSS px) of a sky direction; z > 1 means behind the camera. */
@@ -582,6 +770,18 @@ export class SurfaceWorld {
         p.pos.z + cyw * dist * Math.cos(pitch) + sy * side,
       );
       if (this.patch) want.y = Math.max(want.y, groundY(this.patch, want.x, want.z) + 0.5);
+      // keep the camera out of buildings: pull it in toward the suit if it would sit inside a structure
+      for (const col of this.player.colliders) {
+        if (col.r < 1.5) continue;
+        const dx = want.x - col.x, dz = want.z - col.z;
+        if (Math.hypot(dx, dz) < col.r + 0.6) {
+          const t = 0.35;
+          want.x = p.pos.x + (want.x - p.pos.x) * t;
+          want.z = p.pos.z + (want.z - p.pos.z) * t;
+          want.y = Math.max(want.y, p.pos.y + 2.2);
+          break;
+        }
+      }
       if (!this.camInit) { c.position.copy(want); this.camInit = true; }
       const k = 1 - Math.exp(-12 * Math.min(0.05, (now - this.lastCam) / 1000 || 0.016));
       c.position.lerp(want, k);

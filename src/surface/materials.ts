@@ -75,8 +75,10 @@ export function gated<T extends THREE.Material>(m: T): T {
 }
 
 /** Regolith: gated sunlight + procedural metre-scale detail that fades with distance. */
-export function regolithMaterial(far = false): THREE.MeshStandardMaterial {
+/** detail: 0 = albedo variation only, 1 = + one crater scale and light bump, 2 = full. */
+export function regolithMaterial(far = false, detail = 2): THREE.MeshStandardMaterial {
   const m = new THREE.MeshStandardMaterial({ color: 0x9a968f, roughness: 0.97, metalness: 0 });
+  (m as unknown as { defines: Record<string, number> }).defines = { OD_DETAIL: far ? 0 : detail };
   m.onBeforeCompile = (s) => {
     patchSunGate(s, true);
     s.uniforms.odDetail = shared.detail;
@@ -89,7 +91,11 @@ export function regolithMaterial(far = false): THREE.MeshStandardMaterial {
         vec2 wp = vOdWorld.xz;
         float big = odFbm(wp / 900.0);
         float mid = odFbm(wp / 70.0);
+        #if OD_DETAIL >= 1
         float fine = odFbm(wp / 3.0) * (1.0 - smoothstep(30.0, 160.0, odDist));
+        #else
+        float fine = 0.0;
+        #endif
         float alb = 1.0 + 0.16*big + 0.10*mid + 0.08*fine * odDetail;
         diffuseColor.rgb *= alb;
         ${far ? "" : ""}`,
@@ -97,21 +103,27 @@ export function regolithMaterial(far = false): THREE.MeshStandardMaterial {
       .replace(
         "#include <normal_fragment_maps>",
         `#include <normal_fragment_maps>
+        #if OD_DETAIL >= 1
         if (odDetail > 0.0) {
-          float fade = 1.0 - smoothstep(25.0, 220.0, odDist);
+          float fade = 1.0 - smoothstep(25.0, OD_DETAIL >= 2 ? 220.0 : 90.0, odDist);
           if (fade > 0.0) {
             float e = 0.08;
             vec2 q = wp / 2.2;
+            #if OD_DETAIL >= 2
             #define ODH(w) (odFbm((w) / 2.2) * 0.22 + odCraters((w) / 7.0, 0.22) * 0.55 + odCraters((w) / 1.8, 0.18) * 0.16)
+            #else
+            #define ODH(w) (odCraters((w) / 7.0, 0.22) * 0.55)
+            #endif
             float h0 = ODH(wp);
             float hx = ODH(wp + vec2(e, 0.0));
             float hz = ODH(wp + vec2(0.0, e));
             vec3 bw = vec3(-(hx - h0) / e, 0.0, -(hz - h0) / e) * 0.16 * fade * odDetail;
             normal = normalize(normal + (viewMatrix * vec4(bw, 0.0)).xyz);
           }
-        }`,
+        }
+        #endif`,
       );
   };
-  m.customProgramCacheKey = () => (far ? "od-regolith-far" : "od-regolith");
+  m.customProgramCacheKey = () => `od-regolith-${far ? "far" : "near"}-${detail}`;
   return m;
 }

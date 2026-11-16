@@ -70,9 +70,9 @@ export class Rover {
       tex = new THREE.CanvasTexture(c);
       tex.colorSpace = THREE.SRGBColorSpace;
     }
-    this.sign = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthWrite: false, transparent: true }));
-    this.sign.scale.set(4, 1, 1);
-    this.sign.position.y = 6.2;
+    this.sign = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthWrite: false, transparent: true, sizeAttenuation: false }));
+    this.sign.scale.set(0.13, 0.0325, 1); // fixed on-screen size, never giant up close
+    this.sign.position.y = 5.4;
     this.root.add(this.sign);
     for (const sx of [-0.9, 0.9]) {
       const l = new THREE.SpotLight(0xfff3e0, 0, 70, 0.5, 0.6, 1.2);

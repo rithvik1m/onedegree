@@ -5,7 +5,7 @@
  * labelled so in the display settings. Off with one toggle.
  */
 let ctx: AudioContext | null = null;
-export let sfxOn = true;
+export let sfxOn = false; // muted on first load; enable in settings
 export function setSfx(on: boolean): void {
   sfxOn = on;
 }

@@ -75,8 +75,10 @@ export function label(text: string, sub = "", scale = 1): THREE.Sprite {
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = 4;
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthWrite: false, transparent: true }));
-  s.scale.set(4 * scale, 1 * scale, 1);
+  // fixed on-screen size (~26 px tall at 900 px viewport) instead of growing with distance
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthWrite: false, transparent: true, sizeAttenuation: false }));
+  const k = 0.034 * Math.min(1, Math.max(0.75, scale));
+  s.scale.set(k * (sub ? 4 : 4.6), k * (sub ? 1 : 0.75), 1);
   s.renderOrder = 10;
   return s;
 }

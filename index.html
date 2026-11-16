@@ -164,17 +164,28 @@
     <!-- Controls hint (first person) -->
     <div id="hints" class="hints glass hidden" aria-hidden="true"></div>
     <div id="settings" class="settings glass hidden">
+      <div class="eyebrow">Graphics</div>
+      <div class="seg small" id="gPreset" role="radiogroup" aria-label="Graphics preset"><button data-v="low">Low</button><button data-v="balanced">Balanced</button><button data-v="high">High</button></div>
+      <label class="field"><span>Render distance <b id="gDistOut">350 m</b></span><input type="range" id="gDist" min="100" max="1500" step="50" value="350" /></label>
+      <div class="set-row"><span>Shadows</span><div class="seg small" id="gShadows"><button data-v="off">Off</button><button data-v="low">Low</button><button data-v="high">High</button></div></div>
+      <div class="set-row"><span>Regolith detail</span><div class="seg small" id="gDetail"><button data-v="low">Low</button><button data-v="medium">Medium</button><button data-v="high">High</button></div></div>
+      <label class="field"><span>Resolution scale <b id="gResOut">100%</b></span><input type="range" id="gRes" min="0.5" max="1" step="0.05" value="1" /></label>
+      <label class="check"><input type="checkbox" id="gAdaptive" checked /> Adaptive resolution <small>(drops resolution if frames get slow)</small></label>
+      <label class="check"><input type="checkbox" id="gFps" /> Show FPS counter</label>
       <div class="eyebrow">Display</div>
-      <label class="check"><input type="checkbox" id="setReal" /> Realistic darkness <small>(vacuum-black shadows; off = shadows lifted for readability — a visual aid, not sunlight)</small></label>
-      <label class="check"><input type="checkbox" id="setBob" checked /> Head bob</label>
-      <label class="check"><input type="checkbox" id="setSfx" checked /> Suit-radio tones <small>(artistic — there is no sound in a vacuum)</small></label>
-      <label class="check"><input type="checkbox" id="setDetail" checked /> Regolith detail <small>(procedural, not measured)</small></label>
+      <div class="set-row"><span>Lighting</span><div class="seg small" id="gLight"><button data-v="realistic">Realistic</button><button data-v="balanced">Balanced</button><button data-v="bright">Bright</button></div></div>
+      <p class="dim small">Balanced and Bright lift shadows and light the base for readability — a visual aid, never counted as sunlight. Realistic = vacuum-black shadows.</p>
       <label class="field"><span>Exposure <b id="expOut">1.0</b></span><input type="range" id="setExp" min="0.4" max="2.2" step="0.05" value="1" /></label>
+      <label class="check"><input type="checkbox" id="setDetail" checked /> Regolith micro-detail <small>(procedural, not measured)</small></label>
+      <div class="eyebrow">Controls</div>
       <label class="field"><span>Movement speed <b id="spdOut">1.0×</b></span><input type="range" id="setSpd" min="0.6" max="1.8" step="0.1" value="1" /></label>
+      <label class="field"><span>Mouse sensitivity <b id="sensOut">1.0×</b></span><input type="range" id="setSens" min="0.3" max="2.5" step="0.1" value="1" /></label>
+      <label class="check"><input type="checkbox" id="setBob" checked /> Head bob <small>(off = reduced camera motion)</small></label>
+      <label class="check"><input type="checkbox" id="setSfx" /> Suit-radio tones <small>(artistic — no sound travels in a vacuum)</small></label>
       <p class="dim small">Walk 3 m/s and sprint 7.5 m/s are game assists — Apollo crews moved at about 1–2 m/s.</p>
       <button id="setToken" class="pill small ghost">Orbit globe: add a Cesium ion token (optional)</button>
-      <p class="dim small" id="setInfo">Surface and science always use NASA LOLA + Horizons data.</p>
     </div>
+    <div id="fps" class="fps hidden mono"></div>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <div id="caption" class="caption" aria-live="polite"></div>
 

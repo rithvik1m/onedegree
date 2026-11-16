@@ -120,11 +120,12 @@ function vertex(p: SurfacePatch, i: number, j: number, out: Float32Array, k: num
   out[k + 2] = -horiz * Math.cos(az);
 }
 
-function ringMesh(p: SurfacePatch, i0: number, i1: number): THREE.BufferGeometry {
-  const nA = p.nAz;
-  const nR = i1 - i0 + 1;
+/** Mesh over the given rings, every `azStep`-th azimuth (visual LOD; data untouched). */
+function ringMesh(p: SurfacePatch, rings: number[], azStep: number): THREE.BufferGeometry {
+  const nA = Math.floor(p.nAz / azStep);
+  const nR = rings.length;
   const pos = new Float32Array(nR * nA * 3);
-  for (let i = 0; i < nR; i++) for (let j = 0; j < nA; j++) vertex(p, i0 + i, j, pos, (i * nA + j) * 3);
+  for (let i = 0; i < nR; i++) for (let j = 0; j < nA; j++) vertex(p, rings[i] as number, j * azStep, pos, (i * nA + j) * 3);
   const idx = new Uint32Array((nR - 1) * nA * 6);
   let k = 0;
   for (let i = 0; i < nR - 1; i++) {
@@ -140,9 +141,8 @@ function ringMesh(p: SurfacePatch, i0: number, i1: number): THREE.BufferGeometry
   g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
   g.setIndex(new THREE.BufferAttribute(idx, 1));
   g.computeVertexNormals();
-  if (i0 === 0) {
+  if (rings[0] === 0) {
     const n = g.getAttribute("normal") as THREE.BufferAttribute;
-    // ring 0 is one point repeated: give it the average of ring 1
     let sx = 0, sy = 0, sz = 0;
     for (let j = 0; j < nA; j++) { sx += n.getX(nA + j); sy += n.getY(nA + j); sz += n.getZ(nA + j); }
     const l = Math.hypot(sx, sy, sz) || 1;
@@ -152,9 +152,18 @@ function ringMesh(p: SurfacePatch, i0: number, i1: number): THREE.BufferGeometry
   return g;
 }
 
-export function buildTerrain(p: SurfacePatch, nearMat: THREE.Material, farMat: THREE.Material): { near: THREE.Mesh; far: THREE.Mesh } {
-  const near = new THREE.Mesh(ringMesh(p, 0, p.nNear - 1), nearMat);
-  const far = new THREE.Mesh(ringMesh(p, p.nNear - 1, p.radii.length - 1), farMat);
+/**
+ * Near mesh (0–2 km) and far mesh (2–220 km). `azStride` and `farRingStride` thin the
+ * mesh for slower GPUs; collision (groundY) and every scientific horizon read the full
+ * patch data, never the mesh.
+ */
+export function buildTerrain(p: SurfacePatch, nearMat: THREE.Material, farMat: THREE.Material, azStride = 1, farRingStride = 1): { near: THREE.Mesh; far: THREE.Mesh } {
+  const nearRings = Array.from({ length: p.nNear }, (_, i) => i);
+  const farRings: number[] = [];
+  for (let i = p.nNear - 1; i < p.radii.length; i += farRingStride) farRings.push(i);
+  if (farRings[farRings.length - 1] !== p.radii.length - 1) farRings.push(p.radii.length - 1);
+  const near = new THREE.Mesh(ringMesh(p, nearRings, azStride), nearMat);
+  const far = new THREE.Mesh(ringMesh(p, farRings, azStride), farMat);
   near.receiveShadow = true;
   near.castShadow = true;
   far.receiveShadow = true;
@@ -254,4 +263,29 @@ export function farHorizon(p: SurfacePatch, x: number, z: number, eyeAbove: numb
     }
     out[j] = best;
   }
+}
+
+/**
+ * Terrain horizon elevation (deg) seen from scene (x, z) in ONE direction, counting
+ * terrain farther than `minDist`. Used every few frames for the sun gate: one ray of
+ * ~300 samples instead of a full 360° skyline, so moving never causes a hitch.
+ */
+export function horizonToward(p: SurfacePatch, x: number, z: number, eyeAbove: number, minDist: number, azDeg: number): number {
+  const y0 = groundY(p, x, z) + eyeAbove;
+  const base = MOON_R_M + p.groundM;
+  const sa = Math.sin(azDeg * D2R), ca = Math.cos(azDeg * D2R);
+  let best = -90;
+  for (let d = minDist; d < 200_000; d = d < 40 ? d + 2 : d * 1.02) {
+    const px = x + d * sa, pz = z - d * ca;
+    const rho = Math.hypot(px, pz);
+    const del = Math.asin(Math.min(1, rho / base));
+    const hh = heightRelAt(p, del * MOON_R_M, Math.atan2(px, -pz) / D2R);
+    const rr = base + hh;
+    const sx = rr * Math.sin(del) * (px / (rho || 1)) - x;
+    const sz = rr * Math.sin(del) * (pz / (rho || 1)) - z;
+    const sy = rr * Math.cos(del) - base - y0;
+    const el = Math.atan2(sy, Math.hypot(sx, sz)) / D2R;
+    if (el > best) best = el;
+  }
+  return best;
 }

@@ -747,10 +747,47 @@ async function boot(): Promise<void> {
     if (document.pointerLockElement) document.exitPointerLock();
     dlg.showModal();
   });
-  ($("setReal") as HTMLInputElement).addEventListener("change", (e) => {
-    world.realisticDark = (e.target as HTMLInputElement).checked;
-    updateSky(store.s);
+  // ---------- graphics & display settings ----------
+  const syncSettings = (): void => {
+    const g = world.gfx;
+    const seg = (id: string, v: string): void => { for (const b of $(id).querySelectorAll("button")) b.setAttribute("aria-checked", String((b as HTMLElement).dataset.v === v)); };
+    seg("gPreset", g.preset); seg("gShadows", g.shadows); seg("gDetail", g.detail); seg("gLight", g.lighting);
+    ($("gDist") as HTMLInputElement).value = String(g.renderDist);
+    $("gDistOut").textContent = `${g.renderDist} m`;
+    ($("gRes") as HTMLInputElement).value = String(g.resScale);
+    $("gResOut").textContent = `${Math.round(g.resScale * 100)}%`;
+    ($("gAdaptive") as HTMLInputElement).checked = g.adaptive;
+    ($("gFps") as HTMLInputElement).checked = g.fps;
+    $("fps").classList.toggle("hidden", !g.fps);
+  };
+  const setG = (patch: Partial<typeof world.gfx>): void => {
+    world.applyGfx({ ...world.gfx, ...patch });
+    syncSettings();
+  };
+  const segBind = (id: string, f: (v: string) => void): void => {
+    for (const b of $(id).querySelectorAll<HTMLButtonElement>("button")) b.addEventListener("click", () => f(b.dataset.v as string));
+  };
+  segBind("gPreset", (v) => {
+    const P = { low: { renderDist: 150, shadows: "off", detail: "low", resScale: 0.8 }, balanced: { renderDist: 350, shadows: "low", detail: "medium", resScale: 1 }, high: { renderDist: 800, shadows: "high", detail: "high", resScale: 1 } } as const;
+    setG({ preset: v as "low", ...P[v as keyof typeof P] });
   });
+  segBind("gShadows", (v) => setG({ shadows: v as "off" }));
+  segBind("gDetail", (v) => setG({ detail: v as "low" }));
+  segBind("gLight", (v) => setG({ lighting: v as "balanced" }));
+  ($("gDist") as HTMLInputElement).addEventListener("input", (e) => setG({ renderDist: Number((e.target as HTMLInputElement).value) }));
+  ($("gRes") as HTMLInputElement).addEventListener("change", (e) => setG({ resScale: Number((e.target as HTMLInputElement).value) }));
+  ($("gAdaptive") as HTMLInputElement).addEventListener("change", (e) => setG({ adaptive: (e.target as HTMLInputElement).checked }));
+  ($("gFps") as HTMLInputElement).addEventListener("change", (e) => setG({ fps: (e.target as HTMLInputElement).checked }));
+  ($("setSens") as HTMLInputElement).addEventListener("input", (e) => {
+    const v = Number((e.target as HTMLInputElement).value);
+    world.sens = v;
+    $("sensOut").textContent = `${v.toFixed(1)}×`;
+  });
+  syncSettings();
+  window.setInterval(() => {
+    if (!world.gfx.fps) return;
+    $("fps").textContent = `${(1000 / Math.max(1, world.frameMs)).toFixed(0)} fps · ${world.frameMs.toFixed(1)} ms · res ${world.renderScale.toFixed(2)}× · ${world.gfx.preset}`;
+  }, 500);
   ($("setBob") as HTMLInputElement).addEventListener("change", (e) => (world.headBob = (e.target as HTMLInputElement).checked));
   ($("setSfx") as HTMLInputElement).addEventListener("change", (e) => sfx.setSfx((e.target as HTMLInputElement).checked));
   ($("setDetail") as HTMLInputElement).addEventListener("change", (e) => (shared.detail.value = (e.target as HTMLInputElement).checked ? 1 : 0));
@@ -761,7 +798,8 @@ async function boot(): Promise<void> {
   });
   ($("setExp") as HTMLInputElement).addEventListener("input", (e) => {
     const v = Number((e.target as HTMLInputElement).value);
-    world.renderer.toneMappingExposure = v;
+    world.userExposure = v;
+    world.applyLighting();
     $("expOut").textContent = v.toFixed(2);
   });
   function toggleView(): void {
@@ -859,6 +897,7 @@ async function boot(): Promise<void> {
   };
   world.afterFrame = () => {
     world.hideHandheld = instrument.isOpen() || planner.isOpen();
+    world.paused = planner.isOpen() && !document.body.classList.contains("demo"); // the full-screen planner covers the 3D view
     const rh = $("roverHud");
     rh.classList.toggle("hidden", !world.driving);
     if (world.driving && world.rover) {
