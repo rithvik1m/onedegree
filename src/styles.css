@@ -466,3 +466,22 @@ canvas.skyview { width: 100%; display: block; border-radius: var(--radius); box-
 .rh-note { grid-column: 1 / -1; font-size: 10.5px; color: var(--text-faint); }
 body.driving .tutorial, body.driving #prompt:not(.exit) { }
 body.in-orbit .rover-hud, body.demo .rover-hud { display: none !important; }
+
+/* Field computer compare */
+.compare { padding: 20px 22px; width: min(720px, 94vw); display: none; }
+.compare[open] { display: grid; gap: 12px; animation: pop2 0.35s var(--ease-out); }
+.compare h3 { font-size: 22px; }
+.cmp-req { margin: 0; font-size: 14px; color: var(--text-dim); padding: 8px 12px; border-radius: 10px; background: rgb(242 181 68 / 0.08); box-shadow: inset 3px 0 0 var(--sun); }
+.cmp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.cmp-card { padding: 14px; border-radius: 12px; background: rgb(0 0 0 / 0.28); box-shadow: inset 0 0 0 1px var(--hairline); display: grid; gap: 6px; }
+.cmp-card h4 { margin: 0; font-size: 15px; }
+.cmp-card .big { font-size: 40px; font-weight: 760; color: var(--sun-ink); font-variant-numeric: tabular-nums; line-height: 1; }
+.cmp-card .sub { font-size: 12.5px; color: var(--text-dim); }
+.cmp-card .req { font-size: 12.5px; }
+.cmp-card canvas { width: 100%; height: 110px; display: block; border-radius: 8px; }
+.cmp-msg { margin: 0; font-size: 14px; min-height: 1.2em; }
+.cmp-msg.bad { color: #ff9b82; }
+.db-adv { font-size: 13px; color: var(--text-dim); }
+.db-adv summary { cursor: pointer; color: var(--sun-ink); font-weight: 650; }
+.db-adv ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 4px; }
+@media (max-width: 640px) { .cmp-grid { grid-template-columns: 1fr; } }

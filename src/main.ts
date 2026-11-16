@@ -157,6 +157,11 @@ async function boot(): Promise<void> {
   const polarMap = new PolarMap(store, allPlaces);
 
   let moon: MoonScene | null = null;
+  const distToS1 = (): number => {
+    if (!world.outpost || !world.patch) return 1e9;
+    const [sx, sz] = lonLatToScene(world.patch, survey.lon, survey.lat);
+    return Math.hypot(world.player.pos.x - sx, world.player.pos.z - sz);
+  };
   // ---------- the surface world ----------
   progress("Building the surface…");
   let live = { lon: outpost.lon, lat: outpost.lat };
@@ -169,6 +174,7 @@ async function boot(): Promise<void> {
     onInteract: (id) => interact(id),
     onMove: (lon, lat) => {
       live = { lon, lat };
+      if (world.outpost && distToS1() < 28) campaign.emit({ type: "near-s1", driving: world.driving });
       $("roCoords").textContent = `${fmtLat(lat)} ${fmtLon(lon)}`;
       // the scanner follows you between the outpost and S-1
       if (world.outpost && store.s.mode === "surface") {
@@ -225,7 +231,13 @@ async function boot(): Promise<void> {
       const st = campaign.step;
       const completes = !!(m && st && st.done({ type: "record", id: kind }) && campaign.si === m.steps.length - 1);
       campaign.emit({ type: "record", id: kind });
-      if (!completes) showDebrief("Observation recorded", stationName(kind), result, false);
+      if (campaign.mission?.id === "m1" && campaign.step?.done({ type: "choose-site", correct: true })) {
+        instrument.close();
+        openCompare();
+      } else if (campaign.mission?.id === "m1" && kind === "solar") {
+        instrument.close();
+        toast(`Measured: the outpost is sunlit <b>${analyse(data, outpost, windowT0, 30)?.mReal.sunlitPct.toFixed(0)}%</b> of the next 30 days. Next: take the rover to S-1.`, 6500);
+      } else if (!completes) showDebrief("Measurement recorded", stationName(kind), result, false);
     },
     onPath: (kind, a) => {
       if (!a) return world.sky.setPath(null, 0);
@@ -248,14 +260,105 @@ async function boot(): Promise<void> {
     $("dbTitle").textContent = title;
     $("dbText").innerHTML = text;
     ($("dbNext") as HTMLButtonElement).style.display = mission ? "" : "none";
+    $("dbAdv").classList.add("hidden");
     $("dbFree").textContent = mission ? "Explore freely" : "Close";
     if (document.pointerLockElement) document.exitPointerLock();
     const d = $("debrief") as HTMLDialogElement;
     if (!d.open) d.showModal();
   };
 
+  // ---------- Mission 01 field computer ----------
+  const REQ = 50;
+  function openCompare(): void {
+    const A = analyse(data, outpost, windowT0, 30);
+    const B = analyse(data, survey, windowT0, 30);
+    if (!A || !B) return;
+    $("cmpReq").innerHTML = `<b>Requirement:</b> future surface operations need direct sunlight at least <b>${REQ}%</b> of the next 30 days (from ${fmtDate(windowT0)}).`;
+    const card = (p: Place, a: typeof A, key: string): string => {
+      const ok = a.mReal.sunlitPct >= REQ;
+      return `<div class="cmp-card"><h4>${p.short}</h4><div class="big">${a.mReal.sunlitPct.toFixed(0)}%</div>
+        <div class="sub">sunlit · longest dark spell ${a.mReal.longestDarkH === 0 ? "none" : fmtHours(a.mReal.longestDarkH, a.mReal.longestDarkOpen)}</div>
+        <canvas data-k="${key}" height="110" aria-label="30 days of sunlight at ${p.short}"></canvas>
+        <div class="req ${ok ? "ok" : "bad"}">${ok ? "✓ meets" : "✗ fails"} the ${REQ}% requirement</div></div>`;
+    };
+    $("cmpGrid").innerHTML = card(outpost, A, "a") + card(survey, B, "b");
+    for (const c of $("cmpGrid").querySelectorAll<HTMLCanvasElement>("canvas")) drawSunBar(c, c.dataset.k === "a" ? A : B);
+    $("cmpMsg").textContent = "";
+    $("cmpMsg").className = "cmp-msg";
+    const best = A.mReal.sunlitPct >= B.mReal.sunlitPct ? "a" : "b";
+    $("cmpActions").innerHTML = `<button class="pill primary" data-c="a">Choose ${outpost.short}</button><button class="pill primary" data-c="b">Choose ${survey.short}</button>`;
+    for (const b of $("cmpActions").querySelectorAll<HTMLButtonElement>("button")) b.addEventListener("click", () => {
+      const correct = b.dataset.c === best && (best === "a" ? A : B).mReal.sunlitPct >= REQ;
+      if (!correct) {
+        $("cmpMsg").className = "cmp-msg bad";
+        $("cmpMsg").textContent = `Look again: ${b.dataset.c === "a" ? outpost.short : survey.short} gets ${(b.dataset.c === "a" ? A : B).mReal.sunlitPct.toFixed(0)}% — compare it with the ${REQ}% requirement.`;
+        return;
+      }
+      ($("compare") as HTMLDialogElement).close();
+      campaign.emit({ type: "choose-site", correct: true });
+    });
+    if (document.pointerLockElement) document.exitPointerLock();
+    sfx.chime();
+    ($("compare") as HTMLDialogElement).showModal();
+  }
+  function drawSunBar(c: HTMLCanvasElement, a: NonNullable<ReturnType<typeof analyse>>): void {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const W = c.clientWidth || 300, H = 110;
+    c.width = W * dpr; c.height = H * dpr;
+    const g = c.getContext("2d") as CanvasRenderingContext2D;
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.fillStyle = "#07080a";
+    g.fillRect(0, 0, W, H);
+    const n = a.real.n;
+    // elevation of Sun vs the land in its direction, as a band chart
+    for (let i = 0; i < n; i++) {
+      const x = (i / n) * W, w = W / n + 0.6;
+      g.fillStyle = a.real.sunLit[i] ? "#f2b544" : "#1c1e23";
+      g.fillRect(x, 54, w, 26);
+    }
+    g.fillStyle = "rgba(236,230,218,0.7)";
+    g.font = "600 11px Inter, sans-serif";
+    g.fillText("Sunlight over the next 30 days", 6, 16);
+    g.fillStyle = "rgba(236,230,218,0.5)";
+    g.fillText("amber = Sun visible · dark = Sun blocked or set", 6, 34);
+    g.fillText(fmtDate(a.t0), 4, 100);
+    g.textAlign = "right";
+    g.fillText("+30 d", W - 4, 100);
+    g.textAlign = "left";
+  }
+  function m1Why(): { text: string; adv: string } {
+    const A = analyse(data, outpost, windowT0, 30);
+    const B = analyse(data, survey, windowT0, 30);
+    if (!A || !B || !B.skyline || !A.skyline) return { text: lastResult, adv: "" };
+    // where the Sun is during the month and how high the land is there, at each place
+    let blockedB = 0, lowSun = 0, hzB = 0, hzA = 0, cnt = 0;
+    for (let i = 0; i < B.track.n; i++) {
+      const el = B.track.sunEl[i] as number;
+      if (el > B.smoothDeg) {
+        cnt++;
+        hzB += B.real.sunHorizon[i] as number;
+        hzA += A.real.sunHorizon[i] as number;
+        if (!B.real.sunLit[i]) blockedB++;
+        lowSun = Math.max(lowSun, el);
+      }
+    }
+    const meanB = hzB / Math.max(1, cnt), meanA = hzA / Math.max(1, cnt);
+    const dh = (data.profiles.get("outpost")?.ground_m ?? 0) - (data.profiles.get("survey")?.ground_m ?? 0);
+    const text = `<b>${outpost.short}</b> is the place that meets the requirement: sunlit <b>${A.mReal.sunlitPct.toFixed(0)}%</b> of the next 30 days, against <b>${B.mReal.sunlitPct.toFixed(0)}%</b> at S-1.
+      <br><br><b>Why?</b> The Sun at the pole never climbs above about ${lowSun.toFixed(1)}°. The outpost sits on the crater rim, so the land around it is mostly <i>below</i> eye level (on average ${meanA.toFixed(1)}° in the Sun's direction). S-1 is only ${Math.round(Math.hypot(...lonLatToScene(patches.get("outpost") as SurfacePatch, survey.lon, survey.lat)))} m away but ${dh.toFixed(0)} m lower on the slope, and from there the land rises to ${meanB.toFixed(1)}° on average where the Sun is — higher than the Sun itself for most of the month. A flat-Moon model says both places get ${B.mSmooth.sunlitPct.toFixed(0)}%: it misses exactly this.`;
+    const adv = `<ul>
+      <li>Window: 30 days from ${fmtDate(windowT0)}, 30-minute steps (${B.track.n} samples); "sunlit" = at least half of the 0.53° Sun disc above the LOLA skyline.</li>
+      <li>Sun above a flat horizon in ${cnt} samples; S-1's terrain blocks it in ${blockedB} of them (${((100 * blockedB) / Math.max(1, cnt)).toFixed(0)}%).</li>
+      <li>Highest point of S-1's horizon: ${Math.max(...Array.from(B.skyline.horizon)).toFixed(1)}°; outpost: ${Math.max(...Array.from(A.skyline.horizon)).toFixed(1)}°.</li>
+      <li>Ground heights (LOLA 10 m): outpost ${data.profiles.get("outpost")?.ground_m.toFixed(0)} m, S-1 ${data.profiles.get("survey")?.ground_m.toFixed(0)} m, relative to the 1737.4 km sphere.</li>
+      <li>Long-term check: NASA's 18.6-year illumination map gives the outpost pixel 89.6 % and S-1 11.3 % — the same ranking over decades.</li>
+      <li>Sun positions: NASA/JPL Horizons (verified to 0.0002°). Terrain: NASA LOLA (PGDA 90). This is an analysis of sunlight geometry, not a landing-safety certification.</li></ul>`;
+    return { text, adv };
+  }
+
   const missionResult = (m: Mission): string => {
-    if (m.id === "m1" || m.id === "m2" || m.id === "m3") return lastResult;
+    if (m.id === "m1") return m1Why().text;
+    if (m.id === "m2" || m.id === "m3") return lastResult;
     const t = store.s.landing + store.s.slipDays * 86400;
     const A = analyse(data, store.s.a, t, store.s.windowDays);
     const B = analyse(data, store.s.b, t, store.s.windowDays);
@@ -281,6 +384,10 @@ async function boot(): Promise<void> {
       renderMission();
       const n = MISSIONS.findIndex((x) => x.id === m.id);
       showDebrief(`Mission ${m.num} complete`, m.title, missionResult(m), n + 1 < MISSIONS.length);
+      const adv = m.id === "m1" ? m1Why().adv : "";
+      $("dbAdv").classList.toggle("hidden", !adv);
+      $("dbAdvText").innerHTML = adv;
+      $("dbNext").textContent = m.id === "m1" ? "More missions →" : "Next mission";
     },
   );
   $("dbNext").addEventListener("click", () => {
@@ -300,6 +407,7 @@ async function boot(): Promise<void> {
 
   const targetPos = (id: string | undefined): { x: number; z: number } | null => {
     if (!id || !world.outpost) return null;
+    if (id === "rover") return world.rover ? { x: world.rover.pos.x, z: world.rover.pos.z } : null;
     const it = world.outpost.interactables.find((i) => i.id === id);
     return it ? { x: it.x, z: it.z } : null;
   };
@@ -325,6 +433,7 @@ async function boot(): Promise<void> {
     const st = campaign.step;
     const tp = targetPos(st?.target);
     if (!tp || store.s.mode !== "surface") return;
+    if (st?.target === "rover") world.setWaypoint(world.driving ? null : tp);
     const p = world.player;
     const dx = tp.x - p.pos.x, dz = tp.z - p.pos.z;
     const d = Math.hypot(dx, dz);
@@ -376,11 +485,13 @@ async function boot(): Promise<void> {
     else if (id === "rover") {
       instrument.close();
       world.enterRover();
+      campaign.emit({ type: "rover-enter" });
       document.body.classList.add("driving");
       caption("Rover: W/S drive, A/D steer, L headlights. Stop, then E to step out.", 4200);
     } else if (id === "rover-exit") {
       world.exitRover();
       document.body.classList.remove("driving");
+      campaign.emit({ type: "rover-exit", nearS1: distToS1() < 45 });
     }
   }
   async function enterControl(): Promise<void> {
@@ -794,7 +905,7 @@ async function boot(): Promise<void> {
   $("roCoords").textContent = `${fmtLat(outpost.lat)} ${fmtLon(outpost.lon)}`;
   world.start();
   $("boot").classList.add("done");
-  $("introBrief").textContent = `You are part of a lunar research mission. Your task is to investigate where future lunar landers can receive sunlight and keep in contact with Earth.`;
+
   $("introFine").textContent = `The outpost is fictional. Its site — ${fmtLat(outpost.lat)}, ${fmtLon(outpost.lon)}, on the rim of Shackleton crater — was chosen by code from NASA's illumination maps. Terrain: NASA LOLA. Sun & Earth: NASA/JPL Horizons. Mission clock: ${fmtUtc(store.s.time)} UTC.`;
   const flyover = (): void => {
     const R = 150, gy = groundY(world.patch as SurfacePatch, 0, 0);
@@ -826,7 +937,7 @@ async function boot(): Promise<void> {
     document.body.classList.remove("intro-on");
     if (mode === "mission") {
       campaign.start(0);
-      caption("Mission 01 · First Light", 2600);
+      caption("Mission control: “Could Survey point S-1 support operations? First, measure the sunlight here at the outpost.”", 6000);
     }
     $("tutorial").classList.remove("hidden");
     window.setTimeout(() => $("tutorial").classList.add("fade"), 16000);

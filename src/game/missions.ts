@@ -13,7 +13,11 @@ export type MissionEvent =
   | { type: "choose"; site: "a" | "b" }
   | { type: "slip"; days: number }
   | { type: "orbit" }
-  | { type: "land" };
+  | { type: "land" }
+  | { type: "rover-enter" }
+  | { type: "rover-exit"; nearS1: boolean }
+  | { type: "near-s1"; driving: boolean }
+  | { type: "choose-site"; correct: boolean };
 
 export interface Step {
   text: string;
@@ -35,11 +39,16 @@ export const MISSIONS: Mission[] = [
     id: "m1",
     num: "01",
     title: "First Light",
-    brief: "Does the outpost get enough direct sunlight?",
-    why: "A solar-powered lander lives on sunlight. At the pole the Sun skims the horizon, so a ridge one degree high can switch the power off for days.",
+    brief: "Could Survey point S-1 support surface operations as well as the outpost?",
+    why: "A solar-powered lander lives on sunlight. At the pole the Sun skims the horizon, so a ridge a few degrees high can switch the power off for days — even a few hundred metres away.",
     steps: [
-      { text: "Walk to the Solar Monitoring Station — follow the amber path lights", target: "solar", done: (e) => e.type === "interact" && e.id === "solar" },
-      { text: "Read the station. Scrub or play time to watch the Sun move, then Record observation", target: "solar", done: (e) => e.type === "record" && e.id === "solar" },
+      { text: "Walk to the Solar Station — follow the amber path lights", target: "solar", done: (e) => e.type === "interact" && e.id === "solar" },
+      { text: "Read the three answers, then press Record measurement", target: "solar", done: (e) => e.type === "record" && e.id === "solar" },
+      { text: "Get in the rover (E) — it is parked in the amber ring", target: "rover", done: (e) => e.type === "rover-enter" },
+      { text: "Drive to Survey point S-1 — follow the arrow and the light beam", target: "survey", done: (e) => e.type === "near-s1" && e.driving },
+      { text: "Stop and step out of the rover (E)", target: "survey", done: (e) => e.type === "rover-exit" && e.nearS1 },
+      { text: "Use the survey marker (E), read the answers, then Record measurement", target: "survey", done: (e) => e.type === "record" && e.id === "survey" },
+      { text: "Compare the two places and choose the one that meets the requirement", done: (e) => e.type === "choose-site" && e.correct },
     ],
   },
   {
@@ -54,19 +63,8 @@ export const MISSIONS: Mission[] = [
     ],
   },
   {
-    id: "m3",
-    num: "03",
-    title: "The Shadow Problem",
-    brief: "Is a spot just down the slope as good as the outpost?",
-    why: "Sites a few hundred metres apart can live in different worlds: a lower spot sees a higher horizon, and the Sun only clears it some of the time.",
-    steps: [
-      { text: "Lope (Shift) to Survey point S-1 — follow the light beam", target: "survey", done: (e) => e.type === "interact" && e.id === "survey" },
-      { text: "Compare real terrain with a smooth Moon, then Record observation", target: "survey", done: (e) => e.type === "record" && e.id === "survey" },
-    ],
-  },
-  {
     id: "m4",
-    num: "04",
+    num: "03",
     title: "Choose the Landing Site",
     brief: "Which candidate site better serves a solar-powered lander?",
     why: "Requirement: the lander must both make power (Sun) and talk to Earth. Pick the site where both are true for the larger share of the window.",
@@ -77,7 +75,7 @@ export const MISSIONS: Mission[] = [
   },
   {
     id: "m5",
-    num: "05",
+    num: "04",
     title: "The Delay",
     brief: "The launch slips by a week. Does your answer still hold?",
     why: "Polar lighting changes day by day. A schedule slip can turn a good site into a dark one.",
