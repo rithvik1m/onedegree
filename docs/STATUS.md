@@ -45,3 +45,16 @@ v1 is tagged `v1.0`, v2 `v2.0`; v3 work happened on branch `v3` and is merged to
   versioned save/load (src/game/progress.ts).
 - Tests: 33 unit tests (7 new flight tests); browser journeys in docs/TESTING.md.
 - v4.0 tag = previous stable submission build.
+
+## v6 polish — 2026-11-15 (branch v6-polish)
+- Lag root cause (measured, same 8 GB A18 Pro Mac, 2560×1440 external display): the outdoor scene rendered
+  3.7 MP per frame; frames alternated 16.7/33.3 ms (44–51 fps, p95 33.4 ms). Adaptive resolution never engaged
+  (threshold 28 ms). Fixes: per-preset pixel budget (Balanced 2.1 MP), 60 fps-targeted adaptive resolution,
+  shadow map re-rendered only when the player moves ≥ 0.5 m or every 6th frame. After: 60 fps, p95 16.8 ms,
+  1 % low 59.5 fps in every outdoor scenario. The system was also swapping (3.7 GB swap in use).
+- Collision: oriented-box colliders fitted to every building's real geometry (32 at the outpost), sub-stepped
+  sliding movement, rover chassis collision, third-person camera collision. Browser test: 44 sprint runs into
+  11 buildings from four sides → 0 ended inside geometry; rover stops at walls; all interactions reachable.
+- Movement: 150 ms jump buffer + 120 ms coyote time (input forgiveness; lunar gravity unchanged).
+- Developer collider view: append ?debug=colliders.
+- Not done tonight: new building interiors (Mission Control remains the only enterable interior).

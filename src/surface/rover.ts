@@ -12,7 +12,7 @@
 
 import * as THREE from "three";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { G_MOON, type Collider } from "./player";
+import { G_MOON, insideCollider, type Collider } from "./player";
 
 const MAX_FWD = 8;
 const MAX_REV = 3;
@@ -159,12 +159,13 @@ export class Rover {
     const nx = this.pos.x + Math.sin(this.yaw) * this.speed * dt;
     const nz = this.pos.z - Math.cos(this.yaw) * this.speed * dt;
     let blocked = false;
+    // the chassis as three circles along its length (front, middle, rear)
+    const fxx = Math.sin(this.yaw), fzz = -Math.cos(this.yaw);
     for (const c of colliders) {
-      const d = Math.hypot(nx - c.x, nz - c.z);
-      if (d < c.r + 2.3) {
-        blocked = true;
-        break;
+      for (const o of [-1.5, 0, 1.5]) {
+        if (insideCollider(nx + fxx * o, nz + fzz * o, 1.25, c)) { blocked = true; break; }
       }
+      if (blocked) break;
     }
     if (blocked) this.speed *= -0.25; // bump
     else {

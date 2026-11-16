@@ -21,7 +21,55 @@ const WALK = 3.0;
 const LOPE = 7.5;
 const JUMP_V = 2.4;
 
-export interface Collider { x: number; z: number; r: number }
+/**
+ * Solid footprint on the ground plane. A circle (r) or, when hx/hz are set, an oriented
+ * box (half extents hx × hz, turned by `rot` about the vertical) built from the model's
+ * real geometry (see buildColliders in outpost.ts).
+ */
+export interface Collider { x: number; z: number; r: number; hx?: number; hz?: number; rot?: number; top?: number }
+
+/** Push a circle (px, pz, radius pr) out of a collider. Returns the outward normal if it overlapped. */
+export function resolveCircle(pos: { x: number; z: number }, pr: number, c: Collider): { nx: number; nz: number } | null {
+  if (c.hx === undefined || c.hz === undefined) {
+    const dx = pos.x - c.x, dz = pos.z - c.z;
+    const d = Math.hypot(dx, dz);
+    const rr = c.r + pr;
+    if (d >= rr) return null;
+    const nx = d > 1e-6 ? dx / d : 1, nz = d > 1e-6 ? dz / d : 0;
+    pos.x = c.x + nx * rr;
+    pos.z = c.z + nz * rr;
+    return { nx, nz };
+  }
+  // box local frame: x' = R(-rot)·(p − c)
+  const cr = Math.cos(c.rot ?? 0), sr = Math.sin(c.rot ?? 0);
+  const dx = pos.x - c.x, dz = pos.z - c.z;
+  const lx = dx * cr - dz * sr, lz = dx * sr + dz * cr;
+  if (Math.abs(lx) >= c.hx + pr || Math.abs(lz) >= c.hz + pr) return null;
+  const qx = Math.max(-c.hx, Math.min(c.hx, lx)), qz = Math.max(-c.hz, Math.min(c.hz, lz));
+  let ox = lx - qx, oz = lz - qz;
+  let d = Math.hypot(ox, oz);
+  let tx: number, tz: number;
+  if (d > 1e-6) {
+    if (d >= pr) return null;
+    ox /= d; oz /= d;
+    tx = qx + ox * pr; tz = qz + oz * pr;
+  } else {
+    // centre inside the box: leave by the nearest face
+    const px = c.hx - Math.abs(lx), pz = c.hz - Math.abs(lz);
+    if (px < pz) { ox = Math.sign(lx) || 1; oz = 0; tx = ox * (c.hx + pr); tz = lz; } else { ox = 0; oz = Math.sign(lz) || 1; tx = lx; tz = oz * (c.hz + pr); }
+    d = 0;
+  }
+  // back to world
+  pos.x = c.x + tx * cr + tz * sr;
+  pos.z = c.z - tx * sr + tz * cr;
+  return { nx: ox * cr + oz * sr, nz: -ox * sr + oz * cr };
+}
+
+/** True if a point (with margin) is inside a collider. */
+export function insideCollider(x: number, z: number, margin: number, c: Collider): boolean {
+  const p = { x, z };
+  return resolveCircle(p, margin, c) !== null;
+}
 
 export class Player {
   readonly pos = new THREE.Vector3();
@@ -61,10 +109,23 @@ export class Player {
     return this.keys.has("ShiftLeft") || this.keys.has("ShiftRight");
   }
 
+  /** time of the last jump press / of the last moment on the ground (input forgiveness) */
+  private jumpPressedAt = -1e9;
+  private groundedAt = -1e9;
   jump(): void {
-    if (!this.onGround || !this.enabled) return;
+    if (!this.enabled) return;
+    this.jumpPressedAt = performance.now();
+    this.tryJump(this.jumpPressedAt);
+  }
+  private tryJump(now: number): void {
+    // jump buffer 150 ms before landing; coyote time 120 ms after walking off an edge
+    if (now - this.jumpPressedAt > 150) return;
+    if (!this.onGround && now - this.groundedAt > 120) return;
+    if (this.vel.y > 0.5) return;
     this.vel.y = JUMP_V;
     this.onGround = false;
+    this.jumpPressedAt = -1e9;
+    this.groundedAt = -1e9;
   }
 
   update(dt: number, now: number): void {
@@ -113,20 +174,18 @@ export class Player {
     }
     this.vel.y -= G_MOON * dt;
 
-    const nx = this.pos.x + this.vel.x * dt;
-    const nz = this.pos.z + this.vel.z * dt;
-    this.pos.x = nx;
-    this.pos.z = nz;
-    // structures: push out of circles
-    for (const c of this.colliders) {
-      const dx = this.pos.x - c.x, dz = this.pos.z - c.z;
-      const d = Math.hypot(dx, dz);
-      const rr = c.r + 0.35;
-      if (d < rr && d > 1e-6) {
-        this.pos.x = c.x + (dx / d) * rr;
-        this.pos.z = c.z + (dz / d) * rr;
-        const vn = (this.vel.x * dx + this.vel.z * dz) / d;
-        if (vn < 0) { this.vel.x -= (vn * dx) / d; this.vel.z -= (vn * dz) / d; }
+    // move in sub-steps of ≤ 0.12 m so a sprint can never tunnel through a thin wall
+    const travel = Math.hypot(this.vel.x, this.vel.z) * dt;
+    const n = Math.max(1, Math.ceil(travel / 0.12));
+    for (let i = 0; i < n; i++) {
+      this.pos.x += (this.vel.x * dt) / n;
+      this.pos.z += (this.vel.z * dt) / n;
+      // structures: slide along walls (remove only the velocity into the wall)
+      for (let pass = 0; pass < 2; pass++) for (const c of this.colliders) {
+        const hit = resolveCircle(this.pos, 0.38, c);
+        if (!hit) continue;
+        const vn = this.vel.x * hit.nx + this.vel.z * hit.nz;
+        if (vn < 0) { this.vel.x -= vn * hit.nx; this.vel.z -= vn * hit.nz; }
       }
     }
     this.pos.y += this.vel.y * dt;
@@ -144,6 +203,7 @@ export class Player {
     } else {
       this.onGround = false;
     }
+    if (this.onGround) { this.groundedAt = performance.now(); this.tryJump(this.groundedAt); }
     this.stride += this.horizontalSpeed * dt;
   }
 }

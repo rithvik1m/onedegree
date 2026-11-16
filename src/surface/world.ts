@@ -14,9 +14,9 @@ import { Rover } from "./rover";
 import { Dust } from "./dust";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { regolithMaterial, shared } from "./materials";
-import { buildApolloDescentStage, buildBase, buildLander, buildOutpost, heritageRing, label, type Interactable, type OutpostRefs } from "./outpost";
+import { buildApolloDescentStage, buildBase, buildColliders, buildLander, buildOutpost, heritageRing, label, type Interactable, type OutpostRefs } from "./outpost";
 import type { BaseDef } from "../game/bases";
-import { EYE_HEIGHT, Player } from "./player";
+import { EYE_HEIGHT, Player, insideCollider, resolveCircle } from "./player";
 import { Sky3D, dirFromAzEl } from "./sky3d";
 import { Interior } from "./interior";
 import { actionFor, releaseButtonFocus } from "../game/input";
@@ -426,6 +426,35 @@ export class SurfaceWorld {
       this.player.place(sp.x, sp.z, sp.yaw);
     }
     this.landerObj = this.outpost?.beacons.get("lander") ?? this.props.children.find((o) => o.name === "od1") ?? null;
+    // solid buildings: oriented boxes fitted to the real geometry (walls you cannot walk or drive through)
+    if (this.outpost) {
+      const skip = new Set<THREE.Object3D>();
+      for (const b of this.outpost.beacons.values()) if (b === this.landerObj || b.getObjectByName("beam")) skip.add(b);
+      const boxes = buildColliders(this.outpost.group, gy, skip);
+      this.outpost.colliders.push(...boxes);
+      for (const b of boxes) if (!this.player.colliders.includes(b)) this.player.colliders.push(b);
+      // keep every interaction reachable and never spawn inside a wall
+      for (const it of this.allInteractables()) for (const b of boxes) if (insideCollider(it.x, it.z, 0.4, b)) { const q = { x: it.x, z: it.z }; resolveCircle(q, 1.0, b); it.x = q.x; it.z = q.z; }
+      for (let k = 0; k < 2; k++) for (const b of boxes) resolveCircle(this.player.pos, 0.6, b);
+      this.collisionBoxes = boxes.length;
+      // developer-only collider view: ?debug=colliders (never shown otherwise)
+      if (new URLSearchParams(location.search).get("debug") === "colliders") {
+        const pts: number[] = [];
+        for (const b of this.player.colliders) {
+          const y = gy(b.x, b.z) + 0.3;
+          if (b.hx !== undefined && b.hz !== undefined) {
+            const cr = Math.cos(b.rot ?? 0), sr = Math.sin(b.rot ?? 0);
+            const cs = [[-b.hx, -b.hz], [b.hx, -b.hz], [b.hx, b.hz], [-b.hx, b.hz]].map(([u, w]) => [b.x + (u as number) * cr + (w as number) * sr, b.z - (u as number) * sr + (w as number) * cr]);
+            for (let i = 0; i < 4; i++) { const a = cs[i] as number[], c2 = cs[(i + 1) % 4] as number[]; pts.push(a[0] as number, y, a[1] as number, c2[0] as number, y, c2[1] as number); }
+          } else for (let i = 0; i < 24; i++) { const a0 = (i / 24) * Math.PI * 2, a1 = ((i + 1) / 24) * Math.PI * 2; pts.push(b.x + Math.cos(a0) * b.r, y, b.z + Math.sin(a0) * b.r, b.x + Math.cos(a1) * b.r, y, b.z + Math.sin(a1) * b.r); }
+        }
+        const g = new THREE.BufferGeometry();
+        g.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
+        const lines = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0xff3df0, depthTest: false }));
+        lines.renderOrder = 99;
+        this.props.add(lines);
+      }
+    }
     this.landerHome = this.landerObj ? { x: this.landerObj.position.x, z: this.landerObj.position.z } : null;
     this.scatterRocks(gy, exclude, p.kind === "smooth" ? 0.5 : 1);
     this.indexProps();
@@ -436,6 +465,7 @@ export class SurfaceWorld {
   }
 
   private siteInteractables: Interactable[] = [];
+  collisionBoxes = 0;
   /** every interactable in the current region (outdoor) */
   allInteractables(): Interactable[] {
     return [...(this.outpost?.interactables ?? []), ...this.siteInteractables];
@@ -915,21 +945,25 @@ export class SurfaceWorld {
         p.pos.z + cyw * dist * Math.cos(pitch) + sy * side,
       );
       if (this.patch) want.y = Math.max(want.y, groundY(this.patch, want.x, want.z) + 0.5);
-      // keep the camera out of buildings: pull it in toward the suit if it would sit inside a structure
-      for (const col of this.player.colliders) {
-        if (col.r < 1.5) continue;
-        const dx = want.x - col.x, dz = want.z - col.z;
-        if (Math.hypot(dx, dz) < col.r + 0.6) {
-          const t = 0.35;
-          want.x = p.pos.x + (want.x - p.pos.x) * t;
-          want.z = p.pos.z + (want.z - p.pos.z) * t;
-          want.y = Math.max(want.y, p.pos.y + 2.2);
-          break;
-        }
+      // camera collision: march from the helmet to the wanted spot; stop before any wall or the ground
+      const head = { x: p.pos.x, y: p.pos.y + 1.6, z: p.pos.z };
+      let free = 1;
+      for (let i = 1; i <= 16; i++) {
+        const t = i / 16;
+        const x = head.x + (want.x - head.x) * t, y = head.y + (want.y - head.y) * t, z = head.z + (want.z - head.z) * t;
+        let hit = this.patch ? y < groundY(this.patch, x, z) + 0.25 : false;
+        if (!hit) for (const col of this.player.colliders) { if ((col.top === undefined || y < col.top + 0.3) && insideCollider(x, z, 0.3, col)) { hit = true; break; } }
+        if (hit) { free = Math.max(0.12, (i - 1) / 16); break; }
       }
+      want.set(head.x + (want.x - head.x) * free, head.y + (want.y - head.y) * free, head.z + (want.z - head.z) * free);
+      // cramped (back to a wall): rise above the shoulders instead of pressing into the helmet
+      const hd = Math.hypot(want.x - head.x, want.z - head.z);
+      if (hd < 1.6) { const lift = (1.6 - hd) / 1.6; want.y = Math.max(want.y, head.y + 0.4 + lift * 1.5); }
       if (!this.camInit) { c.position.copy(want); this.camInit = true; }
-      const k = 1 - Math.exp(-12 * Math.min(0.05, (now - this.lastCam) / 1000 || 0.016));
-      c.position.lerp(want, k);
+      // pull in fast (never show a wall's inside), ease back out slowly (no jitter)
+      const dt = Math.min(0.05, (now - this.lastCam) / 1000 || 0.016);
+      const closer = want.distanceToSquared(head as THREE.Vector3Like) < c.position.distanceToSquared(head as THREE.Vector3Like);
+      c.position.lerp(want, 1 - Math.exp(-(closer ? 30 : 6) * dt));
       const look = new THREE.Vector3(p.pos.x + sy * 8 * Math.cos(pitch) + cyw * side, p.pos.y + 1.55 + Math.sin(pitch) * 8, p.pos.z - cyw * 8 * Math.cos(pitch) + sy * side);
       c.lookAt(look);
     }

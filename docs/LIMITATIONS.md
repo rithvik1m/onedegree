@@ -54,3 +54,9 @@ token).
 - **Saves are local to this browser** (localStorage). No cloud or cross-device sync. Clearing site data erases progress.
 - **Rapier physics** remains on the `physics-proto` branch; v5 gameplay does not depend on it.
 - **Not built:** Earth excursion; more than one rover per region; NPCs.
+
+## v6 polish
+- Only Mission Control has an interior. Habitat, lab, garage, comms and solar buildings are exteriors with solid
+  collision; none is advertised as enterable.
+- Colliders are 2D footprints (oriented boxes) plus roof height for the camera; you cannot climb onto roofs.
+- The pixel budget lowers internal resolution on very large windows (Balanced: ~2.1 MP); choose High for full resolution.

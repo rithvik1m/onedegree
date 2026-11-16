@@ -875,3 +875,64 @@ export function buildBase(def: BaseDef, groundY: (x: number, z: number) => numbe
     spawn: def.spawn, lander: def.pad, roverBay: def.rover ?? { x: def.pad.x - 20, z: def.pad.z }, trackers,
   };
 }
+
+/**
+ * Collision from the real geometry: oriented boxes fitted (minimum-area, 3° steps) to the
+ * footprint of every solid part of a facility. Flat things you can walk over (pads, rings,
+ * paths) and see-through beams are skipped. Composite objects larger than 40 m² are split into
+ * their parts so gaps between parts stay walkable.
+ */
+export function buildColliders(group: THREE.Object3D, ground: (x: number, z: number) => number, skip: Set<THREE.Object3D>): Collider[] {
+  group.updateMatrixWorld(true);
+  const out: Collider[] = [];
+  const v = new THREE.Vector3();
+  const pointsOf = (o: THREE.Object3D): { xs: number[]; zs: number[]; minY: number; maxY: number } => {
+    const xs: number[] = [], zs: number[] = [];
+    let minY = Infinity, maxY = -Infinity;
+    o.traverse((m) => {
+      const mesh = m as THREE.Mesh;
+      if (!mesh.isMesh || skip.has(mesh)) return;
+      const mat = mesh.material as THREE.Material & { transparent?: boolean; opacity?: number };
+      if (mat && !Array.isArray(mat) && mat.transparent && (mat.opacity ?? 1) < 0.6) return;
+      const pos = mesh.geometry.getAttribute("position");
+      if (!pos) return;
+      const step = Math.max(1, Math.floor(pos.count / 300));
+      for (let i = 0; i < pos.count; i += step) {
+        v.fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld);
+        xs.push(v.x); zs.push(v.z);
+        if (v.y < minY) minY = v.y;
+        if (v.y > maxY) maxY = v.y;
+      }
+    });
+    return { xs, zs, minY, maxY };
+  };
+  const fit = (o: THREE.Object3D, depth: number): void => {
+    if (skip.has(o) || (o as THREE.Sprite).isSprite) return;
+    const P = pointsOf(o);
+    if (P.xs.length < 3) return;
+    let best = { area: Infinity, a: 0, u0: 0, u1: 0, v0: 0, v1: 0 };
+    for (let k = 0; k < 60; k++) {
+      const a = (k * Math.PI) / 60, ca = Math.cos(a), sa = Math.sin(a);
+      let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
+      for (let i = 0; i < P.xs.length; i++) {
+        const x = P.xs[i] as number, z = P.zs[i] as number;
+        const u = x * ca - z * sa, w = x * sa + z * ca;
+        if (u < u0) u0 = u; if (u > u1) u1 = u; if (w < v0) v0 = w; if (w > v1) v1 = w;
+      }
+      const area = (u1 - u0) * (v1 - v0);
+      if (area < best.area) best = { area, a, u0, u1, v0, v1 };
+    }
+    const kids = o.children.filter((c) => !(c as THREE.Sprite).isSprite);
+    if (best.area > 40 && depth < 4 && kids.length > 1) { for (const c of kids) fit(c, depth + 1); return; }
+    const ca = Math.cos(best.a), sa = Math.sin(best.a);
+    const uc = (best.u0 + best.u1) / 2, vc = (best.v0 + best.v1) / 2;
+    const x = uc * ca + vc * sa, z = -uc * sa + vc * ca;
+    const g = ground(x, z);
+    if (P.maxY - Math.max(P.minY, g) < 0.7) return; // flat: walk over it
+    const hx = Math.max(0.12, (best.u1 - best.u0) / 2), hz = Math.max(0.12, (best.v1 - best.v0) / 2);
+    if (hx * hz > 400) return; // never a giant invisible wall
+    out.push({ x, z, r: Math.hypot(hx, hz), hx, hz, rot: best.a, top: P.maxY });
+  };
+  for (const c of group.children) fit(c, 0);
+  return out;
+}
