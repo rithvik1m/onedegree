@@ -222,6 +222,41 @@ async function boot(): Promise<void> {
     document.body.classList.toggle("in-orbit", s.mode === "orbit");
   };
 
+  // ---------- field notes & prediction ----------
+  type Note = { k: "q" | "obs" | "pred" | "concl"; t: string };
+  const notes: Note[] = [{ k: "q", t: "Mission control asks: could <b>Survey point S-1</b> support surface operations as well as the outpost?" }];
+  let prediction: "more" | "same" | "less" | null = null;
+  const renderNotes = (): void => {
+    $("notesList").innerHTML = notes.map((n) => `<li class="${n.k === "q" ? "q" : ""}">${n.t}</li>`).join("");
+  };
+  const addNote = (k: Note["k"], t: string): void => {
+    notes.push({ k, t });
+    renderNotes();
+    $("btnNotes").classList.add("pulse");
+    window.setTimeout(() => $("btnNotes").classList.remove("pulse"), 2400);
+  };
+  renderNotes();
+  $("btnNotes").addEventListener("click", () => $("notes").classList.toggle("hidden"));
+  $("notesClose").addEventListener("click", () => $("notes").classList.add("hidden"));
+  function askPrediction(): Promise<void> {
+    return new Promise((resolve) => {
+      const d = $("predict") as HTMLDialogElement;
+      const dh = (data.profiles.get("outpost")?.ground_m ?? 0) - (data.profiles.get("survey")?.ground_m ?? 0);
+      $("predictText").textContent = `S-1 sits ${dh.toFixed(0)} m lower than the outpost, on the slope. Over the next 30 days, will it get more, about the same, or less direct sunlight than the outpost?`;
+      for (const b of d.querySelectorAll<HTMLButtonElement>("button")) {
+        b.onclick = () => {
+          prediction = b.dataset.v as "more";
+          const words = { more: "more", same: "about the same", less: "less" }[prediction];
+          addNote("pred", `My prediction: S-1 gets <b>${words}</b> sunlight than the outpost.`);
+          d.close();
+          resolve();
+        };
+      }
+      if (document.pointerLockElement) document.exitPointerLock();
+      d.showModal();
+    });
+  }
+
   // ---------- instruments & campaign ----------
   let lastResult = "";
   const instrument = new Instrument(data, store, () => windowT0, {
@@ -231,12 +266,18 @@ async function boot(): Promise<void> {
       const st = campaign.step;
       const completes = !!(m && st && st.done({ type: "record", id: kind }) && campaign.si === m.steps.length - 1);
       campaign.emit({ type: "record", id: kind });
+      const pctOf = (p: Place): string => (analyse(data, p, windowT0, 30)?.mReal.sunlitPct ?? 0).toFixed(0);
+      if (kind === "solar" && !notes.some((n) => n.t.startsWith("Outpost"))) addNote("obs", `Outpost (Solar Station): direct sunlight <b>${pctOf(outpost)}%</b> of the next 30 days.`);
+      if (kind === "survey" && !notes.some((n) => n.t.startsWith("S-1"))) addNote("obs", `S-1 (field scanner): direct sunlight <b>${pctOf(survey)}%</b> of the next 30 days.`);
       if (campaign.mission?.id === "m1" && campaign.step?.done({ type: "choose-site", correct: true })) {
         instrument.close();
-        openCompare();
+        void discovery().then(() => openCompare());
       } else if (campaign.mission?.id === "m1" && kind === "solar") {
         instrument.close();
-        toast(`Measured: the outpost is sunlit <b>${analyse(data, outpost, windowT0, 30)?.mReal.sunlitPct.toFixed(0)}%</b> of the next 30 days. Next: take the rover to S-1.`, 6500);
+        toast(`Measured: the outpost is sunlit <b>${pctOf(outpost)}%</b> of the next 30 days. Noted in your field notes (N). Next: take the rover to S-1.`, 6500);
+        $("tutorial").classList.remove("fade");
+        for (const r of $("tutorial").querySelectorAll(".more")) r.classList.remove("hidden");
+        window.setTimeout(() => $("tutorial").classList.add("fade"), 12000);
       } else if (!completes) showDebrief("Measurement recorded", stationName(kind), result, false);
     },
     onPath: (kind, a) => {
@@ -267,6 +308,41 @@ async function boot(): Promise<void> {
     if (!d.open) d.showModal();
   };
 
+  // ---------- Mission 01: the discovery at S-1 ----------
+  async function discovery(): Promise<void> {
+    const B = analyse(data, survey, windowT0, 30);
+    if (!B || !B.skyline) return;
+    const i = Math.max(0, Math.min(B.track.n - 1, Math.round((store.s.time - B.t0) / B.track.stepS)));
+    const el = B.track.sunEl[i] as number, az = B.track.sunAz[i] as number, hz = B.real.sunHorizon[i] as number;
+    const n = B.skyline.obstructionKm.length;
+    const dist = B.skyline.obstructionKm[Math.round((((az % 360) + 360) % 360) / (360 / n)) % n] as number;
+    world.sky.setSkyline(B.skyline.horizon);
+    const pts = Array.from({ length: B.track.n }, (_, k) => ({ az: B.track.sunAz[k] as number, el: B.track.sunEl[k] as number, visible: B.real.sunLit[k] === 1 }));
+    world.sky.setPath(pts, 0xf2b544);
+    if (B.real.sunLit[i] === 0 && el > B.smoothDeg) {
+      const p = world.player;
+      p.thirdPerson = false;
+      const yaw0 = p.yaw, pitch0 = p.pitch;
+      let dyaw = az * D2R - yaw0;
+      dyaw = ((dyaw + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+      const pitch1 = (Math.max(el, hz) * 0.6 + 0.4) * D2R;
+      await world.cinematic(2800, (u, cam) => {
+        const e = u * u * (3 - 2 * u);
+        cam.position.set(p.pos.x, p.pos.y + 1.62, p.pos.z);
+        cam.rotation.set(pitch0 + (pitch1 - pitch0) * e, -(yaw0 + dyaw * e), 0);
+      }, false);
+      p.yaw = yaw0 + dyaw;
+      p.pitch = pitch1;
+      const where = dist < 1 ? `${Math.round(dist * 1000)} m` : `${dist.toFixed(1)} km`;
+      caption(`There it is: the ridge ${where} away rises to ${hz.toFixed(1)}°. The Sun is at ${el.toFixed(1)}° — hidden behind it. On a flat Moon you would be standing in sunlight.`, 7500);
+      addNote("obs", `Discovery: from S-1 a ridge ${where} away rises to <b>${hz.toFixed(1)}°</b> — higher than the Sun (<b>${el.toFixed(1)}°</b>). Teal line = NASA LOLA horizon; amber/red = the Sun's 30-day path (sunlit / blocked).`);
+      await wait(6200);
+    } else {
+      caption(`Right now the Sun clears S-1's horizon — but follow the amber/red line: over 30 days the land blocks it ${(100 - B.mReal.sunlitPct).toFixed(0)}% of the time.`, 6500);
+      await wait(5000);
+    }
+  }
+
   // ---------- Mission 01 field computer ----------
   const REQ = 50;
   function openCompare(): void {
@@ -285,6 +361,14 @@ async function boot(): Promise<void> {
     for (const c of $("cmpGrid").querySelectorAll<HTMLCanvasElement>("canvas")) drawSunBar(c, c.dataset.k === "a" ? A : B);
     $("cmpMsg").textContent = "";
     $("cmpMsg").className = "cmp-msg";
+    const diff = B.mReal.sunlitPct - A.mReal.sunlitPct;
+    const actual = diff < -5 ? "less" : diff > 5 ? "more" : "same";
+    const words = { more: "more", same: "about the same", less: "less" } as const;
+    if (prediction) {
+      const ok = prediction === actual;
+      $("cmpPred").className = `cmp-pred ${ok ? "ok" : "no"}`;
+      $("cmpPred").innerHTML = ok ? `✓ Your prediction (${words[prediction]}) matches the measurements.` : `Your prediction was “${words[prediction]}”; the measurements say <b>${words[actual]}</b> — the next screen explains why.`;
+    } else $("cmpPred").textContent = "";
     const best = A.mReal.sunlitPct >= B.mReal.sunlitPct ? "a" : "b";
     $("cmpActions").innerHTML = `<button class="pill primary" data-c="a">Choose ${outpost.short}</button><button class="pill primary" data-c="b">Choose ${survey.short}</button>`;
     for (const b of $("cmpActions").querySelectorAll<HTMLButtonElement>("button")) b.addEventListener("click", () => {
@@ -295,6 +379,10 @@ async function boot(): Promise<void> {
         return;
       }
       ($("compare") as HTMLDialogElement).close();
+      world.sky.setSkyline(null);
+      world.sky.setPath(null, 0);
+      addNote("concl", `Conclusion: <b>${outpost.short}</b> meets the ${REQ}% sunlight requirement; S-1 does not — its horizon is higher than the low polar Sun for most of the month.`);
+      addNote("q", "New question: sunlight is one constraint — can these places also <b>see Earth</b> for radio contact? (Mission 02)");
       campaign.emit({ type: "choose-site", correct: true });
     });
     if (document.pointerLockElement) document.exitPointerLock();
@@ -472,7 +560,10 @@ async function boot(): Promise<void> {
     campaign.emit({ type: "interact", id });
     if (id === "solar") instrument.open("solar", outpost);
     else if (id === "comms") instrument.open("comms", outpost);
-    else if (id === "survey") instrument.open("survey", survey, outpost);
+    else if (id === "survey") {
+      if (campaign.mission?.id === "m1" && !prediction) void askPrediction().then(() => instrument.open("survey", survey, outpost));
+      else instrument.open("survey", survey, outpost);
+    }
     else if (id === "control") void enterControl();
     else if (id === "console") openControl();
     else if (id === "exit") void exitControl();
@@ -492,6 +583,7 @@ async function boot(): Promise<void> {
       world.exitRover();
       document.body.classList.remove("driving");
       campaign.emit({ type: "rover-exit", nearS1: distToS1() < 45 });
+      if (campaign.mission?.id === "m1" && distToS1() < 45 && !prediction) void askPrediction();
     }
   }
   async function enterControl(): Promise<void> {
@@ -675,7 +767,12 @@ async function boot(): Promise<void> {
     renderMission();
     live = { lon, lat };
     updateSky(store.s);
-    if (moon) moon.pause(true);
+    if (moon) {
+      // release the orbit globe on the surface: an 8 GB laptop should not hold two 3D engines
+      moon.destroy();
+      moon = null;
+      $("viewer").innerHTML = "";
+    }
     $("viewer").classList.add("hidden");
     $("surface").classList.remove("hidden");
     world.start();
@@ -802,6 +899,15 @@ async function boot(): Promise<void> {
     world.applyLighting();
     $("expOut").textContent = v.toFixed(2);
   });
+  function returnHome(): void {
+    if (store.s.mode !== "surface" || world.inside) return;
+    if (world.driving) { world.exitRover(); document.body.classList.remove("driving"); }
+    const sp = world.outpost?.spawn ?? { x: 0, z: 0, yaw: 0 };
+    world.player.place(sp.x, sp.z, sp.yaw);
+    toast(world.outpost ? "Back at the outpost." : "Back at your landing point.", 2500);
+  }
+  $("notesHome").addEventListener("click", () => returnHome());
+
   function toggleView(): void {
     if (store.s.mode !== "surface") return;
     const tp = world.toggleView();
@@ -832,6 +938,8 @@ async function boot(): Promise<void> {
     else if (e.code === "KeyO") $("btnOrbit").click();
     else if (e.code === "KeyP") (planner.isOpen() ? (planner.hide(), document.body.classList.remove("console")) : openControl());
     else if (e.code === "KeyV") toggleView();
+    else if (e.code === "KeyN") $("notes").classList.toggle("hidden");
+    else if (e.code === "KeyR") returnHome();
     else if (e.code === "Escape") {
       if (planner.isOpen()) { planner.hide(); document.body.classList.remove("console"); }
       else if (instrument.isOpen()) instrument.close();
@@ -989,6 +1097,12 @@ async function boot(): Promise<void> {
   $("introBegin").addEventListener("click", () => void begin("mission"));
   $("introFree").addEventListener("click", () => void begin("free"));
   $("introSkip").addEventListener("click", () => void begin("mission"));
+  $("introPlanner").addEventListener("click", () => {
+    world.skipCinematic();
+    $("intro").classList.add("hidden");
+    document.body.classList.remove("intro-on");
+    openControl();
+  });
 
   (window as unknown as { onedegree: unknown }).onedegree = { enterControl, store, data, world, scanner, planner, instrument, campaign, get moon() { return moon; }, windowT0, interact, goOrbit, landAt };
   if (url.demo) {

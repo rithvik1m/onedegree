@@ -496,3 +496,22 @@ body.in-orbit .rover-hud, body.demo .rover-hud { display: none !important; }
 .settings .eyebrow { margin-top: 4px; }
 .set-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12.5px; color: var(--text-dim); }
 .fps { position: fixed; left: 50%; top: 10px; transform: translateX(-50%); z-index: 60; padding: 4px 10px; border-radius: 8px; background: rgb(0 0 0 / 0.7); color: #9fe0b0; font-size: 11.5px; pointer-events: none; }
+
+/* Prediction, field notes */
+.predict { padding: 20px 22px; width: min(520px, 92vw); display: none; }
+.predict[open] { display: grid; gap: 10px; animation: pop2 0.3s var(--ease-out); }
+.predict h3 { font-size: 20px; }
+.predict p { margin: 0; font-size: 14px; color: var(--text-dim); }
+.predict-actions { justify-content: stretch; }
+.predict-actions .pill { flex: 1; justify-content: center; }
+.notes { position: fixed; left: var(--edge); top: 230px; z-index: 24; width: min(360px, calc(100vw - 2 * var(--edge))); max-height: calc(100vh - 330px); overflow-y: auto; padding: 14px; display: grid; gap: 10px; animation: slideRight 0.4s var(--ease-sheet); }
+.notes-list { margin: 0; padding-left: 20px; display: grid; gap: 8px; font-size: 13px; line-height: 1.45; color: var(--text-dim); }
+.notes-list li b { color: var(--text); }
+.notes-list li.q { color: var(--earth-ink); list-style: "? "; }
+.notes-actions { display: flex; gap: 8px; }
+.cmp-pred { margin: 0; font-size: 14px; }
+.cmp-pred.ok { color: var(--ok); }
+.cmp-pred.no { color: #ffb08f; }
+.tutorial .more { opacity: 0.9; }
+body.demo .notes { display: none !important; }
+#btnNotes.pulse { box-shadow: 0 0 0 2px var(--sun), var(--elev-control); }

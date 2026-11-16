@@ -270,6 +270,15 @@ export class MoonScene {
     this.viewer.useDefaultRenderLoop = !p;
   }
 
+  /** Free the globe's GPU and JS memory (it is rebuilt on the next launch to orbit). */
+  destroy(): void {
+    try {
+      this.viewer.destroy();
+    } catch {
+      /* already gone */
+    }
+  }
+
   /** Descend to a point and hand over to first person. */
   async land(lon: number, lat: number): Promise<void> {
     this.setMode("transit");

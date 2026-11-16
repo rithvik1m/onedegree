@@ -25,10 +25,11 @@
         <div class="intro-kicker">NASA Space Apps 2026 · Lunar Landing Site Navigator</div>
         <h1 class="intro-title">ONE&nbsp;DEGREE</h1>
         <p class="intro-tag">On the Moon, one degree decides everything.</p>
-        <p class="intro-brief" id="introBrief">You are part of a lunar research mission. Your task: find out where future landers can get sunlight — and why a place just a few hundred metres away can be in the dark.</p>
+        <p class="intro-brief" id="introBrief">Explore the lunar south pole. Investigate sunlight and Earth visibility. Help plan the next landing.</p>
         <div class="intro-actions">
           <button id="introBegin" class="pill primary big">Begin Mission 01</button>
           <button id="introFree" class="pill big">Free exploration</button>
+          <button id="introPlanner" class="pill big ghost">Open the site planner</button>
         </div>
         <p class="intro-fine" id="introFine">The outpost is fictional. Its location, the terrain, and the Sun and Earth positions are real NASA data.</p>
       </div>
@@ -61,14 +62,11 @@
 
     <!-- Controls tutorial -->
     <div id="tutorial" class="tutorial glass hidden">
-      <div class="tut-row"><span class="key wide">Click</span>look around</div>
-      <div class="tut-row"><span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span>walk</div>
-      <div class="tut-row"><span class="key wide">Shift</span>sprint</div>
-      <div class="tut-row"><span class="key wide">Space</span>low-gravity jump</div>
-      <div class="tut-row"><span class="key">E</span>use · enter rover</div>
-      <div class="tut-row"><span class="key">V</span>camera</div>
-      <div class="tut-row"><span class="key">L</span>helmet lamp</div>
-      <div class="tut-row"><span class="key wide">Esc</span>free the mouse</div>
+      <div class="tut-row"><span class="key wide">Click</span>+ mouse to look</div>
+      <div class="tut-row"><span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span>move</div>
+      <div class="tut-row"><span class="key">E</span>use what's in front of you</div>
+      <div class="tut-row more hidden"><span class="key wide">Shift</span>sprint · <span class="key wide">Space</span>jump</div>
+      <div class="tut-row more hidden"><span class="key">V</span>camera · <span class="key">N</span>field notes · <span class="key">R</span>back to base</div>
     </div>
 
     <!-- Field instrument -->
@@ -109,12 +107,33 @@
       <p id="instFoot" class="inst-foot"></p>
     </aside>
 
+    <!-- Prediction before measuring S-1 -->
+    <dialog id="predict" class="dlg predict">
+      <div class="eyebrow">Make a prediction</div>
+      <h3>Will S-1 get more or less sunlight than the outpost?</h3>
+      <p id="predictText">S-1 is lower on the slope. Over the next 30 days, will it get more, about the same, or less direct sunlight than the outpost?</p>
+      <div class="dlg-actions predict-actions">
+        <button class="pill" data-v="more">More</button>
+        <button class="pill" data-v="same">About the same</button>
+        <button class="pill" data-v="less">Less</button>
+      </div>
+      <p class="dim small">No wrong answers here — you'll test it with the scanner.</p>
+    </dialog>
+
+    <!-- Field notes -->
+    <aside id="notes" class="notes glass hidden" aria-label="Field notes">
+      <div class="inst-head"><div><div class="eyebrow">Field notes</div><h2>Mission log</h2></div><button class="round" id="notesClose" aria-label="Close field notes">✕</button></div>
+      <ol id="notesList" class="notes-list"></ol>
+      <div class="notes-actions"><button id="notesHome" class="pill small">Return to the outpost (R)</button></div>
+    </aside>
+
     <!-- Field computer: compare two measured places -->
     <dialog id="compare" class="dlg compare">
       <div class="eyebrow">Field computer · Mission 01</div>
       <h3>Which place meets the requirement?</h3>
       <p class="cmp-req" id="cmpReq">—</p>
       <div class="cmp-grid" id="cmpGrid"></div>
+      <p class="cmp-pred" id="cmpPred"></p>
       <p class="cmp-msg" id="cmpMsg"></p>
       <div class="dlg-actions" id="cmpActions"></div>
     </dialog>
@@ -158,6 +177,7 @@
       <button id="btnPlanner" class="pill" title="Open the mission planner (P)"><span class="kbd">P</span> Planner</button>
       <button id="btnView" class="pill" title="First / third person (V)"><span class="kbd">V</span> View</button>
       <button id="btnMissions" class="pill" title="Missions">Missions</button>
+      <button id="btnNotes" class="pill" title="Field notes (N)"><span class="kbd">N</span> Notes</button>
       <button id="btnDemo" class="pill ghost" title="Play the 30-second guided demo">▶ 30s demo</button>
     </nav>
 
