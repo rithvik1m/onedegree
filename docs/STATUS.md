@@ -26,6 +26,8 @@ v1 is tagged `v1.0`, v2 `v2.0`; v3 work happened on branch `v3` and is merged to
 | **v3** Driveable rover (enter/exit, terrain-following, collisions, HUD) | Done | `tests/surface.test.ts` rover tests; headless drive at 29 km/h |
 | **v3** Simple / Details / Advanced science levels | Done | screenshots of all three |
 | **v3** Mission 01 rebuilt (station → rover → S-1 → field computer → why) | Done | played end to end in headless Chrome |
+| **v3.1** Performance pass (two-pass depth, LOD, culling, presets, adaptive resolution) | Done | README performance table |
+| **v3.1** Discovery loop at S-1 (predict → measure → see the ridge → compare → why → new question), field notes | Done | played end to end |
 | Production build | Done | `vite preview`, no console errors |
 | Reality Check 7: 3D world vs LOLA skyline (live) | Done | mean 0.019°, max 0.153°, ~60 ms in browser |
 | 30-s guided demo | Done for v3 (`src/demo.ts`); 30 s recording at `submission/onedegree_demo.mp4` (git-ignored) | captions only |

@@ -32,3 +32,13 @@
 
 Headless Chrome caps animation at 30 fps, so fps numbers from it are not meaningful;
 the gl.finish-synced frame time is the performance measure we report.
+
+## Performance (v3.1)
+
+`od_perf.mjs` (Playwright, production build, DPR 2, 1440×900): per-frame CPU+GPU time with
+`gl.finish`, draw calls, triangles, frames delivered, JS heap — for spawn, walking,
+sprinting, third-person running and rover driving; plus an orbit → land round trip
+(orbit reached in 4.2 s including CesiumJS download; landing back 9.2 s; the globe is
+then destroyed). Results are in the README. Headless Chrome cannot show the compositor
+cost of CSS blur; we removed blur over the canvas on principle, and the frames-delivered
+count rose from ~24 to 60 per second after the changes.

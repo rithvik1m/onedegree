@@ -132,6 +132,28 @@ python scripts/extract_illumination.py
 python scripts/polar_map.py
 ```
 
+## Performance (measured)
+
+Production build, headless Chrome 157 with Metal on the development MacBook, emulating a
+Retina screen (device pixel ratio 2), 1440×900, same scripted path (spawn, walk, sprint,
+third person, rover). Per-frame time includes CPU and GPU (`gl.finish`).
+
+| Build | Triangles / frame | Frames delivered | Worst frame (any scenario) |
+|---|---|---|---|
+| v3.0 | 1.64 M | ~24 fps | 152 ms (first third-person view) |
+| v3.1 Low | 0.31 M | 60 fps | 21 ms (single) |
+| v3.1 Balanced (default) | 0.49 M | 60 fps | 20 ms (single); typical max 4–6 ms |
+| v3.1 High (opt-in) | 1.47 M | ~28–32 fps | 131 ms |
+
+What caused the lag: a logarithmic depth buffer (disables early-z, so hidden terrain ran
+the full shader), 1.6 M triangles of terrain every frame, a 360° horizon recomputed every
+15 m (10–20 ms hitch), first-use shader/skin uploads (140 ms), CSS backdrop blur over the
+live canvas, and no distance culling. Fixed by two-pass depth, terrain LOD per preset, a
+single-ray sun gate, an offscreen warm-up render, chunked/culled props, no blur, pausing
+the 3D view under the full-screen planner, adaptive resolution, and releasing the Cesium
+globe after landing (heap 302 MB → back to ~40 MB). Rendering detail never feeds the
+science: skylines, the sun gate and every percentage read the full LOLA data.
+
 ## 3D models
 
 Quaternius **Ultimate Space Kit** (CC0 / public domain, via Poly Pizza): astronaut,
@@ -142,7 +164,7 @@ instruments, vertical arrays, interior, hand-held scanner: original procedural g
 ## Docs
 
 [Data sources](docs/DATA_SOURCES.md) · [Third-party attribution](docs/THIRD_PARTY_ATTRIBUTION.md) ·
-[Decisions](docs/DECISIONS.md) · [Limitations](docs/LIMITATIONS.md) ·
+[Decisions](docs/DECISIONS.md) · [Design research](docs/DESIGN.md) · [Limitations](docs/LIMITATIONS.md) ·
 [Testing](docs/TESTING.md) · [Status](docs/STATUS.md) · [AI disclosure](docs/AI_DISCLOSURE.md) ·
 [Reused work](docs/REUSED_WORK.md)
 

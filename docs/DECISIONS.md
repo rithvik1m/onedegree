@@ -87,3 +87,13 @@ output; the simple sentences are generated from those numbers.
 A bicycle model with four ground contacts on the LOLA mesh (height, pitch, roll), lunar
 gravity along the slope, a climb limit and collisions — stable and testable. Top speed
 8 m/s is labelled a game value (the Apollo LRV did about 5 m/s).
+
+## D15 — v3.1: two depth passes instead of a logarithmic depth buffer
+Log depth writes `gl_FragDepth`, which disables early depth testing, so every covered
+terrain pixel ran the regolith shader. Far terrain (2–220 km) now renders first with its
+own near/far planes (150 m–260 km), then the near scene with 0.08–3200 m.
+
+## D16 — rendering detail is decoupled from science
+Terrain decimation, render distance and shadow quality change only what is drawn.
+Collision uses the full patch data; the sun gate casts a single ray through the full data
+toward the Sun; skylines and percentages come from the precomputed LOLA profiles.
