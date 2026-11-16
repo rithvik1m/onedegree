@@ -60,3 +60,16 @@ v1 is tagged `v1.0`, v2 `v2.0`; v3 work happened on branch `v3` and is merged to
 - New interior: HAB-1 crew quarters (airlock entry from the habitat, bunks, lockers, galley notes, suit dock,
   viewport, life-support panel with real Sun/Earth status; resting advances the mission clock 8 h). Solid furniture.
 - Interiors now: Mission Control + HAB-1. Other buildings are solid exteriors and are not advertised as enterable.
+
+## Terrain repair — 2026-11-15 22:45 PT (branch terrain-fix, tag v6.1)
+- Report: torn terrain / holes / starfield through the ground at 89.547°S 177.735°E (2025-03-06 12:00 UTC).
+- Root cause: the two-pass depth split (v3.1). The detailed terrain mesh covers 0–2 km from the region centre and was
+  drawn in the near pass; the coarser mesh beyond 2 km was drawn ONLY in the far pass, whose camera clips everything
+  closer than 150 m. Standing more than 2 km from a region centre (the reported point is 5.76 km from the outpost),
+  the ground within 150 m of the camera was drawn by neither pass. Mesh data, indices and transforms were valid.
+- Fix: the far mesh is drawn in both passes; it keeps every data ring out to 15 km; feet / wheels / landing gear use
+  the rendered surface (meshGroundY), science still uses the full data; terrain is validated before display;
+  the HUD says when you are on the coarser mesh. Measured: dark (no-ground) fraction of the lower view 0.90 → 0.00–0.02
+  at 2.5, 5.76 and 30 km on Low / Balanced / High; 60 fps unchanged at 2560×1440.
+- Tests: tests/terrain_mesh.test.ts (7) — 15 regions/probes × 3 presets: finite heights, indices in range, up-facing
+  triangles, no stretched triangles, seam continuity, data match at vertices, lon/lat round trips near 0°/±180°/pole.

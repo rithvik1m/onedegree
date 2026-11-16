@@ -60,3 +60,8 @@ token).
   solid collision; none is advertised as enterable. HAB-1 life-support numbers are fictional (labelled in-game).
 - Colliders are 2D footprints (oriented boxes) plus roof height for the camera; you cannot climb onto roofs.
 - The pixel budget lowers internal resolution on very large windows (Balanced: ~2.1 MP); choose High for full resolution.
+
+## Terrain detail zones
+- Each region has a 10 m-ring detail zone within 2 km of its centre. Beyond it the same NASA LOLA data is shown as a
+  coarser mesh (facets ~25 m at 2 km, ~66 m at 6 km, ~350 m at 30 km on Balanced); the HUD says so. Science (horizons,
+  sunlight, Earth visibility) always uses the full-resolution data, never the rendered mesh.

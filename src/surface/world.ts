@@ -21,7 +21,7 @@ import { Sky3D, dirFromAzEl } from "./sky3d";
 import { Interior } from "./interior";
 import { HabitatInterior } from "./habitat";
 import { actionFor, releaseButtonFocus } from "../game/input";
-import { buildTerrain, farHorizon, groundY, horizonToward, lonLatToScene, sceneToLonLat, type SurfacePatch } from "./terrain3d";
+import { buildTerrain, meshGroundY, validateTerrain, type TerrainLod, farHorizon, groundY, horizonToward, lonLatToScene, sceneToLonLat, type SurfacePatch } from "./terrain3d";
 import { DPR_CAP, PIXEL_BUDGET, TERRAIN_LOD, loadGfx, saveGfx, type Gfx } from "./graphics";
 
 const D2R = Math.PI / 180;
@@ -137,7 +137,7 @@ export class SurfaceWorld {
     this.scene.add(this.props);
     this.scene.add(this.dust.points);
 
-    this.player = new Player((x, z) => (this.patch ? groundY(this.patch, x, z) : 0));
+    this.player = new Player((x, z) => this.walkY(x, z));
     this.scene.add(this.astro.root);
     this.camera.add(this.handheld.group);
 
@@ -153,6 +153,12 @@ export class SurfaceWorld {
   /** runtime resolution factor from adaptive resolution (1 = preset value) */
   private dynScale = 1;
   private shadowTick = 0;
+  terrainLod: TerrainLod | null = null;
+  /** Height of the rendered terrain (what feet, wheels and gear stand on). */
+  walkY(x: number, z: number): number {
+    if (!this.patch) return 0;
+    return this.terrainLod ? meshGroundY(this.patch, this.terrainLod, x, z) : groundY(this.patch, x, z);
+  }
   private shadowAt = new THREE.Vector3(1e9, 0, 0);
   private shadowDirty = true;
   readonly dust = new Dust(1500);
@@ -201,10 +207,20 @@ export class SurfaceWorld {
     }
     const [az, ring] = TERRAIN_LOD[this.gfx.preset];
     const d = this.detailLevel();
-    const { near, far } = buildTerrain(this.patch, regolithMaterial(false, d), regolithMaterial(true, d), az, ring);
+    const { near, far, lod } = buildTerrain(this.patch, regolithMaterial(false, d), regolithMaterial(true, d), az, ring);
+    // check the geometry before showing it; a bad build is reported, never silently drawn
+    for (const [m, rings] of [[near, lod.nearRings], [far, lod.farRings]] as [THREE.Mesh, number[]][]) {
+      const issues = validateTerrain(m.geometry, this.patch, rings, lod.azStride);
+      if (issues.length) console.error(`terrain mesh ${m.name} failed validation:`, issues.join("; "));
+    }
     near.castShadow = this.gfx.shadows === "high";
-    far.layers.set(1); // drawn in the far depth pass
+    // The far mesh is drawn in BOTH depth passes: the far pass (150 m – 260 km) and the near pass
+    // (0.08 – 3200 m). Before, it was far-pass only, so anywhere more than 2 km from the site
+    // centre the ground within 150 m of the camera was never drawn (holes, torn sheets).
+    far.layers.set(1);
+    far.layers.enable(0);
     this.terrain = [near, far];
+    this.terrainLod = lod;
     this.scene.add(near, far);
   }
 
@@ -293,7 +309,7 @@ export class SurfaceWorld {
         else this.lampOn = !this.lampOn;
       }
       if (act === "roverCam") { this.roverCockpit = !this.roverCockpit; this.camInit = false; }
-      if (act === "recover" && this.rover && this.patch) { this.rover.recover((x, z) => groundY(this.patch as SurfacePatch, x, z)); }
+      if (act === "recover" && this.rover && this.patch) { this.rover.recover((x, z) => this.walkY(x, z)); }
     }, true);
     window.addEventListener("keyup", (e) => this.player.keys.delete(e.code));
     window.addEventListener("blur", () => this.player.keys.clear());
@@ -518,7 +534,7 @@ export class SurfaceWorld {
     if (!this.inside) return;
     this.inside = false;
     this.player.colliders = this.savedColliders;
-    this.player.setGround((x, z) => (this.patch ? groundY(this.patch, x, z) : 0));
+    this.player.setGround((x, z) => this.walkY(x, z));
     this.scene.add(this.astro.root);
     const r = this.returnSpot;
     this.player.place(r.x, r.z, r.yaw);
@@ -721,7 +737,8 @@ export class SurfaceWorld {
       if (done) { const r = this.cine.resolve; this.cine = null; r(); }
     } else if (this.driving && this.rover && this.patch) {
       const pt = this.patch;
-      this.rover.update(dt, p.keys, (x, z) => groundY(pt, x, z), this.outpost?.colliders ?? [], true);
+      void pt;
+      this.rover.update(dt, p.keys, (x, z) => this.walkY(x, z), this.outpost?.colliders ?? [], true);
       p.pos.copy(this.rover.pos);
       p.vel.set(0, 0, 0);
       this.rover.sign.visible = false;
@@ -729,7 +746,8 @@ export class SurfaceWorld {
     } else {
       if (this.rover && this.patch) {
         const pt = this.patch;
-        this.rover.update(dt, this.noKeys, (x, z) => groundY(pt, x, z), this.outpost?.colliders ?? [], false);
+        void pt;
+        this.rover.update(dt, this.noKeys, (x, z) => this.walkY(x, z), this.outpost?.colliders ?? [], false);
         const rd = this.rover.pos.distanceTo(this.camera.position);
         this.rover.sign.visible = rd > 7 && rd < 220;
         this.roverCollider.x = this.rover.pos.x;
@@ -948,14 +966,14 @@ export class SurfaceWorld {
         p.pos.y + 1.9 - Math.sin(pitch) * dist,
         p.pos.z + cyw * dist * Math.cos(pitch) + sy * side,
       );
-      if (this.patch) want.y = Math.max(want.y, groundY(this.patch, want.x, want.z) + 0.5);
+      if (this.patch) want.y = Math.max(want.y, this.walkY(want.x, want.z) + 0.5);
       // camera collision: march from the helmet to the wanted spot; stop before any wall or the ground
       const head = { x: p.pos.x, y: p.pos.y + 1.6, z: p.pos.z };
       let free = 1;
       for (let i = 1; i <= 16; i++) {
         const t = i / 16;
         const x = head.x + (want.x - head.x) * t, y = head.y + (want.y - head.y) * t, z = head.z + (want.z - head.z) * t;
-        let hit = this.patch ? y < groundY(this.patch, x, z) + 0.25 : false;
+        let hit = this.patch ? y < this.walkY(x, z) + 0.25 : false;
         if (!hit) for (const col of this.player.colliders) { if ((col.top === undefined || y < col.top + 0.3) && insideCollider(x, z, 0.3, col)) { hit = true; break; } }
         if (hit) { free = Math.max(0.12, (i - 1) / 16); break; }
       }
@@ -1002,7 +1020,7 @@ export class SurfaceWorld {
       return;
     }
     const want = new THREE.Vector3(r.pos.x - fx * 10, r.pos.y + 4.4, r.pos.z - fz * 10);
-    if (this.patch) want.y = Math.max(want.y, groundY(this.patch, want.x, want.z) + 1.2);
+    if (this.patch) want.y = Math.max(want.y, this.walkY(want.x, want.z) + 1.2);
     if (!this.camInit) { c.position.copy(want); this.camInit = true; }
     c.position.lerp(want, 1 - Math.exp(-6 * dt));
     c.lookAt(r.pos.x + fx * 8, r.pos.y + 1.6, r.pos.z + fz * 8);
@@ -1145,6 +1163,6 @@ export class SurfaceWorld {
   }
 
   groundAt(x: number, z: number): number {
-    return this.patch ? groundY(this.patch, x, z) : 0;
+    return this.walkY(x, z);
   }
 }

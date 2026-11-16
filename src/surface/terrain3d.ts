@@ -157,11 +157,96 @@ function ringMesh(p: SurfacePatch, rings: number[], azStep: number): THREE.Buffe
  * mesh for slower GPUs; collision (groundY) and every scientific horizon read the full
  * patch data, never the mesh.
  */
-export function buildTerrain(p: SurfacePatch, nearMat: THREE.Material, farMat: THREE.Material, azStride = 1, farRingStride = 1): { near: THREE.Mesh; far: THREE.Mesh } {
+/** Which data rings / azimuth columns the rendered terrain uses (visual LOD only). */
+export interface TerrainLod {
+  azStride: number;
+  nearRings: number[];
+  farRings: number[];
+}
+
+/**
+ * Rings for the two terrain meshes. The far mesh keeps every data ring out to 15 km (where you
+ * can walk, drive or land) and thins only beyond that. The azimuth stride is the same in both
+ * meshes, so they share every vertex on their common ring: no T-junctions, no cracks.
+ */
+export function terrainLod(p: SurfacePatch, azStride = 1, farRingStride = 1): TerrainLod {
   const nearRings = Array.from({ length: p.nNear }, (_, i) => i);
   const farRings: number[] = [];
-  for (let i = p.nNear - 1; i < p.radii.length; i += farRingStride) farRings.push(i);
+  for (let i = p.nNear - 1; i < p.radii.length; ) {
+    farRings.push(i);
+    i += (p.radii[i] as number) < 15_000 ? 1 : farRingStride;
+  }
   if (farRings[farRings.length - 1] !== p.radii.length - 1) farRings.push(p.radii.length - 1);
+  return { azStride, nearRings, farRings };
+}
+
+/**
+ * Height (scene y) of the RENDERED terrain surface at (x, z): the same rings, azimuth columns
+ * and triangle split as ringMesh(), so feet, wheels and landing gear rest exactly on what you
+ * see. Science never uses this (it uses the full data via heightRelAt / horizon rays).
+ */
+export function meshGroundY(p: SurfacePatch, lod: TerrainLod, x: number, z: number): number {
+  const rho = Math.hypot(x, z);
+  const base = MOON_R_M + p.groundM;
+  const d = Math.asin(Math.min(1, rho / base)) * MOON_R_M;
+  const rings = d <= (p.radii[p.nNear - 1] as number) ? lod.nearRings : lod.farRings;
+  // ring interval (binary search on the ring radii)
+  let lo = 0, hi = rings.length - 1;
+  if (d >= (p.radii[rings[hi] as number] as number)) lo = hi - 1;
+  else while (hi - lo > 1) { const m = (lo + hi) >> 1; if ((p.radii[rings[m] as number] as number) <= d) lo = m; else hi = m; }
+  const i0 = rings[lo] as number, i1 = rings[Math.min(lo + 1, rings.length - 1)] as number;
+  const r0 = p.radii[i0] as number, r1 = p.radii[i1] as number;
+  const v = r1 > r0 ? Math.max(0, Math.min(1, (d - r0) / (r1 - r0))) : 0;
+  const nA = Math.floor(p.nAz / lod.azStride);
+  let az = Math.atan2(x, -z) / D2R;
+  if (az < 0) az += 360;
+  const jf = az / ((360 / p.nAz) * lod.azStride);
+  const j0 = Math.floor(jf) % nA, j1 = (j0 + 1) % nA;
+  const u = jf - Math.floor(jf);
+  const yAt = (i: number, j: number): number => {
+    const hh = p.h[i * p.nAz + j * lod.azStride] as number;
+    const del = (p.radii[i] as number) / MOON_R_M;
+    return (base + hh) * Math.cos(del) - base;
+  };
+  const ya = yAt(i0, j0), yb = yAt(i0, j1), yc = yAt(i1, j0), yd = yAt(i1, j1);
+  // ringMesh splits each quad into (a, b, c) and (b, d, c)
+  return u + v <= 1 ? ya + u * (yb - ya) + v * (yc - ya) : yd + (1 - u) * (yc - yd) + (1 - v) * (yb - yd);
+}
+
+/** Geometry checks run before a terrain mesh is shown (and in the regression tests). */
+export function validateTerrain(g: THREE.BufferGeometry, p: SurfacePatch, rings: number[], azStride: number): string[] {
+  const issues: string[] = [];
+  const pos = g.getAttribute("position") as THREE.BufferAttribute;
+  const idx = g.getIndex();
+  const n = pos.count;
+  for (let k = 0; k < n * 3; k++) if (!Number.isFinite(pos.array[k] as number)) { issues.push(`non-finite position at ${Math.floor(k / 3)}`); break; }
+  if (!idx) { issues.push("no index"); return issues; }
+  const nA = Math.floor(p.nAz / azStride);
+  let worst = 0;
+  for (let t = 0; t < idx.count; t += 3) {
+    const a = idx.getX(t), b = idx.getX(t + 1), c = idx.getX(t + 2);
+    if (a >= n || b >= n || c >= n) { issues.push(`index out of range in triangle ${t / 3}`); break; }
+    // horizontal edge length vs the cell size at the triangle's outer ring
+    const ring = Math.floor(Math.max(a, b, c) / nA);
+    const ri = rings[Math.min(ring, rings.length - 1)] as number, rp = rings[Math.max(0, ring - 1)] as number;
+    const cell = ((p.radii[ri] as number) - (p.radii[rp] as number)) + ((p.radii[ri] as number) * 2 * Math.PI) / nA;
+    for (const [u, w] of [[a, b], [b, c], [c, a]] as [number, number][]) {
+      const e = Math.hypot(pos.getX(u) - pos.getX(w), pos.getZ(u) - pos.getZ(w));
+      const ratio = e / Math.max(1, cell);
+      if (ratio > worst) worst = ratio;
+    }
+    // winding: the face normal must point up (counter-clockwise seen from above)
+    const ux = pos.getX(b) - pos.getX(a), uz = pos.getZ(b) - pos.getZ(a), vx = pos.getX(c) - pos.getX(a), vz = pos.getZ(c) - pos.getZ(a);
+    const crossY = uz * vx - ux * vz;
+    if (crossY < -1e-6) { issues.push(`downward-facing triangle ${t / 3}`); break; }
+  }
+  if (worst > 1.6) issues.push(`stretched triangle: edge ${worst.toFixed(2)}× the local cell size`);
+  return issues;
+}
+
+export function buildTerrain(p: SurfacePatch, nearMat: THREE.Material, farMat: THREE.Material, azStride = 1, farRingStride = 1): { near: THREE.Mesh; far: THREE.Mesh; lod: TerrainLod } {
+  const lod = terrainLod(p, azStride, farRingStride);
+  const { nearRings, farRings } = lod;
   const near = new THREE.Mesh(ringMesh(p, nearRings, azStride), nearMat);
   const far = new THREE.Mesh(ringMesh(p, farRings, azStride), farMat);
   near.receiveShadow = true;
@@ -170,7 +255,7 @@ export function buildTerrain(p: SurfacePatch, nearMat: THREE.Material, farMat: T
   far.castShadow = false;
   near.name = "terrain-near";
   far.name = "terrain-far";
-  return { near, far };
+  return { near, far, lod };
 }
 
 /** Ring index (fractional) for surface distance d. */

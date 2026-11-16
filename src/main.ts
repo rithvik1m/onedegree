@@ -170,6 +170,7 @@ async function boot(): Promise<void> {
   const polarMap = new PolarMap(store, allPlaces);
 
   let moon: MoonScene | null = null;
+  let terrainZone = -1;
   /** the active region: a station (outpost or data-driven base) and its survey partner */
   let region: { place: Place; partner: Place } | null = null;
   const distToS1 = (): number => {
@@ -187,8 +188,18 @@ async function boot(): Promise<void> {
       if (t) $("promptText").textContent = t;
     },
     onInteract: (id) => interact(id),
-    onMove: (lon, lat) => {
+    onMove: (lon, lat, x, z) => {
       live = { lon, lat };
+      // say when you have left the 10 m detail zone and stand on the coarser mesh
+      if (world.patch && store.s.mode === "surface" && !world.inside) {
+        const d = Math.hypot(x ?? 0, z ?? 0);
+        const zone = d > (world.patch.radii[world.patch.nNear - 1] as number) ? Math.round(d / 500) : -1;
+        if (zone !== terrainZone) {
+          terrainZone = zone;
+          const facet = Math.round(Math.max(d * 0.0115, (d * 2 * Math.PI) / (720 / (world.terrainLod?.azStride ?? 1))));
+          $("roMode").textContent = zone < 0 ? modeLabel() : `${world.patch.label.split(" · ")[0]} · coarser mesh here: ${(d / 1000).toFixed(1)} km from the site centre, ~${facet} m facets`;
+        }
+      }
       if (world.flight) { $("roCoords").textContent = `${fmtLat(lat)} ${fmtLon(lon)}`; return; }
       if (world.outpost && distToS1() < 28) campaign.emit({ type: "near-s1", driving: world.driving });
       $("roCoords").textContent = `${fmtLat(lat)} ${fmtLon(lon)}`;
