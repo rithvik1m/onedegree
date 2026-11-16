@@ -424,3 +424,34 @@ body.in-orbit .stick, body.in-orbit .touch-btn, body.intro-on .stick, body.intro
 }
 .sky-tag.sun { color: #ffb08f; box-shadow: inset 0 0 0 1px rgb(255 140 100 / 0.45); }
 .sky-tag.sun .st-dot { box-shadow: inset 0 0 0 1.5px #ffb347; background: radial-gradient(circle, rgb(255 200 120 / 0.5), transparent 70%); }
+
+/* Instrument levels (V3) */
+.inst[data-level="simple"] .lvl-details, .inst[data-level="simple"] .lvl-advanced,
+.inst[data-level="details"] .lvl-simple, .inst[data-level="details"] .lvl-advanced,
+.inst[data-level="advanced"] .lvl-simple, .inst[data-level="advanced"] .lvl-details { display: none; }
+.lvl { display: grid; gap: 10px; }
+.inst-levels { margin-top: -2px; }
+.inst-q { margin: 0; font-size: 17px; font-weight: 650; line-height: 1.35; }
+canvas.skyview { width: 100%; display: block; border-radius: var(--radius); box-shadow: inset 0 0 0 1px var(--hairline); }
+.obs { display: grid; gap: 8px; }
+.ob { display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: start; padding: 10px 12px; border-radius: var(--radius); background: rgb(255 255 255 / 0.035); box-shadow: inset 0 0 0 1px var(--hairline); }
+.ob-i { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; font-weight: 800; font-size: 14px; }
+.ob.ok .ob-i { background: rgb(242 181 68 / 0.18); color: var(--sun-ink); }
+.ob.warn .ob-i { background: rgb(255 120 90 / 0.18); color: #ffab94; }
+.ob.bad .ob-i { background: rgb(255 255 255 / 0.08); color: var(--text-dim); }
+.inst[data-kind="comms"] .ob.ok .ob-i { background: rgb(111 168 220 / 0.18); color: var(--earth-ink); }
+.ob-q { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-faint); font-weight: 650; }
+.ob-a { font-size: 14px; line-height: 1.45; margin-top: 2px; }
+.conclusion { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; padding: 12px 14px; border-radius: var(--radius); background: linear-gradient(90deg, rgb(242 181 68 / 0.1), transparent 70%); box-shadow: inset 3px 0 0 var(--sun); font-size: 14px; line-height: 1.45; }
+.inst[data-kind="comms"] .conclusion { background: linear-gradient(90deg, rgb(111 168 220 / 0.1), transparent 70%); box-shadow: inset 3px 0 0 var(--earth); }
+.c-big { font-size: 34px; font-weight: 760; color: var(--sun-ink); font-variant-numeric: tabular-nums; }
+.c-big.earth { color: var(--earth-ink); }
+.req { margin-top: 6px; font-weight: 700; font-size: 13px; }
+.req.ok { color: var(--ok); }
+.req.bad { color: #ff8c73; }
+.c-note { margin-top: 4px; font-size: 12.5px; color: var(--text-dim); }
+.c-cmp { grid-column: 1 / -1; font-size: 13px; color: var(--text-dim); border-top: 1px solid var(--hairline); padding-top: 8px; }
+.adv { font-size: 13px; line-height: 1.5; color: var(--text-dim); }
+.adv h4 { margin: 10px 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--sun-ink); }
+.adv ol, .adv ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.adv b { color: var(--text); font-variant-numeric: tabular-nums; }

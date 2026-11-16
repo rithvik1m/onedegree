@@ -64,14 +64,32 @@
     </div>
 
     <!-- Field instrument -->
-    <aside id="inst" class="inst hidden" aria-label="Field instrument">
+    <aside id="inst" class="inst hidden" data-level="simple" aria-label="Field instrument">
       <div class="inst-head">
         <div><div class="eyebrow" id="instSub">—</div><h2 id="instTitle">—</h2></div>
         <button class="round" id="instClose" aria-label="Close instrument">✕</button>
       </div>
-      <div id="instBody"></div>
-      <canvas id="instPano" class="pano" height="150" aria-label="360 degree terrain horizon with Sun and Earth"></canvas>
-      <canvas id="instStrip" class="strip" height="86" aria-label="30-day visibility timeline; drag to scrub time"></canvas>
+      <div class="seg small inst-levels" id="instLevel" role="radiogroup" aria-label="Detail level">
+        <button data-v="simple" aria-checked="true">Simple</button>
+        <button data-v="details" aria-checked="false">Scientific details</button>
+        <button data-v="advanced" aria-checked="false">Advanced</button>
+      </div>
+      <div id="instSimple" class="lvl lvl-simple">
+        <p class="inst-q" id="instQ">—</p>
+        <canvas id="instSky" class="skyview" height="150" aria-label="Simple view of the sky and the terrain in the direction of the Sun or Earth"></canvas>
+        <div id="instObs" class="obs"></div>
+        <div id="instConclusion" class="conclusion"></div>
+      </div>
+      <div class="lvl lvl-details">
+        <div id="instBody"></div>
+        <canvas id="instPano" class="pano" height="150" aria-label="360 degree terrain horizon with Sun and Earth"></canvas>
+        <canvas id="instStrip" class="strip" height="86" aria-label="30-day visibility timeline; drag to scrub time"></canvas>
+        <div class="inst-toggles">
+          <label class="check"><input type="checkbox" id="instPath" checked /> <span id="instPathLabel">Show the Sun's path in the sky</span></label>
+          <label class="check"><input type="checkbox" id="instSky2" /> Trace the LOLA horizon over the 3D terrain</label>
+        </div>
+      </div>
+      <div id="instAdv" class="lvl lvl-advanced"></div>
       <div class="inst-time">
         <button id="instBack" class="round" title="Back 1 day">«</button>
         <button id="instPlay" class="round play" title="Time-lapse (4 h per second)">▶</button>
@@ -79,11 +97,7 @@
         <span id="instTime" class="mono">—</span>
         <button id="instNow" class="pill small ghost" title="Back to mission time">Mission time</button>
       </div>
-      <div class="inst-toggles">
-        <label class="check"><input type="checkbox" id="instPath" checked /> <span id="instPathLabel">Show the Sun's path in the sky</span></label>
-        <label class="check"><input type="checkbox" id="instSky" /> Trace the LOLA horizon over the 3D terrain</label>
-      </div>
-      <button id="instRecord" class="pill primary wide">Record observation</button>
+      <button id="instRecord" class="pill primary wide">Record measurement</button>
       <p id="instFoot" class="inst-foot"></p>
     </aside>
 

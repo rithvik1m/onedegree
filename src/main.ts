@@ -235,6 +235,7 @@ async function boot(): Promise<void> {
       world.sky.setPath(pts, kind === "comms" ? 0x6fa8dc : 0xf2b544);
     },
     onSkyline: (on, a) => world.sky.setSkyline(on && a?.skyline ? a.skyline.horizon : null),
+    validation: () => (skyCheck ? { sun: skyCheck.sunMax, earth: skyCheck.earthMax, n: skyCheck.n } : null),
   });
   const stationName = (k: InstKind): string => (k === "solar" ? "Solar Monitoring Station" : k === "comms" ? "Comms Station" : "Survey point S-1");
 
@@ -729,6 +730,7 @@ async function boot(): Promise<void> {
     });
   };
   world.afterFrame = () => {
+    world.hideHandheld = instrument.isOpen() || planner.isOpen();
     const tag = $("earthTag");
     if (store.s.mode !== "surface" || !earthState || world.inside) { tag.classList.add("hidden"); $("sunTag").classList.add("hidden"); return; }
     const p = world.projectDir(world.sky.earthDir);

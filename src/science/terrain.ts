@@ -179,6 +179,6 @@ export function skylineFromProfile(p: PrecomputedProfile): Skyline {
     groundM: p.ground_m,
     eyeM: p.eye_m,
     source: `NASA Goddard LOLA DEMs (precomputed): ${p.dems.join("; ")}`,
-    resolution: p.dems[0]?.includes("20 m") ? "20 m near / 80 m / 240 m far" : p.dems[0]?.includes("80 m") ? "80 m / 240 m far" : "240 m",
+    resolution: p.dems[0]?.includes("10 m") ? "10 m near / 20 m / 80 m / 240 m far" : p.dems[0]?.includes("20 m") ? "20 m near / 80 m / 240 m far" : p.dems[0]?.includes("80 m") ? "80 m / 240 m far" : "240 m",
   };
 }

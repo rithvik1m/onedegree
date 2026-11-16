@@ -78,6 +78,7 @@ export class SurfaceWorld {
   private raf = 0;
   private cine: { update: (t: number) => boolean; start: number; resolve: () => void } | null = null;
   realisticDark = false;
+  hideHandheld = false;
   kitReady = false;
   headBob = true;
   lampOn = false;
@@ -407,7 +408,7 @@ export class SurfaceWorld {
     this.astro.setFirstPerson(fpView);
     if (this.cine) this.astro.root.visible = this.cineShowBody;
     if (this.driving) this.astro.root.visible = false;
-    this.handheld.group.visible = fpView;
+    this.handheld.group.visible = fpView && !this.hideHandheld;
     if (fpView) this.handheld.update(dt, sp, p.stride, p.pitch);
 
     // sun / shadows follow the player
