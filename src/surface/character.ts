@@ -25,6 +25,10 @@ export class GlbAstronaut {
   private current: THREE.AnimationAction | null = null;
   private currentName = "";
   private interactUntil = 0;
+  private model: THREE.Object3D;
+  private baseY = 0;
+  private wasAir = false;
+  private landT = 0;
 
   constructor(gltf: GLTF, height = 1.85) {
     const model = gltf.scene;
@@ -50,10 +54,22 @@ export class GlbAstronaut {
     model.position.y -= box2.min.y; // feet on y = 0
     model.rotation.y = Math.PI; // glTF faces +z; our forward is −z
     this.root.add(model);
+    this.model = model;
+    this.baseY = model.position.y;
     this.mixer = new THREE.AnimationMixer(model);
     for (const clip of gltf.animations) {
       const name = clip.name.split("|").pop() as string;
       this.actions.set(name, this.mixer.clipAction(clip));
+    }
+    // airborne pose: the run cycle frozen at full extension (a lunar bound), as its own action
+    const run = gltf.animations.find((c) => c.name.endsWith("Run"));
+    if (run) {
+      const air = run.clone();
+      air.name = "Air";
+      const a = this.mixer.clipAction(air);
+      a.time = air.duration * 0.28;
+      a.timeScale = 0;
+      this.actions.set("Air", a);
     }
     this.play("Idle", 0);
   }
@@ -84,12 +100,33 @@ export class GlbAstronaut {
   }
 
   animate(dt: number, speed: number, gait: Gait, _vy: number): void {
+    const air = gait === "air";
+    if (this.wasAir && !air) this.landT = 0.32; // touchdown
+    this.wasAir = air;
     if (performance.now() < this.interactUntil && speed < 0.3) this.play("Interact", 0.2);
-    else if (gait === "air") this.play("Idle_Neutral", 0.3);
-    else if (gait === "lope") this.play("Run", 0.25, Math.max(0.6, speed / 5.5));
-    else if (gait === "walk") this.play("Walk", 0.25, Math.max(0.6, speed / 2.2));
+    else if (air) {
+      const a = this.actions.get("Air");
+      if (a && this.currentName !== "Air") {
+        a.reset();
+        a.time = a.getClip().duration * 0.28;
+        a.timeScale = 0;
+        a.setEffectiveWeight(1).fadeIn(0.18).play();
+        this.current?.fadeOut(0.18);
+        this.current = a;
+        this.currentName = "Air";
+      }
+    } else if (gait === "lope") this.play("Run", 0.22, Math.max(0.6, speed / 7));
+    else if (gait === "walk") this.play("Walk", 0.25, Math.max(0.6, speed / 2.4));
     else this.play("Idle", 0.35);
-    if (this.current && this.currentName !== "Interact") this.current.timeScale = gait === "lope" ? Math.max(0.6, speed / 5.5) : gait === "walk" ? Math.max(0.6, speed / 2.2) : 1;
+    if (this.current && this.currentName !== "Interact" && this.currentName !== "Air") this.current.timeScale = gait === "lope" ? Math.max(0.6, speed / 7) : gait === "walk" ? Math.max(0.6, speed / 2.4) : 1;
     this.mixer.update(dt);
+    // low-gravity bounding when sprinting (two bounds per run cycle) and a short knee dip on landing
+    let off = 0;
+    if (gait === "lope" && this.current) off += Math.abs(Math.sin((this.current.time / this.current.getClip().duration) * Math.PI * 2)) * 0.09;
+    if (this.landT > 0) {
+      this.landT = Math.max(0, this.landT - dt);
+      off -= Math.sin((1 - this.landT / 0.32) * Math.PI) * 0.12;
+    }
+    this.model.position.y = this.baseY + off;
   }
 }

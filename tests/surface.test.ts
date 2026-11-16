@@ -126,3 +126,20 @@ describe("rover (gameplay vehicle on real terrain)", () => {
     expect(r.pos.z).toBeGreaterThan(-30 + 4 + 2.0);
   });
 });
+
+describe("lunar dust is ballistic (no air)", () => {
+  it("a grain launched at vy lands after 2·vy/g and never hovers", async () => {
+    const { Dust } = await import("../src/surface/dust");
+    const d = new Dust(8);
+    d.emit(0, 0, 0, 1, 2, 0, 1, 0);
+    let t = 0;
+    while (d.active > 0 || t === 0) {
+      d.update(1 / 120);
+      t += 1 / 120;
+      if (t > 10) break;
+    }
+    // vy is jittered by up to ±(spread) — with spread 0 it is exactly 2 m/s → 2·2/1.62 = 2.47 s
+    expect(t).toBeGreaterThan(2.4);
+    expect(t).toBeLessThan(2.55);
+  });
+});

@@ -25,7 +25,7 @@ const WHEEL_R = 0.68;
 const HALF_LEN = 1.9;
 const HALF_TRACK = 1.8;
 
-interface Wheel { node: THREE.Object3D; base: THREE.Quaternion; front: boolean; spin: number }
+interface Wheel { node: THREE.Object3D; base: THREE.Quaternion; baseY: number; front: boolean; left: boolean; spin: number }
 
 export class Rover {
   readonly root = new THREE.Group();
@@ -36,6 +36,7 @@ export class Rover {
   speed = 0; // m/s along heading (negative = reverse)
   steer = 0;
   private pitch = 0;
+  private twist = 0;
   private roll = 0;
   private lights: THREE.SpotLight[] = [];
   headlights = false;
@@ -52,7 +53,8 @@ export class Rover {
         m.receiveShadow = true;
       }
       if (o.name.startsWith("Wheel")) {
-        this.wheels.push({ node: o, base: o.quaternion.clone(), front: o.position.z > 0, spin: 0 });
+        // the model is turned 180°: its +z is our front, its +x is our left
+        this.wheels.push({ node: o, base: o.quaternion.clone(), baseY: o.position.y, front: o.position.z > 0, left: o.position.x > 0, spin: 0 });
       }
     });
     this.body.add(model);
@@ -113,6 +115,14 @@ export class Rover {
     return Math.abs(this.speed) * 3.6;
   }
 
+  /** World (x, z) of the four wheel contact patches. */
+  wheelContacts(): [number, number][] {
+    const fx = Math.sin(this.yaw), fz = -Math.cos(this.yaw);
+    const rx = Math.cos(this.yaw), rz = Math.sin(this.yaw);
+    const p = this.pos;
+    return [[1, 1], [1, -1], [-1, 1], [-1, -1]].map(([a, b]) => [p.x + fx * HALF_LEN * (a as number) + rx * HALF_TRACK * (b as number), p.z + fz * HALF_LEN * (a as number) + rz * HALF_TRACK * (b as number)]);
+  }
+
   /** Where the driver steps out: beside the cab, on the left. */
   exitSpot(): { x: number; z: number; yaw: number } {
     const fx = Math.sin(this.yaw), fz = -Math.cos(this.yaw);
@@ -125,9 +135,11 @@ export class Rover {
     const left = driving && (keys.has("KeyA") || keys.has("ArrowLeft"));
     const right = driving && (keys.has("KeyD") || keys.has("ArrowRight"));
     // steering (smoothed, less lock at speed)
+    // speed-sensitive steering: full lock and quick response when slow, gentler when fast
     const lock = MAX_STEER * (1 - Math.min(0.55, Math.abs(this.speed) / 16));
     const want = (right ? 1 : 0) - (left ? 1 : 0);
-    this.steer += (want * lock - this.steer) * Math.min(1, dt * 5);
+    const rate = 9 - 5 * Math.min(1, Math.abs(this.speed) / MAX_FWD);
+    this.steer += (want * lock - this.steer) * Math.min(1, dt * rate);
     // throttle / brake
     if (fwd) this.speed += (this.speed < 0 ? BRAKE : ACCEL) * dt;
     else if (back) this.speed -= (this.speed > 0 ? BRAKE : ACCEL) * dt;
@@ -165,6 +177,9 @@ export class Rover {
       w.spin += (this.speed * dt) / WHEEL_R;
       const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), w.front ? -this.steer : 0);
       w.node.quaternion.copy(q).multiply(w.base).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), w.spin));
+      // suspension articulation: diagonal wheel pairs follow the terrain's twist
+      const s = (w.front === w.left ? 1 : -1) * this.twist;
+      w.node.position.y += (w.baseY + s - w.node.position.y) * Math.min(1, dt * 12);
     }
     for (const l of this.lights) l.intensity = this.headlights ? 60 : 0;
   }
@@ -179,6 +194,7 @@ export class Rover {
     const hBL = ground(p.x - fx * HALF_LEN - rx * HALF_TRACK, p.z - fz * HALF_LEN - rz * HALF_TRACK);
     const hBR = ground(p.x - fx * HALF_LEN + rx * HALF_TRACK, p.z - fz * HALF_LEN + rz * HALF_TRACK);
     const y = (hFL + hFR + hBL + hBR) / 4;
+    this.twist = Math.max(-0.28, Math.min(0.28, (hFL - hFR - hBL + hBR) / 4));
     const pitch = Math.atan2((hFL + hFR) / 2 - (hBL + hBR) / 2, 2 * HALF_LEN);
     const roll = Math.atan2((hFL + hBL) / 2 - (hFR + hBR) / 2, 2 * HALF_TRACK);
     p.y += (y - p.y) * k;

@@ -11,6 +11,7 @@ import { Astronaut } from "./astronaut";
 import type { GlbAstronaut } from "./character";
 import { Handheld } from "./handheld";
 import { Rover } from "./rover";
+import { Dust } from "./dust";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { regolithMaterial, shared } from "./materials";
 import { buildLander, buildOutpost, label, type Interactable, type OutpostRefs } from "./outpost";
@@ -132,6 +133,7 @@ export class SurfaceWorld {
     this.camera.add(this.lamp.target);
     this.scene.add(this.camera);
     this.scene.add(this.props);
+    this.scene.add(this.dust.points);
 
     this.player = new Player((x, z) => (this.patch ? groundY(this.patch, x, z) : 0));
     this.scene.add(this.astro.root);
@@ -148,6 +150,10 @@ export class SurfaceWorld {
   readonly farCam: THREE.PerspectiveCamera;
   /** runtime resolution factor from adaptive resolution (1 = preset value) */
   private dynScale = 1;
+  readonly dust = new Dust(1500);
+  private lastStride = 0;
+  private footSide = 1;
+  private wasAir = false;
   readonly flood = new THREE.PointLight(0xeef0f4, 0, 50, 1.4); // base floodlight (fictional outpost lighting)
 
   applyGfx(g: Gfx, rebuild = true): void {
@@ -170,6 +176,7 @@ export class SurfaceWorld {
     this.renderer.shadowMap.type = sh === "high" ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
     for (const t of this.terrain) if (t.name === "terrain-near") t.castShadow = sh === "high";
     this.horizonAt.set(1e9, 1e9);
+    this.dust.setMax(g.preset === "low" ? 0 : g.preset === "high" ? 1500 : 600);
     this.resize();
     if (rebuild && this.patch && (prev.preset !== g.preset || prev.detail !== g.detail)) this.rebuildTerrain();
     this.applyLighting();
@@ -602,7 +609,8 @@ export class SurfaceWorld {
       d = ((d + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
       this.astro.root.rotation.y += d * Math.min(1, dt * 8);
     }
-    this.astro.animate(dt, sp, !p.onGround ? "air" : sp > 2.6 ? "lope" : sp > 0.25 ? "walk" : "idle", p.vel.y);
+    this.astro.animate(dt, sp, !p.onGround ? "air" : sp > 4.2 ? "lope" : sp > 0.25 ? "walk" : "idle", p.vel.y);
+    this.emitDust(dt, sp);
     const fpView = !p.thirdPerson && !this.cine && !this.driving;
     this.astro.setFirstPerson(fpView);
     if (this.cine) this.astro.root.visible = this.cineShowBody;
@@ -842,6 +850,38 @@ export class SurfaceWorld {
     if (!this.camInit) { c.position.copy(want); this.camInit = true; }
     c.position.lerp(want, 1 - Math.exp(-6 * dt));
     c.lookAt(r.pos.x + fx * 8, r.pos.y + 1.6, r.pos.z + fz * 8);
+  }
+
+  // ---------- dust (ballistic, visual) ----------
+  private emitDust(dt: number, sp: number): void {
+    if (!this.dust.enabled || !this.patch || this.inside) return;
+    const p = this.player;
+    const gy = (x: number, z: number): number => groundY(this.patch as SurfacePatch, x, z);
+    if (!this.driving) {
+      // boot contacts: one small kick per footfall
+      const strideLen = sp > 4.2 ? 2.4 : 1.15;
+      if (p.onGround && sp > 0.6 && p.stride - this.lastStride > strideLen) {
+        this.lastStride = p.stride;
+        this.footSide *= -1;
+        const rx = Math.cos(p.yaw) * 0.14 * this.footSide, rz = Math.sin(p.yaw) * 0.14 * this.footSide;
+        const fx = p.pos.x + rx, fz = p.pos.z + rz;
+        this.dust.emit(fx, gy(fx, fz), fz, -p.vel.x * 0.25, 0.5 + sp * 0.12, -p.vel.z * 0.25, sp > 4.2 ? 14 : 7, 0.45);
+      }
+      // landing: a ring of grains thrown outward
+      if (p.onGround && this.wasAir && performance.now() - p.landedAt < 50) this.dust.emit(p.pos.x, gy(p.pos.x, p.pos.z), p.pos.z, 0, 0.7, 0, 26, 1.4);
+      this.wasAir = !p.onGround;
+    } else if (this.rover && Math.abs(this.rover.speed) > 0.8) {
+      // wheels throw "rooster tails" while rolling on regolith
+      const r = this.rover;
+      const v = Math.abs(r.speed);
+      const fx = Math.sin(r.yaw), fz = -Math.cos(r.yaw);
+      const per = v * dt * 11;
+      for (const [wx, wz] of r.wheelContacts()) {
+        const n = Math.floor(per + Math.random());
+        if (n > 0) this.dust.emit(wx, gy(wx, wz), wz, -fx * r.speed * 0.45, 0.5 + v * 0.13, -fz * r.speed * 0.45, n, 0.5);
+      }
+    }
+    this.dust.update(dt);
   }
 
   // ---------- quick scan (H) ----------
