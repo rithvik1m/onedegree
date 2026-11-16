@@ -81,6 +81,8 @@ export class SurfaceWorld {
   private cine: { update: (t: number) => boolean; start: number; resolve: () => void } | null = null;
   realisticDark = false;
   hideHandheld = false;
+  /** the kit dish model's own facing, so that it points at Earth's azimuth */
+  radarOffset = Math.PI; // measured: the kit dish faces −z in its own frame
   roverGltf: GLTF | null = null;
   rover: Rover | null = null;
   private roverCollider = { x: 1e9, z: 1e9, r: 2.6 };
@@ -227,7 +229,7 @@ export class SurfaceWorld {
     if (opts.outpost && opts.survey) {
       const [sx, sz] = lonLatToScene(p, opts.survey.lon, opts.survey.lat);
       const ss = this.skyState;
-      this.outpost = buildOutpost(gy, { x: sx, z: sz }, ss?.sunAz ?? 250, Math.hypot(sx, sz), ss && ss.earthEl > -2.5 ? ss.earthAz : null);
+      this.outpost = buildOutpost(gy, { x: sx, z: sz }, ss?.sunAz ?? 250, Math.hypot(sx, sz), ss && ss.earthEl > -2.5 ? ss.earthAz : null, this.kitReady);
       this.props.add(this.outpost.group);
       this.player.colliders = this.outpost.colliders;
       exclude.push({ x: -8, z: 2, r: 60 }, { x: 99, z: 99, r: 26 }, { x: 30, z: -24, r: 22 }, { x: -42, z: 8, r: 9 });
@@ -343,6 +345,7 @@ export class SurfaceWorld {
     if (this.outpost) {
       for (const a of this.outpost.arrays) a.rotation.y = -s.sunAz * D2R; // panel normal (+z) → Sun azimuth
       this.outpost.dish.yaw.rotation.y = -s.earthAz * D2R;
+      if (this.outpost.dish.radar) this.outpost.dish.radar.rotation.y = -s.earthAz * D2R + this.radarOffset;
       this.outpost.dish.pitch.rotation.x = Math.max(-5, s.earthEl) * D2R;
     }
     this.updateGate();

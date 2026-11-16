@@ -15,6 +15,7 @@
 import * as THREE from "three";
 import { gated } from "./materials";
 import type { Collider } from "./player";
+import { placeable, tint } from "./assets";
 
 export interface Interactable {
   id: string;
@@ -140,7 +141,7 @@ export interface OutpostRefs {
   colliders: Collider[];
   interactables: Interactable[];
   arrays: THREE.Object3D[];
-  dish: { yaw: THREE.Object3D; pitch: THREE.Object3D };
+  dish: { yaw: THREE.Object3D; pitch: THREE.Object3D; radar: THREE.Object3D | null };
   beacons: Map<string, THREE.Object3D>;
   labels: THREE.Sprite[];
   spawn: { x: number; z: number; yaw: number };
@@ -148,7 +149,7 @@ export interface OutpostRefs {
   roverBay: { x: number; z: number };
 }
 
-export function buildOutpost(groundY: (x: number, z: number) => number, survey: { x: number; z: number }, sunAz = 250, surveyDist = 433, earthAz: number | null = null): OutpostRefs {
+export function buildOutpost(groundY: (x: number, z: number) => number, survey: { x: number; z: number }, sunAz = 250, surveyDist = 433, earthAz: number | null = null, useKit = false): OutpostRefs {
   const group = new THREE.Group();
   group.name = "outpost";
   const colliders: Collider[] = [];
@@ -162,56 +163,110 @@ export function buildOutpost(groundY: (x: number, z: number) => number, survey: 
     labels.push(l);
   };
 
-  // --- Habitat + Mission Control, joined by a tunnel ---
-  const hab = module(12, 2.3, groundY, -6, 11, 0);
-  group.add(hab.g);
-  colliders.push({ x: -10, z: 11, r: 2.6 }, { x: -6, z: 11, r: 2.6 }, { x: -2, z: 11, r: 2.6 });
-  addLabel("HAB-1 · Habitat", "crew quarters (simulated)", -6, hab.top + 1.3, 11);
-  const ctl = module(9, 2.3, groundY, -6, -6, 0);
-  group.add(ctl.g);
-  colliders.push({ x: -8.5, z: -6, r: 2.6 }, { x: -4, z: -6, r: 2.6 });
-  addLabel("MISSION CONTROL", "planning console inside", -6, ctl.top + 1.3, -6);
-  const tunnelY = Math.min(hab.g.position.y, ctl.g.position.y) - 0.8;
-  const tunnel = mesh(new THREE.CylinderGeometry(1.0, 1.0, 12.4, 24), M.panel);
-  tunnel.rotation.x = Math.PI / 2;
-  tunnel.position.set(-6, tunnelY, 2.5);
-  group.add(tunnel);
-  colliders.push({ x: -6, z: 2.5, r: 1.3 }, { x: -6, z: -0.5, r: 1.3 }, { x: -6, z: 5.5, r: 1.3 });
-  // mission control door (east end) with a lit frame
-  const doorX = -6 + 4.5 + 0.95;
-  const door = new THREE.Group();
-  const frame = mesh(new THREE.BoxGeometry(0.3, 2.2, 1.6), M.metal);
-  door.add(frame);
-  const doorPanel = mesh(new THREE.BoxGeometry(0.32, 1.9, 1.2), M.dark, false);
-  door.add(doorPanel);
-  for (const s of [-1, 1]) {
-    const strip = mesh(new THREE.BoxGeometry(0.34, 1.9, 0.06), M.lightAmber, false);
-    strip.position.z = s * 0.66;
-    door.add(strip);
-  }
-  door.position.set(doorX, ctl.g.position.y - 0.7, -6);
-  group.add(door);
-  interactables.push({ id: "control", label: "Access Mission Control", x: doorX + 1.4, z: -6, r: 3 });
-  interactables.push({ id: "hab", label: "Enter Habitat (crew rest)", x: -6 + 6 + 1.6, z: 11, r: 2.6 });
+  /** Put a kit model on the terrain: base at the highest ground under its footprint (legs reach down). */
+  const site = (name: Parameters<typeof placeable>[0], size: number, x: number, z: number, rotY = 0, by: "width" | "height" = "width"): THREE.Group => {
+    const g = placeable(name, size, by);
+    const sz = g.userData.size as THREE.Vector3;
+    const r = Math.max(sz.x, sz.z) / 2;
+    let top = -Infinity;
+    for (const [dx, dz] of [[0, 0], [r * 0.7, 0], [-r * 0.7, 0], [0, r * 0.7], [0, -r * 0.7]] as [number, number][]) top = Math.max(top, groundY(x + dx, z + dz));
+    g.position.set(x, top - 0.15, z);
+    g.rotation.y = rotY;
+    group.add(g);
+    return g;
+  };
+  if (useKit) {
+    // --- Habitat dome, Mission Control (L-module), lab dome, storage — Quaternius CC0 kit ---
+    const hab = site("base_large", 12, -9, 12);
+    colliders.push({ x: -9, z: 12, r: 6.2 });
+    addLabel("HAB-1 · Habitat", "crew quarters (simulated)", -9, hab.position.y + (hab.userData.size as THREE.Vector3).y + 1.2, 12);
+    const ctl = site("building_l", 13, -7, -7, Math.PI / 2);
+    const ctlTop = ctl.position.y + (ctl.userData.size as THREE.Vector3).y;
+    colliders.push({ x: -10, z: -7, r: 4.6 }, { x: -4, z: -7, r: 4.6 }, { x: -7, z: -3, r: 3.6 });
+    addLabel("MISSION CONTROL", "walk in: planning console", -7, ctlTop + 1.6, -7);
+    const doorX = -0.4;
+    const door = new THREE.Group();
+    const frame = mesh(new THREE.BoxGeometry(0.3, 2.4, 1.8), M.metal);
+    const doorPanel = mesh(new THREE.BoxGeometry(0.32, 2.1, 1.3), M.dark, false);
+    door.add(frame, doorPanel);
+    for (const sgn of [-1, 1]) {
+      const strip = mesh(new THREE.BoxGeometry(0.34, 2.1, 0.07), M.lightAmber, false);
+      strip.position.z = sgn * 0.72;
+      door.add(strip);
+    }
+    door.position.set(doorX, groundY(doorX, -7) + 1.2, -7);
+    group.add(door);
+    interactables.push({ id: "control", label: "Enter Mission Control", x: doorX + 1.6, z: -7, r: 3 });
+    const lab = site("geodesic_dome", 10, -25, 2);
+    colliders.push({ x: -25, z: 2, r: 5.4 });
+    addLabel("SCI-LAB", "regolith samples (simulated)", -25, lab.position.y + (lab.userData.size as THREE.Vector3).y + 1.2, 2);
+    site("house_cylinder", 6, -21, 15, 0.6);
+    colliders.push({ x: -21, z: 15, r: 3.4 });
+    site("roof_antenna", 7, -1, -14, 0, "height");
+    colliders.push({ x: -1, z: -14, r: 1.2 });
+    for (const [cx, cz, ry] of [[19.5, 33.5, 0.2], [21.2, 34.2, 0.9], [18.2, 31.8, 1.4]] as [number, number, number][]) {
+      site("pickup_crate", 1.3, cx, cz, ry);
+      colliders.push({ x: cx, z: cz, r: 0.8 });
+    }
+    // boulders (decorative, CC0 kit rocks tinted to regolith; never used by any calculation)
+    const rocks: [string, number, number, number][] = [[`rock_large`, 3.5, 46, -48], [`rock_large_2`, 4.2, -52, -30], [`rock`, 2.4, 60, 22], [`rock_2`, 2.8, -38, 40], [`rock_large`, 5, 70, -10], [`rock_large_2`, 3, -15, -45], [`rock`, 2, 30, 58], [`rock_2`, 3.2, 120, -60]];
+    for (const [n, sz, x, z] of rocks) {
+      const g = site(n as Parameters<typeof placeable>[0], sz, x, z, x * 0.37);
+      g.position.y -= sz * 0.25;
+      tint(g, 0x8e8a83, 1, true);
+      colliders.push({ x, z, r: sz * 0.45 });
+    }
+  } else {
+    // --- Habitat + Mission Control, joined by a tunnel ---
+    const hab = module(12, 2.3, groundY, -6, 11, 0);
+    group.add(hab.g);
+    colliders.push({ x: -10, z: 11, r: 2.6 }, { x: -6, z: 11, r: 2.6 }, { x: -2, z: 11, r: 2.6 });
+    addLabel("HAB-1 · Habitat", "crew quarters (simulated)", -6, hab.top + 1.3, 11);
+    const ctl = module(9, 2.3, groundY, -6, -6, 0);
+    group.add(ctl.g);
+    colliders.push({ x: -8.5, z: -6, r: 2.6 }, { x: -4, z: -6, r: 2.6 });
+    addLabel("MISSION CONTROL", "planning console inside", -6, ctl.top + 1.3, -6);
+    const tunnelY = Math.min(hab.g.position.y, ctl.g.position.y) - 0.8;
+    const tunnel = mesh(new THREE.CylinderGeometry(1.0, 1.0, 12.4, 24), M.panel);
+    tunnel.rotation.x = Math.PI / 2;
+    tunnel.position.set(-6, tunnelY, 2.5);
+    group.add(tunnel);
+    colliders.push({ x: -6, z: 2.5, r: 1.3 }, { x: -6, z: -0.5, r: 1.3 }, { x: -6, z: 5.5, r: 1.3 });
+    // mission control door (east end) with a lit frame
+    const doorX = -6 + 4.5 + 0.95;
+    const door = new THREE.Group();
+    const frame = mesh(new THREE.BoxGeometry(0.3, 2.2, 1.6), M.metal);
+    door.add(frame);
+    const doorPanel = mesh(new THREE.BoxGeometry(0.32, 1.9, 1.2), M.dark, false);
+    door.add(doorPanel);
+    for (const s of [-1, 1]) {
+      const strip = mesh(new THREE.BoxGeometry(0.34, 1.9, 0.06), M.lightAmber, false);
+      strip.position.z = s * 0.66;
+      door.add(strip);
+    }
+    door.position.set(doorX, ctl.g.position.y - 0.7, -6);
+    group.add(door);
+    interactables.push({ id: "control", label: "Access Mission Control", x: doorX + 1.4, z: -6, r: 3 });
 
-  // --- Science lab dome ---
-  const labY = groundY(-24, 2);
-  const lab = mesh(new THREE.SphereGeometry(5, 40, 20, 0, Math.PI * 2, 0, Math.PI / 2), M.white);
-  lab.scale.y = 0.75;
-  lab.position.set(-24, labY - 0.3, 2);
-  group.add(lab);
-  const labBerm = mesh(new THREE.CylinderGeometry(5.6, 6.4, 1.2, 40), M.berm);
-  labBerm.position.set(-24, labY - 0.2, 2);
-  group.add(labBerm);
-  for (let a = 0; a < 6; a++) {
-    const w = mesh(new THREE.BoxGeometry(0.9, 0.4, 0.1), M.window, false);
-    const ang = (a / 6) * Math.PI * 2;
-    w.position.set(-24 + Math.cos(ang) * 4.55, labY + 1.6, 2 + Math.sin(ang) * 4.55);
-    w.lookAt(-24, labY + 1.6, 2);
-    group.add(w);
+    // --- Science lab dome ---
+    const labY = groundY(-24, 2);
+    const lab = mesh(new THREE.SphereGeometry(5, 40, 20, 0, Math.PI * 2, 0, Math.PI / 2), M.white);
+    lab.scale.y = 0.75;
+    lab.position.set(-24, labY - 0.3, 2);
+    group.add(lab);
+    const labBerm = mesh(new THREE.CylinderGeometry(5.6, 6.4, 1.2, 40), M.berm);
+    labBerm.position.set(-24, labY - 0.2, 2);
+    group.add(labBerm);
+    for (let a = 0; a < 6; a++) {
+      const w = mesh(new THREE.BoxGeometry(0.9, 0.4, 0.1), M.window, false);
+      const ang = (a / 6) * Math.PI * 2;
+      w.position.set(-24 + Math.cos(ang) * 4.55, labY + 1.6, 2 + Math.sin(ang) * 4.55);
+      w.lookAt(-24, labY + 1.6, 2);
+      group.add(w);
+    }
+    colliders.push({ x: -24, z: 2, r: 6.2 });
+    addLabel("SCI-LAB", "regolith samples (simulated)", -24, labY + 5.5, 2);
   }
-  colliders.push({ x: -24, z: 2, r: 6.2 });
-  addLabel("SCI-LAB", "regolith samples (simulated)", -24, labY + 5.5, 2);
 
   // --- Solar monitoring station (Mission 01) ---
   const ssX = 13, ssZ = -13;
@@ -276,6 +331,7 @@ export function buildOutpost(groundY: (x: number, z: number) => number, survey: 
   // --- Comms station: dish pointed at Earth (Mission 02) ---
   const csX = 11, csZ = 15;
   const csY = groundY(csX, csZ);
+  let radarPivot: THREE.Object3D | null = null;
   const pedestal = mesh(new THREE.CylinderGeometry(0.35, 0.6, 2.2, 14), M.white);
   pedestal.position.set(csX, csY + 1.1, csZ);
   group.add(pedestal);
@@ -304,6 +360,18 @@ export function buildOutpost(groundY: (x: number, z: number) => number, survey: 
   feedHead.position.z = -1.8;
   pitch.add(feedHead);
   group.add(yaw);
+  if (useKit) {
+    // the kit radar dish stands in for the procedural one and turns to Earth's azimuth
+    yaw.visible = false;
+    pedestal.visible = false;
+    const radar = placeable("roof_radar", 5.2, "height");
+    radar.position.set(0, 0, 0);
+    const pivot = new THREE.Group();
+    pivot.position.set(csX, csY - 0.1, csZ);
+    pivot.add(radar);
+    group.add(pivot);
+    radarPivot = pivot;
+  }
   const term = mesh(new THREE.BoxGeometry(0.8, 1.2, 0.5), M.panel);
   term.position.set(csX - 2.4, csY + 0.6, csZ - 1.6);
   group.add(term);
@@ -433,7 +501,7 @@ export function buildOutpost(groundY: (x: number, z: number) => number, survey: 
   labels.push(sl);
 
   return {
-    group, colliders, interactables, arrays, dish: { yaw, pitch }, beacons, labels,
+    group, colliders, interactables, arrays, dish: { yaw, pitch, radar: radarPivot }, beacons, labels,
     // spawn with the Sun behind you, looking at the lit side of the base
     // and, when Earth is up, turned so Earth sits inside the frame
     spawn: (() => {

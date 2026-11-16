@@ -64,14 +64,18 @@ export function placeable(n: KitName, size: number, by: "width" | "height" = "wi
 }
 
 /** Tint every material of a model (clones the materials first). */
-export function tint(o: THREE.Object3D, color: number, mix = 0.5): void {
+export function tint(o: THREE.Object3D, color: number, mix = 0.5, dropMap = false): void {
   const c = new THREE.Color(color);
   o.traverse((x) => {
     const m = x as THREE.Mesh;
     if (!m.isMesh) return;
     const mat = (m.material as THREE.MeshStandardMaterial).clone();
     gated(mat);
-    mat.color.lerp(c, mix);
+    if (dropMap) {
+      mat.map = null;
+      mat.color.copy(c);
+      mat.roughness = 0.95;
+    } else mat.color.lerp(c, mix);
     m.material = mat;
   });
 }
