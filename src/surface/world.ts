@@ -21,7 +21,7 @@ import { Sky3D, dirFromAzEl } from "./sky3d";
 import { Interior } from "./interior";
 import { actionFor, releaseButtonFocus } from "../game/input";
 import { buildTerrain, farHorizon, groundY, horizonToward, lonLatToScene, sceneToLonLat, type SurfacePatch } from "./terrain3d";
-import { DPR_CAP, TERRAIN_LOD, loadGfx, saveGfx, type Gfx } from "./graphics";
+import { DPR_CAP, PIXEL_BUDGET, TERRAIN_LOD, loadGfx, saveGfx, type Gfx } from "./graphics";
 
 const D2R = Math.PI / 180;
 
@@ -151,6 +151,9 @@ export class SurfaceWorld {
   readonly farCam: THREE.PerspectiveCamera;
   /** runtime resolution factor from adaptive resolution (1 = preset value) */
   private dynScale = 1;
+  private shadowTick = 0;
+  private shadowAt = new THREE.Vector3(1e9, 0, 0);
+  private shadowDirty = true;
   readonly dust = new Dust(1500);
   private lastStride = 0;
   private footSide = 1;
@@ -298,8 +301,12 @@ export class SurfaceWorld {
   resize(): void {
     const w = this.host.clientWidth || window.innerWidth;
     const h = this.host.clientHeight || window.innerHeight;
-    const pr = Math.min(window.devicePixelRatio || 1, DPR_CAP[this.gfx.preset]) * this.gfx.resScale * this.dynScale;
-    this.renderer.setPixelRatio(Math.max(0.5, pr));
+    let pr = Math.min(window.devicePixelRatio || 1, DPR_CAP[this.gfx.preset]) * this.gfx.resScale;
+    // never render more pixels than the preset's budget (large external displays)
+    const budget = PIXEL_BUDGET[this.gfx.preset];
+    if (w * h * pr * pr > budget) pr = Math.sqrt(budget / (w * h));
+    pr *= this.dynScale;
+    this.renderer.setPixelRatio(Math.max(0.45, pr));
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
@@ -723,8 +730,10 @@ export class SurfaceWorld {
 
     // sun / shadows follow the player
     const sd = this.sky.sunDir;
-    this.sun.position.copy(p.pos).addScaledVector(sd, 3000);
-    this.sun.target.position.copy(p.pos);
+    // the shadow camera follows the player in 0.5 m steps, so the map is re-rendered only when needed
+    if (p.pos.distanceToSquared(this.shadowAt) > 0.25) { this.shadowAt.copy(p.pos); this.shadowDirty = true; }
+    this.sun.position.copy(this.shadowAt).addScaledVector(sd, 3000);
+    this.sun.target.position.copy(this.shadowAt);
     this.sun.intensity = sd.y > -0.02 ? 3.4 : 0;
     this.fill.position.copy(p.pos).addScaledVector(this.sky.earthDir, 1000);
     this.fill.target.position.copy(p.pos);
@@ -812,7 +821,11 @@ export class SurfaceWorld {
     this.farCam.updateMatrixWorld();
     r.render(this.scene, this.farCam);
     r.clearDepth();
-    r.shadowMap.needsUpdate = this.sun.castShadow;
+    // the Sun barely moves: re-render the shadow map only when the player moved or every 6th frame
+    if (this.sun.castShadow && (++this.shadowTick % 6 === 0 || this.shadowDirty)) {
+      r.shadowMap.needsUpdate = true;
+      this.shadowDirty = false;
+    }
     r.render(this.scene, this.camera);
     r.clearDepth();
     r.render(this.sky.overlay, this.sky.camera);
@@ -832,9 +845,10 @@ export class SurfaceWorld {
     const ms = dt * 1000;
     this.frameMs += (ms - this.frameMs) * 0.05;
     if (!this.gfx.adaptive) return;
-    if (this.frameMs > 28) { this.slowFor += dt; this.fastFor = 0; } else if (this.frameMs < 18) { this.fastFor += dt; this.slowFor = 0; } else { this.slowFor = 0; this.fastFor = 0; }
-    if (this.slowFor > 2 && this.dynScale > 0.6) { this.dynScale = Math.max(0.6, this.dynScale - 0.1); this.slowFor = 0; this.resize(); }
-    if (this.fastFor > 5 && this.dynScale < 1) { this.dynScale = Math.min(1, this.dynScale + 0.1); this.fastFor = 0; this.resize(); }
+    // vsync quantises frames to 16.7 / 33.3 ms: a mean above ~18.5 ms means frames are being dropped
+    if (this.frameMs > 18.5) { this.slowFor += dt; this.fastFor = 0; } else if (this.frameMs < 16.9) { this.fastFor += dt; this.slowFor = 0; } else { this.slowFor = 0; this.fastFor = 0; }
+    if (this.slowFor > 1.0 && this.dynScale > 0.6) { this.dynScale = Math.max(0.6, this.dynScale - 0.08); this.slowFor = 0; this.resize(); }
+    if (this.fastFor > 8 && this.dynScale < 1) { this.dynScale = Math.min(1, this.dynScale + 0.05); this.fastFor = 0; this.resize(); }
   }
   get renderScale(): number {
     return this.renderer.getPixelRatio();

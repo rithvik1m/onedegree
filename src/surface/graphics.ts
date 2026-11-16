@@ -31,6 +31,11 @@ export const PRESETS: Record<Preset, Omit<Gfx, "preset" | "fps" | "lighting" | "
 
 /** Device pixel ratio cap per preset (Retina screens double the pixel count). */
 export const DPR_CAP: Record<Preset, number> = { low: 1, balanced: 1.25, high: 1.6 };
+/**
+ * Pixel budget (megapixels actually rendered). Measured on an 8 GB A18 Pro Mac: a 2560×1440
+ * window (3.7 MP) ran outdoors at 44–51 fps with 33 ms frames every few frames; ~2 MP holds 60.
+ */
+export const PIXEL_BUDGET: Record<Preset, number> = { low: 1.2e6, balanced: 2.1e6, high: 3.7e6 };
 
 /** Terrain mesh decimation per preset: [azimuth stride, far-ring stride]. Visual only. */
 export const TERRAIN_LOD: Record<Preset, [number, number]> = { low: [2, 3], balanced: [2, 2], high: [1, 1] };
