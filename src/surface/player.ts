@@ -92,7 +92,15 @@ export class Player {
       const s = 0.6;
       const h1 = this.ground(this.pos.x + (tx / want) * s, this.pos.z + (tz / want) * s);
       const grade = (h1 - h0) / s;
-      if (grade > 0.58) { tx *= 0.05; tz *= 0.05; } else if (grade > 0.3) { tx *= 0.5; tz *= 0.5; }
+      if (grade > 0.58) { tx = 0; tz = 0; } else if (grade > 0.3) { tx *= 0.5; tz *= 0.5; }
+    }
+    // already moving into a wall steeper than ~30°: stop, like walking into a bank of rock
+    const mv = Math.hypot(this.vel.x, this.vel.z);
+    if (this.onGround && mv > 0.05) {
+      const h0 = this.ground(this.pos.x, this.pos.z);
+      const s = 0.5;
+      const h1 = this.ground(this.pos.x + (this.vel.x / mv) * s, this.pos.z + (this.vel.z / mv) * s);
+      if ((h1 - h0) / s > 0.58) { this.vel.x = 0; this.vel.z = 0; }
     }
 
     const accel = this.onGround ? (tx || tz ? 12 : 9) : 1.2;
