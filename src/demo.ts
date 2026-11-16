@@ -76,13 +76,13 @@ export async function runDemo(c: Ctx): Promise<void> {
     w.player.place(sx - sd.x * 1.2, sz - sd.z * 1.2, Math.atan2(sd.x, -sd.z));
     store.set({ time: store.s.time });
     c.interact("solar");
-    const look = w.cinematic(6000, (u, cam) => {
+    const look = w.cinematic(5600, (u, cam) => {
       const gy = w.groundAt(sx, sz);
       const back = 9 - u * 2.5;
       cam.position.set(sx - sd.x * back + sd.z * 2.5, gy + 2.4, sz - sd.z * back - sd.x * 2.5);
       cam.lookAt(sx + sd.x * 60, gy + 1.2, sz + sd.z * 60);
     }, true);
-    c.caption("NASA/JPL Horizons places the Sun; NASA LOLA terrain decides if it clears the horizon. Its next 30 days: amber = sunlit, red = blocked.", 6000);
+    c.caption("NASA/JPL Horizons places the Sun; NASA LOLA terrain decides if it clears the horizon. Its next 30 days: amber = sunlit, red = blocked.", 5600);
     await look;
     c.instrument.close();
 
@@ -94,7 +94,7 @@ export async function runDemo(c: Ctx): Promise<void> {
     c.instrument.skylineOn = true;
     c.interact("survey");
     const a = analyse(c.data, c.survey, c.windowT0, 30);
-    const s1 = w.cinematic(7600, (u, cam) => {
+    const s1 = w.cinematic(7200, (u, cam) => {
       const gy = w.groundAt(sv?.x ?? 0, sv?.z ?? 0);
       const az = ((mom?.az ?? 0) * Math.PI) / 180;
       const dx = Math.sin(az), dz = -Math.cos(az);
@@ -103,8 +103,8 @@ export async function runDemo(c: Ctx): Promise<void> {
       const el = (((mom?.sunEl ?? 1) + 1.2) * Math.PI) / 180;
       cam.lookAt(px + dx * 100, gy + 1.9 + Math.tan(el) * 100, pz + dz * 100);
     }, false);
-    if (mom) c.caption(`433 m from the outpost: a smooth Moon puts the Sun ${mom.sunEl.toFixed(1)}° up. The real LOLA ridge is ${mom.ridge.toFixed(1)}°. Sunlit ${a ? a.mReal.sunlitPct.toFixed(0) : "—"}% vs 100%.`, 7600);
-    else if (a) c.caption(`Survey point S-1: sunlit ${a.mReal.sunlitPct.toFixed(0)}% of the next 30 days (smooth Moon: ${a.mSmooth.sunlitPct.toFixed(0)}%).`, 7600);
+    if (mom) c.caption(`433 m from the outpost: a smooth Moon puts the Sun ${mom.sunEl.toFixed(1)}° up. The real LOLA ridge is ${mom.ridge.toFixed(1)}°. Sunlit ${a ? a.mReal.sunlitPct.toFixed(0) : "—"}% vs 100%.`, 7200);
+    else if (a) c.caption(`Survey point S-1: sunlit ${a.mReal.sunlitPct.toFixed(0)}% of the next 30 days (smooth Moon: ${a.mSmooth.sunlitPct.toFixed(0)}%).`, 7200);
     await s1;
     c.instrument.close();
     c.instrument.skylineOn = false;

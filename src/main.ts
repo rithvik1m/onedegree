@@ -369,7 +369,7 @@ async function boot(): Promise<void> {
     $("roMode").textContent = "Inside Mission Control (simulated set)";
     document.body.classList.add("indoors");
     await fade(false, 350);
-    caption("Mission Control (simulated). The console runs the same Horizons × LOLA engine as the field instruments.", 4200);
+    if (!document.body.classList.contains("demo")) caption("Mission Control (simulated). The console runs the same Horizons × LOLA engine as the field instruments.", 4200);
   }
   async function exitControl(): Promise<void> {
     if (!world.inside) return;

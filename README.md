@@ -32,8 +32,9 @@ does a one-week slip change the answer?* Every number comes from NASA data.
   3. **The Shadow Problem** — lope to Survey point S-1, 433 m away and 82 m lower:
      real terrain vs smooth Moon vs the outpost. Trace the scanner's LOLA horizon over
      the 3D ridges.
-  4. **Choose the Landing Site** — the Mission Control console (the planner): Athena vs
-     Odysseus against a stated requirement (Sun **and** Earth together).
+  4. **Choose the Landing Site** — walk into Mission Control (live screens fed by the
+     science engine) and use the planning console: Athena vs Odysseus against a stated
+     requirement (Sun **and** Earth together).
   5. **The Delay** — slip the launch 7 days and re-check.
 - **Orbit and land anywhere.** Board the lander (or **O**): ascent, a CesiumJS globe
   with NASA LRO imagery, a landing preview computed live (Sun/Earth now, 30-day
@@ -63,6 +64,7 @@ and are never used by any calculation.
 | Long-term sunlight / Earth visibility, Athena site | **45.1 % / 93.1 %** vs **46.5 % / 93.1 %** (NASA 18.6-yr maps) |
 | Predicted sunset at Chandrayaan-3's site | 3.7 h after ISRO put Vikram to sleep "a little before sunset" |
 | Outpost vs Survey S-1 (433 m apart), 30 days from 15 Nov 2026 | sunlit **100 %** vs **20 %** (smooth Moon would say 100 % at both) |
+| 3D world vs scanner, recomputed live in Reality Check card 7 | same numbers, ~60 ms in the browser |
 | GPU-synced frame time, outpost scene, 1440×900, this dev Mac (headless Chrome, Metal) | **~2–3 ms** |
 
 ## How the outpost site was chosen (by code, not by hand)

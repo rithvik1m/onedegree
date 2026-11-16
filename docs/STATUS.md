@@ -18,9 +18,10 @@ v1 is tagged `v1.0`; v2 work happened on branch `v2` and is merged to `main` at 
 | **v2** Outpost: hab, mission control, lab, sun-tracking vertical arrays, Earth-pointing dish, observation deck, pad + lander, rover bay, paths, S-1 beacon | Done | screenshots |
 | **v2** Intro + missions 01–05 + instruments + debriefs | Done | played through in headless Chrome |
 | **v2** Orbit ↔ surface loop (ascent, Cesium globe, landing preview, descent) | Done | landed on Athena 10 m terrain |
-| **v2** 3D interior of the mission-control module | Not built | the console opens the planner in a console style instead |
+| **v2** Walk-in Mission Control interior (live screens; console opens the planner; airlock exit) | Done | enter → console → planner → exit tested in headless Chrome |
 | Cesium Moon tiles (token path) | Untested | no token available |
-| Phone layout (v2) | See screenshots in testing | — |
+| Phone layout + touch controls (v2) | Done | emulated iPhone 13: joystick moved 2.7 m; HUD fits 390 px |
 | Production build | Done | `vite preview`, no console errors |
-| 30-s guided demo | Re-written for v2 (`src/demo.ts`); recording: `submission/onedegree_demo.mp4` (git-ignored) | — |
+| Reality Check 7: 3D world vs LOLA skyline (live) | Done | mean 0.019°, max 0.153°, ~60 ms in browser |
+| 30-s guided demo | Done for v2 (`src/demo.ts`); 29.9 s recording at `submission/onedegree_demo.mp4` (git-ignored) | captions only |
 | Vercel deploy | Waiting for owner to import the repo | `vercel.json` |

@@ -18,7 +18,9 @@
 | Solar station (E) → time controls → Record | live numbers; Sun path amber/red in the 3D sky; debrief text computed |
 | Comms station | dish points at Earth (157.1°, −0.8°); clearance +0.02°; LOS caveat shown |
 | Survey S-1 (433 m) | S-1 20 % vs outpost 100 % vs smooth 100 %; LOLA horizon traced over the 3D ridges |
-| Mission Control → choose site → slip +7 d | missions 04/05 complete with computed verdicts |
+| Mission Control door (E) → walk to console (E) → planner → choose site → slip +7 d → exit airlock | interior renders with live screens; missions 04/05 complete with computed verdicts; player returns outside on the ground |
+| Phone (emulated iPhone 13, touch) | joystick walks (2.7 m in 1.5 s), jump button, tap the prompt to use; HUD fits 390 px |
+| Reality Check | 7 cards render; card 7 recomputes the 3D-world horizon live (mean 0.019°, max 0.153°) |
 | Launch to orbit → pick Athena → preview → land | Cesium globe lazy-loads; preview shows live Sun/Earth/30-day values; lands on 10 m LOLA terrain |
 | First / third person, looking down | FP shows legs and boots (torso, arms, helmet hidden so nothing clips the lens); TP shows full suit |
 | Frame cost | ~2–3 ms GPU-synced per frame at 1440×900 (gl.finish timing) with terrain + far field + shadows + detail |
