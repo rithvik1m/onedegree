@@ -113,7 +113,8 @@ export class Instrument {
     this.kind = kind;
     this.place = place;
     this.ref = ref;
-    const [t, sub] = TITLES[kind];
+    const [t0, sub] = TITLES[kind];
+    const t = kind === "survey" ? `Field Scanner · ${place.short}` : place.id === "outpost" ? t0 : `${t0.split(" · ")[0]} · ${place.short}`;
     $("instTitle").textContent = t;
     $("instSub").textContent = sub;
     const el = $("inst");
@@ -206,7 +207,7 @@ export class Instrument {
   private renderSimple(a: Analysis, i: number): void {
     const b = this.body(a, i);
     const name = b.isSun ? "Sun" : "Earth";
-    $("instQ").textContent = this.kind === "comms" ? "Can this spot talk straight to Earth?" : this.kind === "survey" ? "Is this second spot as good for sunlight as the outpost?" : "Will this spot get enough sunlight for our operations?";
+    $("instQ").textContent = this.kind === "comms" ? "Can this spot talk straight to Earth?" : this.kind === "survey" ? `Is this spot as good for sunlight as ${this.ref?.short ?? "the station"}?` : "Will this spot get enough sunlight for our operations?";
     const flat = b.el > a.smoothDeg;
     const clear = b.el - b.hz;
     // 1 · visible now?
@@ -243,7 +244,7 @@ export class Instrument {
         ${Math.abs(sm.sunlitPct - m.sunlitPct) >= 5 ? `<div class="c-note">A flat-Moon model would have said ${sm.sunlitPct.toFixed(0)}% — the real terrain makes the difference.</div>` : ""}</div>`;
       if (this.kind === "survey" && this.ref) {
         const r = analyse(this.data, this.ref, this.t0(), 30);
-        if (r) c += `<div class="c-cmp">For comparison, the outpost ${esc(this.distText())} gets <b>${r.mReal.sunlitPct.toFixed(0)}%</b>.</div>`;
+        if (r) c += `<div class="c-cmp">For comparison, ${esc(this.ref.short)} (${esc(this.distText())}) gets <b>${r.mReal.sunlitPct.toFixed(0)}%</b>.</div>`;
       }
     } else {
       c = `<div class="c-big earth">${m.earthPct.toFixed(0)}%</div><div><b>of the next 30 days Earth is in direct line of sight.</b> The longest gap is ${fmtHours(m.longestBlackoutH, m.longestBlackoutOpen)}.

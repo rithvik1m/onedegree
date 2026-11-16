@@ -27,6 +27,7 @@
         <p class="intro-tag">On the Moon, one degree decides everything.</p>
         <p class="intro-brief" id="introBrief">Explore the lunar south pole. Investigate sunlight and Earth visibility. Help plan the next landing.</p>
         <div class="intro-actions">
+          <button id="introContinue" class="pill primary big hidden">Continue</button>
           <button id="introBegin" class="pill primary big">Begin Mission 01</button>
           <button id="introFree" class="pill big">Free exploration</button>
           <button id="introPlanner" class="pill big ghost">Open the site planner</button>
@@ -60,6 +61,19 @@
       <div class="rh-keys"><span class="key">W</span><span class="key">S</span> drive · <span class="key">A</span><span class="key">D</span> steer · <span class="key">C</span> cockpit · <span class="key">L</span> lights · <span class="key">R</span> recover · <span class="key">E</span> exit when stopped</div>
       <div class="rh-note">Callsign SUNSEEKER · gameplay vehicle — not an engineering model</div>
     </div>
+
+    <!-- Active side mission -->
+    <aside id="sideCard" class="mission side hidden" aria-live="polite">
+      <div class="m-kicker"><span id="sdCat">SIDE</span><span class="m-dot">·</span><span id="sdTitle">—</span></div>
+      <p id="sdText" class="m-text">—</p>
+      <div class="m-nav"><span id="sdArrow" class="m-arrow">▲</span><span id="sdDist" class="mono">—</span></div>
+    </aside>
+
+    <!-- Mission board -->
+    <section id="board" class="board glass hidden" aria-label="Mission board">
+      <div class="inst-head"><div><div class="eyebrow">Mission board</div><h2>Choose what to investigate</h2></div><button class="round" id="boardClose" aria-label="Close mission board">✕</button></div>
+      <div id="boardBody" class="board-body"></div>
+    </section>
 
     <!-- Context prompt -->
     <button id="prompt" class="prompt hidden"><span class="key">E</span><span id="promptText"></span></button>
@@ -192,7 +206,8 @@
       <button id="btnOrbit" class="pill" title="Launch to orbit (O)"><span class="kbd">O</span> <span id="btnOrbitLabel">Launch to orbit</span></button>
       <button id="btnPlanner" class="pill" title="Open the mission planner (P)"><span class="kbd">P</span> Planner</button>
       <button id="btnView" class="pill" title="First / third person (V)"><span class="kbd">V</span> View</button>
-      <button id="btnMissions" class="pill" title="Missions">Missions</button>
+      <button id="btnBoard" class="pill" title="Mission board (B)"><span class="kbd">B</span> Missions</button>
+      <button id="btnMap" class="pill" title="Moon map (G)"><span class="kbd">G</span> Map</button>
       <button id="btnNotes" class="pill" title="Field notes (N)"><span class="kbd">N</span> Notes</button>
       <button id="btnDemo" class="pill ghost" title="Play the 30-second guided demo">▶ 30s demo</button>
     </nav>
@@ -219,6 +234,10 @@
       <label class="check"><input type="checkbox" id="setBob" checked /> Head bob <small>(off = reduced camera motion)</small></label>
       <label class="check"><input type="checkbox" id="setSfx" /> Suit-radio tones <small>(artistic — no sound travels in a vacuum)</small></label>
       <p class="dim small">Walk 3 m/s and sprint 7.5 m/s are game assists — Apollo crews moved at about 1–2 m/s.</p>
+      <div class="eyebrow">Progress (saved in this browser)</div>
+      <div class="save-row"><button id="saveNow" class="pill small">Save now</button><button id="saveExport" class="pill small ghost">Export</button><label class="pill small ghost">Import<input id="saveImport" type="file" accept="application/json" hidden /></label></div>
+      <div class="save-row"><button id="saveNew" class="pill small ghost">New exploration…</button></div>
+      <p class="dim small" id="saveInfo">Autosaves on progress and every 20 s. Local only — no cloud sync.</p>
       <button id="setToken" class="pill small ghost">Orbit globe: add a Cesium ion token (optional)</button>
     </div>
     <div id="fps" class="fps hidden mono"></div>

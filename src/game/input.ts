@@ -7,7 +7,7 @@
 export type Action =
   | "forward" | "back" | "left" | "right" | "sprint" | "jump" | "use"
   | "quickScan" | "scanner" | "planner" | "orbit" | "view" | "notes" | "home" | "lamp"
-  | "roverCam" | "recover";
+  | "roverCam" | "recover" | "board" | "map";
 
 export const KEYMAP: Record<Action, { codes: string[]; label: string; what: string; mode: "foot" | "rover" | "any" }> = {
   forward: { codes: ["KeyW", "ArrowUp"], label: "W", what: "move / drive forward", mode: "any" },
@@ -27,6 +27,8 @@ export const KEYMAP: Record<Action, { codes: string[]; label: string; what: stri
   lamp: { codes: ["KeyL"], label: "L", what: "helmet lamp / rover lights", mode: "any" },
   roverCam: { codes: ["KeyC"], label: "C", what: "rover chase / cockpit camera", mode: "rover" },
   recover: { codes: ["KeyR"], label: "R", what: "recover rover (upright, unstuck)", mode: "rover" },
+  board: { codes: ["KeyB"], label: "B", what: "mission board", mode: "any" },
+  map: { codes: ["KeyG"], label: "G", what: "Moon map", mode: "any" },
 };
 
 /** The action for a key code in the current mode (rover-only and foot-only keys never collide). */

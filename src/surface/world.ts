@@ -14,7 +14,8 @@ import { Rover } from "./rover";
 import { Dust } from "./dust";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { regolithMaterial, shared } from "./materials";
-import { buildApolloDescentStage, buildLander, buildOutpost, heritageRing, label, type Interactable, type OutpostRefs } from "./outpost";
+import { buildApolloDescentStage, buildBase, buildLander, buildOutpost, heritageRing, label, type Interactable, type OutpostRefs } from "./outpost";
+import type { BaseDef } from "../game/bases";
 import { EYE_HEIGHT, Player } from "./player";
 import { Sky3D, dirFromAzEl } from "./sky3d";
 import { Interior } from "./interior";
@@ -307,7 +308,7 @@ export class SurfaceWorld {
   }
 
   // ---------- site ----------
-  setSite(p: SurfacePatch, opts: { outpost?: boolean; survey?: { lon: number; lat: number }; spawn?: { x: number; z: number; yaw: number }; heritage?: { radius: number; name: string } } = {}): void {
+  setSite(p: SurfacePatch, opts: { outpost?: boolean; survey?: { lon: number; lat: number }; spawn?: { x: number; z: number; yaw: number }; heritage?: { radius: number; name: string }; base?: BaseDef; partner?: { lon: number; lat: number } } = {}): void {
     if (this.scopeOn) this.toggleScope();
     for (const m of this.terrain) {
       this.scene.remove(m);
@@ -320,6 +321,7 @@ export class SurfaceWorld {
     for (const r of this.rocks) r.dispose();
     this.rocks = [];
     this.patch = p;
+    this.siteInteractables = [];
     this.setWaypoint(null);
     this.rebuildTerrain();
     const gy = (x: number, z: number): number => groundY(p, x, z);
@@ -343,6 +345,24 @@ export class SurfaceWorld {
         this.player.colliders = [...this.outpost.colliders, this.roverCollider];
         exclude.push({ x: b.x, z: b.z, r: 7 });
       }
+    } else if (opts.base) {
+      // data-driven research base on its measured terrain
+      const B = opts.base;
+      const partner = opts.partner ? lonLatToScene(p, opts.partner.lon, opts.partner.lat) : null;
+      this.outpost = buildBase(B, gy, partner ? { x: partner[0], z: partner[1] } : null);
+      this.props.add(this.outpost.group);
+      this.player.colliders = [...this.outpost.colliders];
+      exclude.push({ x: 0, z: 0, r: 45 }, { x: B.pad.x, z: B.pad.z, r: 22 });
+      const sp = opts.spawn ?? B.spawn;
+      this.player.place(sp.x, sp.z, sp.yaw);
+      if (this.roverGltf && B.rover) {
+        if (!this.rover) this.rover = new Rover(this.roverGltf);
+        this.props.add(this.rover.root);
+        const toP = partner ? Math.atan2(partner[0] - B.rover.x, -(partner[1] - B.rover.z)) : 0;
+        this.rover.place(B.rover.x, B.rover.z, toP, gy);
+        this.player.colliders.push(this.roverCollider);
+        exclude.push({ x: B.rover.x, z: B.rover.z, r: 7 });
+      } else this.rover = null;
     } else if (opts.heritage) {
       if (this.driving) this.exitRover();
       this.rover = null;
@@ -562,6 +582,7 @@ export class SurfaceWorld {
       for (const a of this.outpost.arrays) a.rotation.y = -s.sunAz * D2R; // panel normal (+z) → Sun azimuth
       this.outpost.dish.yaw.rotation.y = -s.earthAz * D2R;
       if (this.outpost.dish.radar) this.outpost.dish.radar.rotation.y = -s.earthAz * D2R + this.radarOffset;
+      for (const t of this.outpost.trackers ?? []) t.o.rotation.y = t.kind === "earth" ? -s.earthAz * D2R + this.radarOffset : -s.sunAz * D2R;
       this.outpost.dish.pitch.rotation.x = Math.max(-5, s.earthEl) * D2R;
     }
     this.updateGate();

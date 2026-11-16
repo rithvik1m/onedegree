@@ -22,6 +22,46 @@
       "source": "scripts/outpost.py — NASA PGDA product 69 map: sun 11.3 %, Earth 0.1 %."
     },
     {
+      "id": "shadow",
+      "name": "Shadow Research Station (simulated)",
+      "short": "Shadow Station",
+      "lat": -88.62924,
+      "lon": 20.0043,
+      "kind": "base",
+      "event": "A fictional station on a real site chosen by code: flat ground with moderate long-term sunlight (45 %) right next to near-permanent shadow.",
+      "source": "scripts/bases.py — NASA PGDA 69 map: sun 45.0 %, Earth 54.4 %; slope 4.3° (LOLA 80 m)."
+    },
+    {
+      "id": "sh2",
+      "name": "SH-2 — shadow survey point",
+      "short": "SH-2",
+      "lat": -88.61216,
+      "lon": 19.0549,
+      "kind": "survey",
+      "event": "865 m from the Shadow Station; NASA's 18.6-year map shows it almost never sunlit.",
+      "source": "scripts/bases.py — NASA PGDA 69 map: sun 1.4 %, Earth 45.6 %."
+    },
+    {
+      "id": "earthlink",
+      "name": "EarthLink Communications Station (simulated)",
+      "short": "EarthLink",
+      "lat": -88.44253,
+      "lon": -67.83365,
+      "kind": "base",
+      "event": "A fictional communications station on a real site chosen by code for Earth visibility (62 % long-term) with sunlight for power (65 %).",
+      "source": "scripts/bases.py — NASA PGDA 69 maps: Earth 61.9 %, sun 64.5 %; slope 4.1° (LOLA 80 m)."
+    },
+    {
+      "id": "ls1",
+      "name": "LS-1 — Lost Signal site",
+      "short": "LS-1",
+      "lat": -88.41095,
+      "lon": -68.45029,
+      "kind": "survey",
+      "event": "1087 m from EarthLink: the nearby spot with the least long-term Earth visibility (0 %).",
+      "source": "scripts/bases.py — NASA PGDA 69 map: Earth 0.0 %, sun 0.0 %."
+    },
+    {
       "id": "im2",
       "name": "IM-2 Athena — target point",
       "short": "Athena (IM-2)",

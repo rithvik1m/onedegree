@@ -26,6 +26,7 @@ import { runDemo } from "./demo";
 import { actionFor, releaseButtonFocus } from "./game/input";
 import { smoothHorizonDeg } from "./science/terrain";
 import { loadKit } from "./surface/assets";
+import { BASES, baseById } from "./game/bases";
 import { GlbAstronaut } from "./surface/character";
 import * as sfx from "./ui/sfx";
 
@@ -162,6 +163,8 @@ async function boot(): Promise<void> {
   const polarMap = new PolarMap(store, allPlaces);
 
   let moon: MoonScene | null = null;
+  /** the active region: a station (outpost or data-driven base) and its survey partner */
+  let region: { place: Place; partner: Place } | null = null;
   const distToS1 = (): number => {
     if (!world.outpost || !world.patch) return 1e9;
     const [sx, sz] = lonLatToScene(world.patch, survey.lon, survey.lat);
@@ -181,11 +184,11 @@ async function boot(): Promise<void> {
       live = { lon, lat };
       if (world.outpost && distToS1() < 28) campaign.emit({ type: "near-s1", driving: world.driving });
       $("roCoords").textContent = `${fmtLat(lat)} ${fmtLon(lon)}`;
-      // the scanner follows you between the outpost and S-1
-      if (world.outpost && store.s.mode === "surface") {
-        const [sx, sz] = world.sceneOf(survey.lon, survey.lat);
+      // the scanner follows you between a station and its survey point
+      if (world.outpost && store.s.mode === "surface" && region) {
+        const [sx, sz] = world.sceneOf(region.partner.lon, region.partner.lat);
         const nearSurvey = Math.hypot(world.player.pos.x - sx, world.player.pos.z - sz) < 40;
-        const want = nearSurvey ? survey : outpost;
+        const want = nearSurvey ? region.partner : region.place;
         if (store.s.here.id !== want.id) store.set({ here: want });
       }
     },
@@ -213,6 +216,7 @@ async function boot(): Promise<void> {
   world.kitReady = !!kitLoaded;
   updateSky(store.s);
   world.setSite(patches.get("outpost") as SurfacePatch, { outpost: true, survey });
+  region = { place: outpost, partner: survey };
 
   const modeLabel = (): string => {
     if (store.s.mode === "orbit") return "Orbit · " + (moon?.usingTiles ? "Cesium Moon tiles" : "NASA Moon Trek imagery");
@@ -563,6 +567,14 @@ async function boot(): Promise<void> {
     sfx.open();
     (world.astro as { gesture?: () => void }).gesture?.();
     campaign.emit({ type: "interact", id });
+    if (id.startsWith("inst:")) {
+      const [, kind, pid, rid] = id.split(":");
+      const pl = byId(pid as string);
+      if (pl) instrument.open(kind as InstKind, pl, rid ? byId(rid) : null);
+      onSideEvent({ type: "inst", id: pid as string });
+      return;
+    }
+    if (id === "lostsignal") { onSideEvent({ type: "lostsignal" }); return; }
     if (id === "solar") instrument.open("solar", outpost);
     else if (id === "comms") instrument.open("comms", outpost);
     else if (id === "survey") {
@@ -762,7 +774,7 @@ async function boot(): Promise<void> {
     const id = target.id ?? "";
     try {
       if (patches.has(id)) patch = patches.get(id) as SurfacePatch;
-      else if (["im1", "im2", "a11", "a15", "a17"].includes(id)) {
+      else if (["im1", "im2", "a11", "a15", "a17", ...BASES.map((b) => b.id)].includes(id)) {
         patch = await loadPatch(id);
         patches.set(id, patch);
       }
@@ -773,7 +785,19 @@ async function boot(): Promise<void> {
     if (!patch) patch = smoothPatch(lon, lat);
     const atOutpost = id === "outpost" || id === "survey";
     const heritageM = (target as Place & { heritage_m?: number }).heritage_m;
-    world.setSite(atOutpost ? (patches.get("outpost") as SurfacePatch) : patch, { outpost: atOutpost, survey, spawn: id === "survey" ? spawnAtSurvey() : undefined, heritage: heritageM ? { radius: heritageM, name: target.short } : undefined });
+    const baseDef = baseById(id) ?? BASES.find((b) => b.partner?.id === id);
+    if (baseDef && baseDef.id !== id) {
+      // landing at a base's survey point: load the base's region, spawn near the point
+      patch = patches.get(baseDef.id) ?? (await loadPatch(baseDef.id));
+      patches.set(baseDef.id, patch);
+    }
+    const partnerPlace = baseDef?.partner ? byId(baseDef.partner.id) : undefined;
+    world.setSite(atOutpost ? (patches.get("outpost") as SurfacePatch) : patch, {
+      outpost: atOutpost, survey, spawn: id === "survey" ? spawnAtSurvey() : undefined,
+      heritage: heritageM ? { radius: heritageM, name: target.short } : undefined,
+      base: baseDef, partner: partnerPlace,
+    });
+    region = atOutpost ? { place: outpost, partner: survey } : baseDef && partnerPlace ? { place: byId(baseDef.id), partner: partnerPlace } : null;
     store.set({ mode: "surface", here: target });
     renderMission();
     live = { lon, lat };

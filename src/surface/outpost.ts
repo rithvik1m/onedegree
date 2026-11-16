@@ -15,7 +15,8 @@
 import * as THREE from "three";
 import { gated } from "./materials";
 import type { Collider } from "./player";
-import { placeable, tint } from "./assets";
+import { kit, placeable, tint } from "./assets";
+import type { BaseDef } from "../game/bases";
 
 export interface Interactable {
   id: string;
@@ -144,6 +145,8 @@ export interface OutpostRefs {
   interactables: Interactable[];
   arrays: THREE.Object3D[];
   dish: { yaw: THREE.Object3D; pitch: THREE.Object3D; radar: THREE.Object3D | null };
+  /** extra pieces that turn to the Sun or Earth azimuth (data-driven bases) */
+  trackers?: { o: THREE.Object3D; kind: "sun" | "earth" }[];
   beacons: Map<string, THREE.Object3D>;
   labels: THREE.Sprite[];
   spawn: { x: number; z: number; yaw: number };
@@ -648,4 +651,126 @@ export function heritageRing(radius: number, groundY: (x: number, z: number) => 
     g.add(seg);
   }
   return g;
+}
+
+/** Build a data-driven research base (src/game/bases.ts) on its measured terrain. */
+export function buildBase(def: BaseDef, groundY: (x: number, z: number) => number, partner: { x: number; z: number } | null): OutpostRefs {
+  const group = new THREE.Group();
+  group.name = `base-${def.id}`;
+  const colliders: Collider[] = [];
+  const interactables: Interactable[] = [];
+  const labels: THREE.Sprite[] = [];
+  const beacons = new Map<string, THREE.Object3D>();
+  const trackers: { o: THREE.Object3D; kind: "sun" | "earth" }[] = [];
+  const addLabel = (t: string, sub: string, x: number, y: number, z: number, k = 1): void => {
+    const l = label(t, sub, k);
+    l.position.set(x, y, z);
+    group.add(l);
+    labels.push(l);
+  };
+  for (const p of def.pieces) {
+    let obj: THREE.Object3D;
+    let height = 3;
+    if (p.model === "proc:sunsensor") {
+      const g = new THREE.Group();
+      const mast = mesh(new THREE.CylinderGeometry(0.05, 0.07, 1.6, 8), M.metal);
+      mast.position.y = 0.8;
+      const head = mesh(new THREE.BoxGeometry(0.9, 0.5, 0.06), M.cells);
+      head.position.y = 1.7;
+      const scr = mesh(new THREE.BoxGeometry(0.6, 0.38, 0.08), M.screen, false);
+      scr.position.set(0, 1.05, -0.12);
+      g.add(mast, head, scr);
+      obj = g;
+      height = 2;
+    } else if (p.model === "proc:console") {
+      const g = new THREE.Group();
+      const body = mesh(new THREE.BoxGeometry(1.0, 1.2, 0.6), M.panel);
+      body.position.y = 0.6;
+      const scr = mesh(new THREE.PlaneGeometry(0.8, 0.45), M.screen, false);
+      scr.position.set(0, 1.0, -0.31);
+      scr.rotation.y = Math.PI;
+      g.add(body, scr);
+      obj = g;
+      height = 1.4;
+    } else {
+      obj = placeable(p.model as Parameters<typeof placeable>[0], p.size, p.by ?? "width");
+      height = (obj.userData.size as THREE.Vector3).y;
+    }
+    // sit on the highest ground under the footprint (legs reach down)
+    const r = p.size / 2;
+    let top = -Infinity;
+    for (const [dx, dz] of [[0, 0], [r * 0.6, 0], [-r * 0.6, 0], [0, r * 0.6], [0, -r * 0.6]] as [number, number][]) top = Math.max(top, groundY(p.x + dx, p.z + dz));
+    const holder = new THREE.Group();
+    holder.position.set(p.x, top - 0.1, p.z);
+    holder.add(obj);
+    obj.rotation.y = p.rot ?? 0;
+    group.add(holder);
+    if (p.track) trackers.push({ o: obj, kind: p.track });
+    if (p.collide) colliders.push({ x: p.x, z: p.z, r: p.collide });
+    if (p.label) addLabel(p.label[0], p.label[1], p.x, top + height + 1.4, p.z, 0.95);
+  }
+  for (const it of def.interacts) {
+    const at = it.x === 0 && it.z === 0 && partner ? partner : { x: it.x, z: it.z };
+    interactables.push({ id: it.id, label: it.label, x: at.x, z: at.z, r: it.r });
+  }
+  // landing pad + lander
+  const pY = groundY(def.pad.x, def.pad.z);
+  const pad = mesh(new THREE.CylinderGeometry(14, 14.5, 0.6, 64), M.pad);
+  pad.position.set(def.pad.x, pY - 0.15, def.pad.z);
+  group.add(pad);
+  const ringP = mesh(new THREE.TorusGeometry(11, 0.15, 6, 64), M.lightAmber, false);
+  ringP.rotation.x = Math.PI / 2;
+  ringP.position.set(def.pad.x, pY + 0.17, def.pad.z);
+  group.add(ringP);
+  const lander = buildLander();
+  lander.position.set(def.pad.x, pY + 0.15, def.pad.z);
+  group.add(lander);
+  colliders.push({ x: def.pad.x, z: def.pad.z, r: 3.6 });
+  interactables.push({ id: "lander", label: "Board spacecraft", x: def.pad.x - 4.6, z: def.pad.z - 1, r: 3 });
+  addLabel("LANDER · OD-1", "your spacecraft", def.pad.x, pY + 12, def.pad.z);
+  beacons.set("lander", lander);
+  if (def.rover) {
+    const bay = mesh(new THREE.RingGeometry(3.6, 3.9, 40), M.lightAmber, false);
+    bay.rotation.x = -Math.PI / 2;
+    bay.position.set(def.rover.x, groundY(def.rover.x, def.rover.z) + 0.06, def.rover.z);
+    group.add(bay);
+  }
+  for (const [t, sub, x, z] of def.signs ?? []) addLabel(t, sub, x, groundY(x, z) + 1.4, z, 0.75);
+  // partner survey point: beacon (and, at EarthLink, the fictional lost probe)
+  if (partner && def.partner) {
+    const sY = groundY(partner.x, partner.z);
+    const sv = new THREE.Group();
+    const pole = mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.5, 8), M.orange);
+    pole.position.y = 1.25;
+    sv.add(pole);
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 160, 10, 1, true), new THREE.MeshBasicMaterial({ color: 0xffb347, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide }));
+    beam.position.y = 80;
+    beam.name = "beam";
+    sv.add(beam);
+    sv.position.set(partner.x, sY, partner.z);
+    group.add(sv);
+    beacons.set("survey", sv);
+    if (def.id === "earthlink") {
+      try {
+        const probe = kit("rover").scene.clone(true);
+        probe.scale.setScalar(0.55);
+        probe.rotation.set(0.12, 0.7, -0.08);
+        probe.position.set(partner.x + 3, groundY(partner.x + 3, partner.z + 2) + 0.2, partner.z + 2);
+        tint(probe, 0x9a9690, 0.4);
+        group.add(probe);
+      } catch {
+        /* kit not loaded: beacon only */
+      }
+    }
+    const sl = label(def.partner.label, def.partner.sub, 1);
+    sl.position.set(partner.x, sY + 5, partner.z);
+    group.add(sl);
+    labels.push(sl);
+  }
+  const dummy = new THREE.Group();
+  return {
+    group, colliders, interactables, arrays: trackers.filter((t) => t.kind === "sun").map((t) => t.o),
+    dish: { yaw: dummy, pitch: dummy, radar: null }, beacons, labels,
+    spawn: def.spawn, lander: def.pad, roverBay: def.rover ?? { x: def.pad.x - 20, z: def.pad.z }, trackers,
+  };
 }
