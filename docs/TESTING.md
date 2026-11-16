@@ -42,3 +42,14 @@ sprinting, third-person running and rover driving; plus an orbit → land round 
 then destroyed). Results are in the README. Headless Chrome cannot show the compositor
 cost of CSS blur; we removed blur over the canvas on principle, and the frames-delivered
 count rose from ~24 to 60 per second after the changes.
+
+## v4
+
+- Keypresses in the production build: H shows a scan card (values for the exact spot);
+  a second H within 3 s shows "recharging"; M toggles the full scanner; clicking a HUD
+  button then pressing Space jumps (focus released) instead of re-clicking; WASD works
+  after menus close; rover E/C/R/H work.
+- Dust: `tests/surface.test.ts` — a 2 m/s grain lands after 2·v/g = 2.47 s.
+- Historic: landed at Apollo 17 (card, quick scan: Sun clears the land by 28.4°, highest
+  horizon 13.7° N) and Apollo 11 (scope view of the reconstruction from 83 m).
+- Physics prototype (branch `physics-proto`): 6 tests and the Physics Lab — docs/PHYSICS.md.

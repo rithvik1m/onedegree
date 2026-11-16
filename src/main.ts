@@ -632,6 +632,7 @@ async function boot(): Promise<void> {
       ["Sun", now.real.sunLit[i] ? "DIRECT" : "SHADOW", now.real.sunLit[i] ? amber : "#ff9b82"],
       ["Earth", now.real.earthUp[i] ? "IN VIEW" : "BLOCKED", now.real.earthUp[i] ? blue : "#ff9b82"],
       ["Missions done", `${campaign.done.size} / ${MISSIONS.length}`],
+      ["Weather", "0% rain · 100% vacuum"],
     ] : []);
     inn.setScreen(1, `SITE COMPARISON · ${store.s.windowDays} d from ${fmtDate(t)}`, A && B ? [
       [`Sunlit · ${store.s.a.short}`, `${A.mReal.sunlitPct.toFixed(0)}%`, amber],
@@ -977,6 +978,8 @@ async function boot(): Promise<void> {
       $("scanCard").classList.add("hidden");
       if (!instrument.skylineOn) world.sky.setSkyline(null);
     }, 10000);
+    // a real "one degree" spot: the Sun is above a flat horizon but the land hides it
+    if (!sunOk && sk.sunEl > flat && !notes.some((n) => n.t.startsWith("★"))) addNote("obs", `★ Discovery: a one-degree spot at ${fmtLat(r.lat)} ${fmtLon(r.lon)} — the Sun (${sk.sunEl.toFixed(1)}°) is up, but the land rises to ${r.sunHz.toFixed(1)}° in front of it.`);
     if (campaign.mission?.id === "m1") return;
     if (!notes.some((n) => n.t.includes(`${fmtLat(r.lat)} ${fmtLon(r.lon)}`)) && notes.length < 40) addNote("obs", `Quick scan at ${fmtLat(r.lat)} ${fmtLon(r.lon)}: Sun ${sunOk ? "visible" : "hidden"}, Earth ${earthOk ? "in view" : "not in view"}, highest horizon ${hi.toFixed(1)}° ${compass(hiAz)}.`);
   }

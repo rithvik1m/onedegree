@@ -12,6 +12,7 @@
 | NASA Blue Marble Earth image (via Wikimedia Commons) | public domain (NASA) | `public/textures/earth_bluemarble_2048.jpg` |
 | Quaternius "Ultimate Space Kit" models (astronaut, rover, base modules, lab dome, solar panels, radar dish, antenna, crates, rocks) | CC0 1.0 (public domain); downloaded from Poly Pizza, each page marked "Public Domain (CC0)" | `public/models/kit/` (see its LICENSE.md) |
 | Lander, sun sensor, consoles, vertical solar arrays, Mission Control interior, hand-held scanner, regolith detail, small rocks | original, procedural (this repo, Apache-2.0) | `src/surface/` |
+| Rapier 3D (`@dimforge/rapier3d-compat`) — branch physics-proto only | Apache-2.0 | physics prototype |
 | Inter, JetBrains Mono (Google Fonts) | SIL Open Font License | UI type |
 | Vite, TypeScript, Vitest (dev tools) | MIT / Apache-2.0 | build & tests |
 

@@ -34,3 +34,12 @@ in this repository.
 - Chandrayaan-3: ISRO put Vikram to sleep at 02:30 UTC on 4 Sep 2023, "a little before sunset" (Gizmodo, Outlook India, Sep 2023).
 - IM-1 Odysseus: operated until about 29 Feb 2024 as lunar night approached (Satnews / Intuitive Machines, Feb 2024).
 - IM-2 Athena: landed on its side in a crater on 6 Mar 2025; mission ended the next day (Spaceflight Now, Astronomy, Mar 2025).
+
+## v4 additions
+
+| Data | Provider | Product | Used for |
+|---|---|---|---|
+| Apollo Lunar Module positions | NASA NSSDC — <https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_sites.html> | A11 0.67416°N 23.47314°E · A15 26.13239°N 3.63330°E · A17 20.1911°N 30.7723°E | historic destinations |
+| Apollo mission facts | NASA NSSDC — <https://nssdc.gsfc.nasa.gov/planetary/lunar/apolloland.html> | dates, EVA hours, traverse km, sample kg | historic site cards |
+| Global terrain | LRO LOLA global DEM 118 m/px (USGS Astrogeology mosaic, `Lunar_LRO_LOLA_Global_LDEM_118m_Mar2014.tif`, range-read ±25 km) | `scripts/historic.py` | walkable terrain + skylines at Apollo 11/15/17 |
+| Heritage distances | NASA 2011 "Recommendations to Space-Faring Entities" as reported (NBC News, Discover, NASASpaceflight, 2011–12): 75 m Apollo 11, 225 m Apollo 17 | — | keep-out rings (Apollo 15 uses 75 m as a labelled game choice) |

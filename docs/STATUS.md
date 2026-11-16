@@ -28,6 +28,11 @@ v1 is tagged `v1.0`, v2 `v2.0`; v3 work happened on branch `v3` and is merged to
 | **v3** Mission 01 rebuilt (station → rover → S-1 → field computer → why) | Done | played end to end in headless Chrome |
 | **v3.1** Performance pass (two-pass depth, LOD, culling, presets, adaptive resolution) | Done | README performance table |
 | **v3.1** Discovery loop at S-1 (predict → measure → see the ridge → compare → why → new question), field notes | Done | played end to end |
+| **v4** H quick scan + central keymap + focus fix | Done | keypress tests in the production build |
+| **v4** Ballistic dust, jump/air/land states, rover cockpit/recovery/suspension | Done | dust test; screenshots |
+| **v4** Historic destinations Apollo 11/15/17 (NSSDC, LOLA 118 m, heritage rings, scope) | Done | landed at A11 and A17 in headless Chrome |
+| **v4** Rapier physics prototype | Prototype on branch `physics-proto` (not production) | docs/PHYSICS.md, 6 tests |
+| Spacecraft flight, second research base, side missions, progress save | Not built — roadmap | docs/ROADMAP.md |
 | Production build | Done | `vite preview`, no console errors |
 | Reality Check 7: 3D world vs LOLA skyline (live) | Done | mean 0.019°, max 0.153°, ~60 ms in browser |
 | 30-s guided demo | Done for v3 (`src/demo.ts`); 30 s recording at `submission/onedegree_demo.mp4` (git-ignored) | captions only |

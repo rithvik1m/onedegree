@@ -48,6 +48,26 @@ does a one-week slip change the answer?* Every number comes from NASA data.
   The Delay (7-day slip). **Orbit and land anywhere** with a live landing preview.
 - **Scanner (M), Planner (P), Reality Check** — the v1 science tools, unchanged.
 
+## New in v4
+
+- **H — quick scan where you stand**: your own 360° NASA LOLA horizon traced over the
+  terrain, Sun and Earth visible/blocked with the margins, nearby points of interest
+  (works at every site, on foot or in the rover). **M** still opens the full scanner. One
+  central key map drives every on-screen hint; focused buttons no longer swallow keys.
+- **Historic destinations**: Apollo 11 (Tranquility Base), Apollo 15 (Hadley-Apennine),
+  Apollo 17 (Taurus-Littrow) at NASA NSSDC Lunar Module coordinates, on NASA LOLA 118 m
+  terrain. Labelled descent-stage reconstructions, NASA's 2011 keep-out distances (75 m,
+  225 m) as rings you cannot cross, an observation scope, and documented NSSDC facts.
+  Science contrast: highest horizon 1.3° on the Tranquillitatis mare vs 14.2° in the
+  Taurus-Littrow valley.
+- **Lunar dust** that behaves like vacuum dust: ballistic arcs under 1.62 m/s², no drag,
+  no clouds (boots, landings, rover wheels).
+- **Movement**: jump / airborne / landing states, bounding sprint; rover cockpit camera
+  (C), recovery (R), quicker low-speed steering, suspension articulation.
+- **Physics engine prototype** (branch `physics-proto`): Rapier rigid-body rover and
+  character on the same LOLA surface — measured in [docs/PHYSICS.md](docs/PHYSICS.md).
+  Roadmap: [docs/ROADMAP.md](docs/ROADMAP.md).
+
 ## What is real, what is modelled, what is fiction
 
 | Real NASA data | Computed by this app from NASA data | Simplified physics | Fiction (labelled) |
@@ -111,7 +131,7 @@ certification. See [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 ```bash
 npm install
 npm run dev        # http://localhost:5173
-npm test           # 25 tests: Horizons agreement, geometry, metrics, 3D-world consistency, physics, rover
+npm test           # 26 tests (32 on physics-proto): Horizons agreement, geometry, metrics, 3D-world consistency, physics, rover
 npm run build      # typecheck + production bundle
 ```
 
@@ -164,7 +184,7 @@ instruments, vertical arrays, interior, hand-held scanner: original procedural g
 ## Docs
 
 [Data sources](docs/DATA_SOURCES.md) · [Third-party attribution](docs/THIRD_PARTY_ATTRIBUTION.md) ·
-[Decisions](docs/DECISIONS.md) · [Design research](docs/DESIGN.md) · [Limitations](docs/LIMITATIONS.md) ·
+[Decisions](docs/DECISIONS.md) · [Design research](docs/DESIGN.md) · [Physics](docs/PHYSICS.md) · [Roadmap](docs/ROADMAP.md) · [Limitations](docs/LIMITATIONS.md) ·
 [Testing](docs/TESTING.md) · [Status](docs/STATUS.md) · [AI disclosure](docs/AI_DISCLOSURE.md) ·
 [Reused work](docs/REUSED_WORK.md)
 
