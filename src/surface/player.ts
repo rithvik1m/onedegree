@@ -8,18 +8,18 @@
  * Ground traction is lower than on Earth (weight is 1/6), so you accelerate and
  * stop more slowly. Slopes steeper than ~30° cannot be climbed.
  *
- * GAME CONCESSIONS (labelled in the controls help): walking 1.6 m/s; Shift lopes
- * at 4.5 m/s — faster than Apollo crews managed (~2 m/s) — so the outpost area is
- * explorable in minutes.
+ * GAME CONCESSIONS (labelled in the controls help): walking 3 m/s and Shift sprinting
+ * at 7.5 m/s — faster than Apollo crews managed (~2 m/s) — so exploring is never a
+ * chore; `speedScale` (display settings) adjusts both.
  */
 
 import * as THREE from "three";
 
 export const G_MOON = 1.62;
 export const EYE_HEIGHT = 1.62;
-const WALK = 1.6;
-const LOPE = 4.5;
-const JUMP_V = 2.2;
+const WALK = 3.0;
+const LOPE = 7.5;
+const JUMP_V = 2.4;
 
 export interface Collider { x: number; z: number; r: number }
 
@@ -36,6 +36,8 @@ export class Player {
   /** distance walked (for footstep cues) */
   stride = 0;
   landedAt = 0;
+  /** comfort multiplier for walk/sprint speed (game assist) */
+  speedScale = 1;
 
   constructor(private ground: (x: number, z: number) => number) {}
 
@@ -80,7 +82,7 @@ export class Player {
     fx /= len; fz /= len;
     const sy = Math.sin(this.yaw), cy = Math.cos(this.yaw);
     // forward = (sin yaw, 0, −cos yaw); right = (cos yaw, 0, sin yaw)
-    const want = this.running ? LOPE : WALK;
+    const want = (this.running ? LOPE : WALK) * this.speedScale;
     let tx = (sy * fz + cy * fx) * want * (fx || fz ? 1 : 0);
     let tz = (-cy * fz + sy * fx) * want * (fx || fz ? 1 : 0);
 
@@ -93,7 +95,7 @@ export class Player {
       if (grade > 0.58) { tx *= 0.05; tz *= 0.05; } else if (grade > 0.3) { tx *= 0.5; tz *= 0.5; }
     }
 
-    const accel = this.onGround ? (tx || tz ? 5.0 : 3.2) : 0.6;
+    const accel = this.onGround ? (tx || tz ? 12 : 9) : 1.2;
     const dvx = tx - this.vel.x, dvz = tz - this.vel.z;
     const dl = Math.hypot(dvx, dvz);
     const step = Math.min(dl, accel * dt);

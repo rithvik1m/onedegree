@@ -23,6 +23,8 @@ import { SurfaceWorld } from "./surface/world";
 import { loadPatch, patchFromGrid, smoothPatch, groundY, lonLatToScene, type SurfacePatch } from "./surface/terrain3d";
 import { shared } from "./surface/materials";
 import { runDemo } from "./demo";
+import { loadKit } from "./surface/assets";
+import { GlbAstronaut } from "./surface/character";
 import * as sfx from "./ui/sfx";
 
 const TOKEN_KEY = "onedegree.ionToken";
@@ -122,7 +124,12 @@ async function boot(): Promise<void> {
   const odysseus = byId("im1");
   progress("Loading NASA LOLA 10 m terrain around the outpost…");
   const patches = new Map<string, SurfacePatch>();
+  const kitP = loadKit((d, n) => progress(`Loading 3D models (CC0, Quaternius) ${d}/${n}…`)).catch((e: Error) => {
+    console.error("3D models failed to load", e);
+    return null;
+  });
   patches.set("outpost", await loadPatch("outpost"));
+  const kitLoaded = await kitP;
 
   const windowT0 = Date.UTC(2026, 10, 15) / 1000;
   const clock0 = chooseClock(data, outpost, survey, windowT0);
@@ -187,6 +194,9 @@ async function boot(): Promise<void> {
     if (moon) moon.setSky(sunVectorKm(sp), earthVectorKm(sp));
   };
 
+  if (kitLoaded) world.setCharacter(new GlbAstronaut(kitLoaded.get("astronaut")!));
+  else toast("3D models failed to load — check the network and reload. Science still works.", 8000);
+  world.kitReady = !!kitLoaded;
   updateSky(store.s);
   world.setSite(patches.get("outpost") as SurfacePatch, { outpost: true, survey });
 
@@ -345,6 +355,7 @@ async function boot(): Promise<void> {
   // ---------- interactions ----------
   function interact(id: string): void {
     sfx.open();
+    (world.astro as { gesture?: () => void }).gesture?.();
     campaign.emit({ type: "interact", id });
     if (id === "solar") instrument.open("solar", outpost);
     else if (id === "comms") instrument.open("comms", outpost);
@@ -708,6 +719,14 @@ async function boot(): Promise<void> {
     const up = a.real.earthUp[i] === 1;
     const lit = Math.round(world.sky.earthLitFraction() * 100);
     earthState = up ? `Earth · ${lit}% lit` : (a.track.earthEl[i] as number) > a.smoothDeg ? "Earth · behind terrain" : "Earth · below horizon";
+    const sunOk = a.real.sunLit[i] === 1;
+    world.handheld.draw({
+      sun: sunOk ? "VISIBLE" : sEl > a.smoothDeg ? "BEHIND TERRAIN" : "BELOW HORIZON",
+      sunOk,
+      earth: up ? "IN VIEW" : (a.track.earthEl[i] as number) > a.smoothDeg ? "BLOCKED" : "BELOW HORIZON",
+      earthOk: up,
+      place: `${store.s.here.short} · ${fmtUtc(store.s.time)} UTC`,
+    });
   };
   world.afterFrame = () => {
     const tag = $("earthTag");

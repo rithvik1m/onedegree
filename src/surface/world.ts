@@ -8,6 +8,8 @@
 import * as THREE from "three";
 import { discFractionAbove } from "../science/visibility";
 import { Astronaut } from "./astronaut";
+import type { GlbAstronaut } from "./character";
+import { Handheld } from "./handheld";
 import { regolithMaterial, shared } from "./materials";
 import { buildLander, buildOutpost, label, type Interactable, type OutpostRefs } from "./outpost";
 import { EYE_HEIGHT, Player } from "./player";
@@ -58,7 +60,10 @@ export class SurfaceWorld {
   readonly bounce = new THREE.HemisphereLight(0x000000, 0x9a9282, 0.0);
   readonly lamp = new THREE.SpotLight(0xfff1dc, 0, 60, 0.55, 0.5, 1.2);
   readonly player: Player;
-  readonly astro = new Astronaut();
+  astro: Astronaut | GlbAstronaut = new Astronaut();
+  readonly handheld = new Handheld();
+  private camVel = new THREE.Vector3();
+  private camInit = false;
   patch: SurfacePatch | null = null;
   outpost: OutpostRefs | null = null;
   private terrain: THREE.Mesh[] = [];
@@ -73,6 +78,7 @@ export class SurfaceWorld {
   private raf = 0;
   private cine: { update: (t: number) => boolean; start: number; resolve: () => void } | null = null;
   realisticDark = false;
+  kitReady = false;
   headBob = true;
   lampOn = false;
   readonlyFps = { fps: 0, frames: 0, t0: performance.now() };
@@ -111,6 +117,7 @@ export class SurfaceWorld {
 
     this.player = new Player((x, z) => (this.patch ? groundY(this.patch, x, z) : 0));
     this.scene.add(this.astro.root);
+    this.camera.add(this.handheld.group);
 
     window.addEventListener("resize", () => this.resize());
     this.resize();
@@ -396,8 +403,12 @@ export class SurfaceWorld {
       this.astro.root.rotation.y += d * Math.min(1, dt * 8);
     }
     this.astro.animate(dt, sp, !p.onGround ? "air" : sp > 2.6 ? "lope" : sp > 0.25 ? "walk" : "idle", p.vel.y);
-    this.astro.setFirstPerson(!p.thirdPerson && !this.cine);
-    this.astro.root.visible = this.cine ? this.cineShowBody : true;
+    const fpView = !p.thirdPerson && !this.cine && !this.driving;
+    this.astro.setFirstPerson(fpView);
+    if (this.cine) this.astro.root.visible = this.cineShowBody;
+    if (this.driving) this.astro.root.visible = false;
+    this.handheld.group.visible = fpView;
+    if (fpView) this.handheld.update(dt, sp, p.stride, p.pitch);
 
     // sun / shadows follow the player
     const sd = this.sky.sunDir;
@@ -500,6 +511,9 @@ export class SurfaceWorld {
     this.scene.add(g);
   }
 
+  private lastCam = 0;
+  driving = false;
+
   private placeCamera(now: number): void {
     const p = this.player;
     const c = this.camera;
@@ -516,17 +530,35 @@ export class SurfaceWorld {
       c.position.set(p.pos.x * 0.4 + (p.pos.x >= 0 ? -1.5 : 1.5), 2.7, 2.95);
       c.lookAt(p.pos.x, 1.1, p.pos.z - 0.6);
     } else {
-      const dist = 5.2;
-      const back = new THREE.Vector3(-Math.sin(p.yaw) * Math.cos(p.pitch * 0.6), 0, Math.cos(p.yaw) * Math.cos(p.pitch * 0.6));
-      const cx = p.pos.x + back.x * dist, cz = p.pos.z + back.z * dist;
-      let cy = p.pos.y + 2.2 - Math.sin(p.pitch) * 3;
-      if (this.patch) cy = Math.max(cy, groundY(this.patch, cx, cz) + 0.6);
-      c.position.set(cx, cy, cz);
-      c.lookAt(p.pos.x, p.pos.y + 1.4, p.pos.z);
+      // over-the-shoulder: behind and slightly right of the suit, smoothed, kept above ground
+      const dist = 4.2, side = 0.75;
+      const sy = Math.sin(p.yaw), cyw = Math.cos(p.yaw);
+      const pitch = Math.max(-0.9, Math.min(0.6, p.pitch));
+      const want = new THREE.Vector3(
+        p.pos.x - sy * dist * Math.cos(pitch) + cyw * side,
+        p.pos.y + 1.9 - Math.sin(pitch) * dist,
+        p.pos.z + cyw * dist * Math.cos(pitch) + sy * side,
+      );
+      if (this.patch) want.y = Math.max(want.y, groundY(this.patch, want.x, want.z) + 0.5);
+      if (!this.camInit) { c.position.copy(want); this.camInit = true; }
+      const k = 1 - Math.exp(-12 * Math.min(0.05, (now - this.lastCam) / 1000 || 0.016));
+      c.position.lerp(want, k);
+      const look = new THREE.Vector3(p.pos.x + sy * 8 * Math.cos(pitch) + cyw * side, p.pos.y + 1.55 + Math.sin(pitch) * 8, p.pos.z - cyw * 8 * Math.cos(pitch) + sy * side);
+      c.lookAt(look);
     }
+    this.lastCam = now;
+  }
+
+  /** Swap in the rigged GLB astronaut once it has loaded. */
+  setCharacter(c: GlbAstronaut): void {
+    const parent = this.astro.root.parent;
+    parent?.remove(this.astro.root);
+    this.astro = c;
+    (parent ?? this.scene).add(c.root);
   }
 
   toggleView(): boolean {
+    this.camInit = false;
     this.player.thirdPerson = !this.player.thirdPerson;
     return this.player.thirdPerson;
   }
