@@ -21,19 +21,19 @@ site is better, and does a one-week slip change the answer?
 - Final project (live app): _https://….vercel.app_ · source: https://github.com/rithvik1m/onedegree
 
 ## Detailed project description
-**What it does.** A short flyover sets the task; then you play five missions on foot
-(first or third person, lunar gravity, low-gravity jumps). *First Light*: the Solar
-Monitoring Station shows the Sun's elevation, the terrain horizon in its direction, the
-clearance, the next sunset and 30-day sunlight — scrub time and the Sun, its 30-day path
-(amber = sunlit, red = blocked) and the sun-tracking solar arrays move in the 3D sky.
-*Calling Earth*: the comms dish points at Earth's real direction; line of sight, next
-Earth-set, longest blackout. *The Shadow Problem*: lope to Survey point S-1, 433 m away —
-sunlit 20 % of the next 30 days versus 100 % at the outpost, while a smooth-Moon model
-predicts 100 % at both; the scanner's LOLA horizon can be traced over the 3D ridges and a
-marker shows the Sun hiding 1.8° below one. *Choose the Landing Site* and *The Delay* use
-the Mission Control console to compare Athena (IM-2) and Odysseus (IM-1) against a stated
-requirement and re-check after a 7-day slip. Board the lander to fly to orbit (CesiumJS
-globe with NASA imagery), preview any point's conditions, and land there.
+**What it does.** One complete science mission you play on foot and by rover. A short
+flyover sets the task; mission control asks whether a second site, Survey point S-1,
+could support operations. At the Solar Station the instrument answers three questions in
+plain words — is the Sun visible, is the land blocking it, when will that change — with a
+simple sky picture and one conclusion, and "Scientific details" / "Advanced" levels one
+click away (angles, 360° skyline, 30-day timeline, the step-by-step calculation, NASA
+sources, measured validation). You then drive the rover 433 m down the slope on real
+LOLA terrain, step out at S-1 and scan again: sunlit 20 % of the next 30 days versus
+100 % at the outpost, while a flat-Moon model predicts 100 % for both. The field computer
+asks which place meets the requirement (≥ 50 % sunlight) and the debrief explains why,
+from the data: S-1 is 82 m lower, where the land rises above the low polar Sun. More
+missions cover Earth line of sight, comparing Athena (IM-2) and Odysseus (IM-1), and a
+launch slip. You can walk into Mission Control, fly to orbit and land anywhere.
 
 **How it works.** (1) One hourly Horizons table of the Moon's sub-solar and sub-Earth
 points gives Sun/Earth azimuth/elevation for any lunar point. (2) Skylines: 720
@@ -50,7 +50,7 @@ own topocentric output (200 cases); the 3D world's horizon matches the scanner's
 skyline to 0.019° mean / 0.153° max; Odysseus ground height 2,592 m vs 2,579 m (LROC);
 Athena long-term sunlight 45.1 % vs 46.5 % and Earth 93.1 % vs 93.1 % (NASA maps);
 Chandrayaan-3's predicted sunset 3.7 h after ISRO put Vikram to sleep "a little before
-sunset". 22 automated tests; a live Reality Check re-runs the comparisons.
+sunset". 25 automated tests; a live Reality Check re-runs the comparisons.
 
 **Benefits.** Planners can re-check a slipped date or a neighbouring site in seconds;
 students and the public can see — by walking there — why the lunar south pole is so hard.
@@ -60,12 +60,13 @@ link, nothing certifies landing safety. The outpost, missions and suit are ficti
 micro-craters and rocks finer than the DEM are decoration that never enters a calculation.
 
 **Tools.** TypeScript, Vite, three.js, CesiumJS, canvas; Python (numpy, rasterio, pyproj,
-scipy); Vitest; Playwright for browser checks.
+scipy); Vitest; Playwright for browser checks. 3D models: Quaternius Ultimate Space Kit
+(CC0).
 
 ## Use of SI (AI)
 See docs/AI_DISCLOSURE.md — AI chat tools for brainstorming and planning; Claude Code wrote
 most of the code under the owner's direction; all data are NASA's; no AI-generated images,
-video, audio or 3D models (the outpost and astronaut are built procedurally in code).
+video, audio or 3D models (models are CC0 by Quaternius; the rest is procedural code).
 
 ## NASA data
 NASA/JPL Horizons; NASA Goddard PGDA LOLA south-pole DEMs (Barker et al. 2023, incl. the
