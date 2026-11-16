@@ -145,6 +145,7 @@ export interface OutpostRefs {
   labels: THREE.Sprite[];
   spawn: { x: number; z: number; yaw: number };
   lander: { x: number; z: number };
+  roverBay: { x: number; z: number };
 }
 
 export function buildOutpost(groundY: (x: number, z: number) => number, survey: { x: number; z: number }, sunAz = 250, surveyDist = 433, earthAz: number | null = null): OutpostRefs {
@@ -360,23 +361,13 @@ export function buildOutpost(groundY: (x: number, z: number) => number, survey: 
   addLabel("LANDER · OD-1", "your ride to orbit (fictional)", lpX, lpY + 12, lpZ);
   beacons.set("lander", lander);
 
-  // --- Rover parking ---
+  // --- Rover parking (the driveable rover is placed here by the world) ---
   const rvX = 24, rvZ = 28;
   const rvY = groundY(rvX, rvZ);
-  const rover = buildRover();
-  rover.position.set(rvX, rvY, rvZ);
-  rover.rotation.y = -0.5;
-  group.add(rover);
-  colliders.push({ x: rvX, z: rvZ, r: 2.4 });
-  const canopy = mesh(new THREE.BoxGeometry(7, 0.12, 5), M.cells);
-  canopy.position.set(rvX + 0.3, rvY + 3.6, rvZ + 0.2);
-  group.add(canopy);
-  for (const [cx, cz] of [[-3.3, -2.3], [3.3, -2.3], [-3.3, 2.3], [3.3, 2.3]]) {
-    const post = mesh(new THREE.CylinderGeometry(0.07, 0.07, 3.6, 8), M.metal);
-    post.position.set(rvX + 0.3 + (cx as number), rvY + 1.8, rvZ + 0.2 + (cz as number));
-    group.add(post);
-  }
-  addLabel("ROVER BAY", "pressurized rover (display only)", rvX, rvY + 5.2, rvZ, 0.9);
+  const bay = mesh(new THREE.RingGeometry(3.6, 3.9, 40), M.lightAmber, false);
+  bay.rotation.x = -Math.PI / 2;
+  bay.position.set(rvX, rvY + 0.06, rvZ);
+  group.add(bay);
 
   // --- Small instruments ---
   const inst = (x: number, z: number, name: string, sub: string): void => {
@@ -414,7 +405,7 @@ export function buildOutpost(groundY: (x: number, z: number) => number, survey: 
   path(-12, 2, -19, 2);
   path(-29, 4, odX + 4, odZ);
   path(4, 4, lpX - 14, lpZ - 14, 8);
-  path(4, 6, rvX - 2, rvZ - 2);
+  path(4, 6, rvX - 4, rvZ - 4);
 
   // --- Survey marker S-1 (Mission 03): tall beacon so it can be found ---
   const sY = groundY(survey.x, survey.z);
@@ -456,6 +447,7 @@ export function buildOutpost(groundY: (x: number, z: number) => number, survey: 
       return { x: cx - Math.sin(a) * r, z: cz + Math.cos(a) * r, yaw: a };
     })(),
     lander: { x: lpX, z: lpZ },
+    roverBay: { x: rvX, z: rvZ },
   };
 }
 
@@ -503,30 +495,5 @@ export function buildLander(): THREE.Group {
     rcs.position.set(Math.cos(a) * 1.75, 6.4, Math.sin(a) * 1.75);
     g.add(rcs);
   }
-  return g;
-}
-
-function buildRover(): THREE.Group {
-  const g = new THREE.Group();
-  const cab = mesh(new THREE.BoxGeometry(2.6, 1.7, 4.2), M.white);
-  cab.position.y = 1.55;
-  g.add(cab);
-  const front = mesh(new THREE.BoxGeometry(2.4, 0.9, 0.2), M.window, false);
-  front.position.set(0, 1.9, -2.12);
-  g.add(front);
-  const roof = mesh(new THREE.BoxGeometry(2.2, 0.08, 3.4), M.cells);
-  roof.position.set(0, 2.45, 0.2);
-  g.add(roof);
-  for (const z of [-1.4, 0, 1.4]) {
-    for (const s of [-1, 1]) {
-      const w = mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.4, 18), M.dark);
-      w.rotation.z = Math.PI / 2;
-      w.position.set(s * 1.45, 0.55, z);
-      g.add(w);
-    }
-  }
-  const mast = mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.2, 6), M.metal);
-  mast.position.set(0.8, 3.0, 1.4);
-  g.add(mast);
   return g;
 }

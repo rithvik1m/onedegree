@@ -10,6 +10,8 @@ import { discFractionAbove } from "../science/visibility";
 import { Astronaut } from "./astronaut";
 import type { GlbAstronaut } from "./character";
 import { Handheld } from "./handheld";
+import { Rover } from "./rover";
+import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { regolithMaterial, shared } from "./materials";
 import { buildLander, buildOutpost, label, type Interactable, type OutpostRefs } from "./outpost";
 import { EYE_HEIGHT, Player } from "./player";
@@ -79,6 +81,10 @@ export class SurfaceWorld {
   private cine: { update: (t: number) => boolean; start: number; resolve: () => void } | null = null;
   realisticDark = false;
   hideHandheld = false;
+  roverGltf: GLTF | null = null;
+  rover: Rover | null = null;
+  private roverCollider = { x: 1e9, z: 1e9, r: 2.6 };
+  private noKeys = new Set<string>();
   kitReady = false;
   headBob = true;
   lampOn = false;
@@ -181,7 +187,10 @@ export class SurfaceWorld {
         else this.player.jump();
       }
       if (e.code === "KeyE" && this.prompt && !this.cine) this.ev.onInteract(this.prompt.id);
-      if (e.code === "KeyL") this.lampOn = !this.lampOn;
+      if (e.code === "KeyL") {
+        if (this.driving && this.rover) this.rover.headlights = !this.rover.headlights;
+        else this.lampOn = !this.lampOn;
+      }
     });
     window.addEventListener("keyup", (e) => this.player.keys.delete(e.code));
     window.addEventListener("blur", () => this.player.keys.clear());
@@ -224,7 +233,18 @@ export class SurfaceWorld {
       exclude.push({ x: -8, z: 2, r: 60 }, { x: 99, z: 99, r: 26 }, { x: 30, z: -24, r: 22 }, { x: -42, z: 8, r: 9 });
       const sp = opts.spawn ?? this.outpost.spawn;
       this.player.place(sp.x, sp.z, sp.yaw);
+      if (this.roverGltf) {
+        if (!this.rover) this.rover = new Rover(this.roverGltf);
+        this.props.add(this.rover.root);
+        const b = this.outpost.roverBay;
+        const toS1 = Math.atan2(sx - b.x, -(sz - b.z));
+        this.rover.place(b.x, b.z, toS1, gy);
+        this.player.colliders = [...this.outpost.colliders, this.roverCollider];
+        exclude.push({ x: b.x, z: b.z, r: 7 });
+      }
     } else {
+      if (this.driving) this.exitRover();
+      this.rover = null;
       // your lander, parked 25 m north-east of where you stand
       const lander = buildLander();
       const lx = 18, lz = -18;
@@ -385,7 +405,19 @@ export class SurfaceWorld {
     if (this.cine) {
       const done = this.cine.update(now - this.cine.start);
       if (done) { const r = this.cine.resolve; this.cine = null; r(); }
+    } else if (this.driving && this.rover && this.patch) {
+      const pt = this.patch;
+      this.rover.update(dt, p.keys, (x, z) => groundY(pt, x, z), this.outpost?.colliders ?? [], true);
+      p.pos.copy(this.rover.pos);
+      p.vel.set(0, 0, 0);
+      this.placeRoverCamera(dt);
     } else {
+      if (this.rover && this.patch) {
+        const pt = this.patch;
+        this.rover.update(dt, this.noKeys, (x, z) => groundY(pt, x, z), this.outpost?.colliders ?? [], false);
+        this.roverCollider.x = this.rover.pos.x;
+        this.roverCollider.z = this.rover.pos.z;
+      }
       p.update(dt, now);
       if (this.inside && this.interior) {
         this.interior.clamp(p.pos);
@@ -429,7 +461,11 @@ export class SurfaceWorld {
       }
     }
     // interaction prompt
-    const list = this.inside && this.interior ? this.interior.interactables : [...(this.outpost?.interactables ?? []), ...this.siteInteractables];
+    let list = this.inside && this.interior ? this.interior.interactables : [...(this.outpost?.interactables ?? []), ...this.siteInteractables];
+    if (this.rover && !this.inside) {
+      if (this.driving) list = Math.abs(this.rover.speed) < 0.6 ? [{ id: "rover-exit", label: "Exit rover", x: p.pos.x, z: p.pos.z, r: 1 }] : [];
+      else list = [...list, { id: "rover", label: "Enter rover", x: this.rover.pos.x, z: this.rover.pos.z, r: 5 }];
+    }
     let best: Interactable | null = null;
     let bd = Infinity;
     for (const it of list) {
@@ -548,6 +584,34 @@ export class SurfaceWorld {
       c.lookAt(look);
     }
     this.lastCam = now;
+  }
+
+  enterRover(): void {
+    if (!this.rover || this.driving) return;
+    this.driving = true;
+    this.camInit = false;
+    this.rover.speed = 0;
+    this.prompt = null;
+  }
+
+  exitRover(): void {
+    if (!this.rover || !this.driving) return;
+    this.driving = false;
+    const e = this.rover.exitSpot();
+    this.player.place(e.x, e.z, e.yaw);
+    this.camInit = false;
+    this.prompt = null;
+  }
+
+  private placeRoverCamera(dt: number): void {
+    const r = this.rover as Rover;
+    const c = this.camera;
+    const fx = Math.sin(r.yaw), fz = -Math.cos(r.yaw);
+    const want = new THREE.Vector3(r.pos.x - fx * 10, r.pos.y + 4.4, r.pos.z - fz * 10);
+    if (this.patch) want.y = Math.max(want.y, groundY(this.patch, want.x, want.z) + 1.2);
+    if (!this.camInit) { c.position.copy(want); this.camInit = true; }
+    c.position.lerp(want, 1 - Math.exp(-6 * dt));
+    c.lookAt(r.pos.x + fx * 8, r.pos.y + 1.6, r.pos.z + fz * 8);
   }
 
   /** Swap in the rigged GLB astronaut once it has loaded. */

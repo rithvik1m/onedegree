@@ -48,6 +48,14 @@
     <div id="stick" class="stick hidden" aria-hidden="true"><div id="stickKnob" class="stick-knob"></div></div>
     <button id="btnJump" class="touch-btn hidden" aria-label="Jump">⤒</button>
 
+    <!-- Rover HUD -->
+    <div id="roverHud" class="rover-hud hidden" aria-live="polite">
+      <div class="rh-speed"><b id="rhSpeed">0</b><span>km/h</span></div>
+      <div class="rh-nav"><span id="rhArrow" class="m-arrow">▲</span><span id="rhNav">—</span></div>
+      <div class="rh-keys"><span class="key">W</span><span class="key">S</span> drive · <span class="key">A</span><span class="key">D</span> steer · <span class="key">L</span> lights · <span class="key">E</span> exit when stopped</div>
+      <div class="rh-note">Gameplay vehicle — not an engineering model</div>
+    </div>
+
     <!-- Context prompt -->
     <button id="prompt" class="prompt hidden"><span class="key">E</span><span id="promptText"></span></button>
 

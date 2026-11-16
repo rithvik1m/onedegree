@@ -194,7 +194,10 @@ async function boot(): Promise<void> {
     if (moon) moon.setSky(sunVectorKm(sp), earthVectorKm(sp));
   };
 
-  if (kitLoaded) world.setCharacter(new GlbAstronaut(kitLoaded.get("astronaut")!));
+  if (kitLoaded) {
+    world.setCharacter(new GlbAstronaut(kitLoaded.get("astronaut")!));
+    world.roverGltf = kitLoaded.get("rover") ?? null;
+  }
   else toast("3D models failed to load — check the network and reload. Science still works.", 8000);
   world.kitReady = !!kitLoaded;
   updateSky(store.s);
@@ -370,6 +373,15 @@ async function boot(): Promise<void> {
       world.sky.setSkyline(instrument.skylineOn && a?.skyline ? a.skyline.horizon : null);
       caption(instrument.skylineOn ? "You are looking WSW into Shackleton crater — its floor lies about 4 km below this rim and never sees direct sunlight. The teal line is the horizon the scanner computes from NASA LOLA terrain; it traces the 3D ridges because both come from the same data." : "Horizon trace off", 9000);
     } else if (id === "lander") void goOrbit();
+    else if (id === "rover") {
+      instrument.close();
+      world.enterRover();
+      document.body.classList.add("driving");
+      caption("Rover: W/S drive, A/D steer, L headlights. Stop, then E to step out.", 4200);
+    } else if (id === "rover-exit") {
+      world.exitRover();
+      document.body.classList.remove("driving");
+    }
   }
   async function enterControl(): Promise<void> {
     if (world.inside) return;
@@ -731,6 +743,18 @@ async function boot(): Promise<void> {
   };
   world.afterFrame = () => {
     world.hideHandheld = instrument.isOpen() || planner.isOpen();
+    const rh = $("roverHud");
+    rh.classList.toggle("hidden", !world.driving);
+    if (world.driving && world.rover) {
+      $("rhSpeed").textContent = world.rover.kmh.toFixed(0);
+      const tgt = targetPos(campaign.step?.target) ?? { x: -6, z: 2 };
+      const dx = tgt.x - world.rover.pos.x, dz = tgt.z - world.rover.pos.z;
+      const d = Math.hypot(dx, dz);
+      const rel = Math.atan2(dx, -dz) - world.rover.yaw;
+      ($("rhArrow") as HTMLElement).style.transform = `rotate(${rel}rad)`;
+      const label = campaign.step?.target ? (world.outpost?.interactables.find((i) => i.id === campaign.step?.target)?.label.split("·").pop()?.trim() ?? "Target") : "Outpost";
+      $("rhNav").textContent = `${label} · ${d < 1000 ? d.toFixed(0) + " m" : (d / 1000).toFixed(2) + " km"}`;
+    }
     const tag = $("earthTag");
     if (store.s.mode !== "surface" || !earthState || world.inside) { tag.classList.add("hidden"); $("sunTag").classList.add("hidden"); return; }
     const p = world.projectDir(world.sky.earthDir);

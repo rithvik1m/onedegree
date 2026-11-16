@@ -455,3 +455,14 @@ canvas.skyview { width: 100%; display: block; border-radius: var(--radius); box-
 .adv h4 { margin: 10px 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--sun-ink); }
 .adv ol, .adv ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
 .adv b { color: var(--text); font-variant-numeric: tabular-nums; }
+
+/* Rover HUD */
+.rover-hud { position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 22; display: grid; grid-template-columns: auto auto; gap: 4px 18px; align-items: center; padding: 10px 18px; border-radius: 16px; background: rgb(8 8 9 / 0.78); box-shadow: inset 0 0 0 1px rgb(242 181 68 / 0.35), 0 10px 30px rgb(0 0 0 / 0.5); backdrop-filter: blur(8px); }
+.rh-speed b { font-size: 34px; font-weight: 760; font-variant-numeric: tabular-nums; color: var(--sun-ink); }
+.rh-speed span { margin-left: 4px; color: var(--text-faint); font-size: 12px; }
+.rh-nav { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; }
+.rh-keys { grid-column: 1 / -1; font-size: 12px; color: var(--text-dim); display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.rh-keys .key { min-width: 20px; height: 20px; font-size: 10.5px; background: rgb(255 255 255 / 0.1); color: var(--text); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.14); }
+.rh-note { grid-column: 1 / -1; font-size: 10.5px; color: var(--text-faint); }
+body.driving .tutorial, body.driving #prompt:not(.exit) { }
+body.in-orbit .rover-hud, body.demo .rover-hud { display: none !important; }
