@@ -57,4 +57,6 @@ v1 is tagged `v1.0`, v2 `v2.0`; v3 work happened on branch `v3` and is merged to
   11 buildings from four sides → 0 ended inside geometry; rover stops at walls; all interactions reachable.
 - Movement: 150 ms jump buffer + 120 ms coyote time (input forgiveness; lunar gravity unchanged).
 - Developer collider view: append ?debug=colliders.
-- Not done tonight: new building interiors (Mission Control remains the only enterable interior).
+- New interior: HAB-1 crew quarters (airlock entry from the habitat, bunks, lockers, galley notes, suit dock,
+  viewport, life-support panel with real Sun/Earth status; resting advances the mission clock 8 h). Solid furniture.
+- Interiors now: Mission Control + HAB-1. Other buildings are solid exteriors and are not advertised as enterable.

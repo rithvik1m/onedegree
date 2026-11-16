@@ -19,6 +19,7 @@ import type { BaseDef } from "../game/bases";
 import { EYE_HEIGHT, Player, insideCollider, resolveCircle } from "./player";
 import { Sky3D, dirFromAzEl } from "./sky3d";
 import { Interior } from "./interior";
+import { HabitatInterior } from "./habitat";
 import { actionFor, releaseButtonFocus } from "../game/input";
 import { buildTerrain, farHorizon, groundY, horizonToward, lonLatToScene, sceneToLonLat, type SurfacePatch } from "./terrain3d";
 import { DPR_CAP, PIXEL_BUDGET, TERRAIN_LOD, loadGfx, saveGfx, type Gfx } from "./graphics";
@@ -493,13 +494,15 @@ export class SurfaceWorld {
   }
 
   // ---------- Mission Control interior ----------
-  interior: Interior | null = null;
+  interior: Interior | HabitatInterior | null = null;
+  private mcRoom: Interior | null = null;
+  readonly habitat = new HabitatInterior();
   inside = false;
   private returnSpot = { x: 0, z: 0, yaw: 0 };
   private savedColliders: { x: number; z: number; r: number }[] = [];
 
-  enterInterior(returnSpot: { x: number; z: number; yaw: number }): void {
-    this.interior ??= new Interior();
+  enterInterior(returnSpot: { x: number; z: number; yaw: number }, room?: Interior | HabitatInterior): void {
+    this.interior = room ?? (this.mcRoom ??= new Interior());
     this.returnSpot = returnSpot;
     this.inside = true;
     this.savedColliders = this.player.colliders;
@@ -932,7 +935,8 @@ export class SurfaceWorld {
       c.rotation.set(p.pitch, -p.yaw, 0);
     } else if (this.inside) {
       // a corner camera, like the module's own monitoring camera
-      c.position.set(p.pos.x * 0.4 + (p.pos.x >= 0 ? -1.5 : 1.5), 2.7, 2.95);
+      const hab = this.interior instanceof HabitatInterior;
+      c.position.set(p.pos.x * 0.4 + (p.pos.x >= 0 ? -1.5 : 1.5), hab ? 2.45 : 2.7, hab ? 2.3 : 2.95);
       c.lookAt(p.pos.x, 1.1, p.pos.z - 0.6);
     } else {
       // over-the-shoulder: behind and slightly right of the suit, smoothed, kept above ground

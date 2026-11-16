@@ -56,7 +56,7 @@ token).
 - **Not built:** Earth excursion; more than one rover per region; NPCs.
 
 ## v6 polish
-- Only Mission Control has an interior. Habitat, lab, garage, comms and solar buildings are exteriors with solid
-  collision; none is advertised as enterable.
+- Two interiors: Mission Control and HAB-1 crew quarters. The lab, garage, comms and solar buildings are exteriors with
+  solid collision; none is advertised as enterable. HAB-1 life-support numbers are fictional (labelled in-game).
 - Colliders are 2D footprints (oriented boxes) plus roof height for the camera; you cannot climb onto roofs.
 - The pixel budget lowers internal resolution on very large windows (Balanced: ~2.1 MP); choose High for full resolution.

@@ -184,6 +184,7 @@ export function buildOutpost(groundY: (x: number, z: number) => number, survey: 
     // --- Habitat dome, Mission Control (L-module), lab dome, storage — Quaternius CC0 kit ---
     const hab = site("base_large", 12, -9, 12);
     colliders.push({ x: -9, z: 12, r: 6.2 });
+    interactables.push({ id: "habitat", label: "Enter HAB-1 · crew quarters (airlock)", x: -4.4, z: 6.4, r: 2.6 });
     addLabel("HAB-1 · Habitat", "crew quarters (simulated)", -9, hab.position.y + (hab.userData.size as THREE.Vector3).y + 1.2, 12);
     addLabel("Great views.", "No atmosphere.", -9 + 6.8, groundY(-2.2, 15.5) + 1.4, 15.5, 0.75);
     const ctl = site("building_l", 13, -7, -7, Math.PI / 2);

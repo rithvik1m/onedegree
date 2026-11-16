@@ -28,6 +28,7 @@ import { smoothHorizonDeg } from "./science/terrain";
 import { loadKit } from "./surface/assets";
 import { BASES, baseById } from "./game/bases";
 import { GlbAstronaut } from "./surface/character";
+import { HabitatInterior } from "./surface/habitat";
 import * as THREE from "three";
 import { Flight, type FlightDest } from "./flight/flight";
 import { R_MOON, SceneFrame, rangeBearing, unitLL } from "./flight/sim";
@@ -594,6 +595,9 @@ async function boot(): Promise<void> {
       else instrument.open("survey", survey, outpost);
     }
     else if (id === "control") void enterControl();
+    else if (id === "habitat") void enterHabitat();
+    else if (id === "hab-exit") void exitControl();
+    else if (id.startsWith("hab-")) habitatUse(id);
     else if (id === "console") openControl();
     else if (id === "exit") void exitControl();
     else if (id === "deck") {
@@ -647,8 +651,65 @@ async function boot(): Promise<void> {
     $("roMode").textContent = modeLabel();
     await fade(false, 350);
   }
+  // ---------- HAB-1 crew quarters (interior) ----------
+  const habStatus = (): void => {
+    const now = skyNow(data, outpost, store.s.time);
+    const a = analyse(data, outpost, windowT0, 30);
+    const i = a ? Math.max(0, Math.min(a.track.n - 1, Math.round((store.s.time - a.t0) / a.track.stepS))) : 0;
+    world.habitat.status = {
+      sun: now ? `${now.sun.el.toFixed(2)}° elevation · ${a && a.real.sunLit[i] === 1 ? "clears the ridge" : now.sun.el > 0 ? "behind terrain" : "below horizon"}` : "—",
+      earth: now ? `${now.earth.el.toFixed(2)}° · ${a && a.real.earthUp[i] === 1 ? "in line of sight" : "blocked / below horizon"}` : "—",
+      utc: fmtUtc(store.s.time),
+    };
+    world.habitat.drawEcl();
+  };
+  const habSeen = new Set<string>();
+  async function enterHabitat(): Promise<void> {
+    if (world.inside) return;
+    instrument.close();
+    await fade(true, 260);
+    const it = world.outpost?.interactables.find((i) => i.id === "habitat");
+    habStatus();
+    world.enterInterior({ x: it?.x ?? 0, z: it?.z ?? 0, yaw: Math.atan2((it?.x ?? 0) + 9, -((it?.z ?? 0) - 12)) + Math.PI }, world.habitat);
+    $("roMode").textContent = "Inside HAB-1 crew quarters (fictional)";
+    document.body.classList.add("indoors");
+    await fade(false, 320);
+    sfx.open();
+    caption("HAB-1 crew quarters (fictional). Airlock cycled — look around: E on anything that catches your eye.", 4200);
+  }
+  function habitatUse(id: string): void {
+    const first = !habSeen.has(id);
+    habSeen.add(id);
+    if (id === "hab-bunk") {
+      const t0 = store.s.time;
+      const a0 = skyNow(data, outpost, t0);
+      store.set({ time: t0 + 8 * 3600 });
+      const a1 = skyNow(data, outpost, store.s.time);
+      habStatus();
+      if (a0 && a1) caption(`You rest 8 hours. Mission clock ${fmtUtc(store.s.time)} UTC. Outside, the Sun moved ${(((a1.sun.az - a0.sun.az) % 360 + 540) % 360 - 180).toFixed(0)}° around the horizon and is now ${a1.sun.el.toFixed(2)}° high — near the pole it circles instead of rising (NASA/JPL Horizons).`, 8000);
+      return;
+    }
+    if (id === "hab-notes") {
+      caption("Crew note, day 41 (fictional): “Rim panels got sun 9 of the last 10 days. The S-1 crew says their ridge ate the Sun again. One degree. Every time.”", 7000);
+      if (first) addNote("obs", "HAB-1 crew note: the rim gets sunlight most days; S-1's ridge blocks the low Sun — check it yourself with the field scanner at S-1.");
+    } else if (id === "hab-ecl") {
+      habStatus();
+      caption("Life-support numbers here are fictional set dressing. The Sun and Earth lines are real: NASA/JPL Horizons positions against the NASA LOLA horizon of this rim.", 6500);
+    } else if (id === "hab-suit") {
+      caption("Suit dock (fictional): batteries charge from the solar arrays outside — the same arrays a one-degree ridge can starve of light.", 5500);
+    } else if (id === "hab-view") {
+      const n = skyNow(data, outpost, store.s.time);
+      caption(n ? `Through the viewport: the Sun is ${n.sun.el.toFixed(2)}° above a flat horizon and Earth ${n.earth.el.toFixed(2)}°. Near the pole both stay low all year — so the land decides what you see.` : "Through the viewport: stars, sharp and steady — no air to make them twinkle.", 7000);
+    } else if (id === "hab-locker") {
+      caption("Locker 3: a crew photo, a sticky note — “never trust a ridge you haven't scanned” — and a harmonica, a nod to the one carried aboard Gemini 6A in 1965.", 6500);
+      if (first) toast("Discovery logged: Locker 3 (easter egg).", 2600);
+    }
+    sfx.blip();
+  }
+
   function refreshScreens(): void {
     const inn = world.interior;
+    if (!inn || inn instanceof HabitatInterior) return;
     if (!inn || !world.inside) return;
     const t = store.s.landing + store.s.slipDays * 86400;
     const A = analyse(data, store.s.a, t, store.s.windowDays);
