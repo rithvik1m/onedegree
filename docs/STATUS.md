@@ -1,7 +1,7 @@
 # Status
 
 "Done" = ran in a real browser (headless Chrome 157, Metal GPU) or in `npm test`, with evidence.
-v1 is tagged `v1.0`; v2 work happened on branch `v2` and is merged to `main` at checkpoints.
+v1 is tagged `v1.0`, v2 `v2.0`; v3 work happened on branch `v3` and is merged to `main` at checkpoints.
 
 | Area | State | Evidence |
 |---|---|---|
@@ -21,7 +21,12 @@ v1 is tagged `v1.0`; v2 work happened on branch `v2` and is merged to `main` at 
 | **v2** Walk-in Mission Control interior (live screens; console opens the planner; airlock exit) | Done | enter → console → planner → exit tested in headless Chrome |
 | Cesium Moon tiles (token path) | Untested | no token available |
 | Phone layout + touch controls (v2) | Done | emulated iPhone 13: joystick moved 2.7 m; HUD fits 390 px |
+| **v3** CC0 Quaternius models (astronaut, rover, base) | Done | `public/models/kit/LICENSE.md` |
+| **v3** Animated astronaut, FP hand-held scanner, smooth TP camera, faster movement | Done | screenshots; sprint 7.5 m/s measured |
+| **v3** Driveable rover (enter/exit, terrain-following, collisions, HUD) | Done | `tests/surface.test.ts` rover tests; headless drive at 29 km/h |
+| **v3** Simple / Details / Advanced science levels | Done | screenshots of all three |
+| **v3** Mission 01 rebuilt (station → rover → S-1 → field computer → why) | Done | played end to end in headless Chrome |
 | Production build | Done | `vite preview`, no console errors |
 | Reality Check 7: 3D world vs LOLA skyline (live) | Done | mean 0.019°, max 0.153°, ~60 ms in browser |
-| 30-s guided demo | Done for v2 (`src/demo.ts`); 29.9 s recording at `submission/onedegree_demo.mp4` (git-ignored) | captions only |
+| 30-s guided demo | Done for v3 (`src/demo.ts`); 30 s recording at `submission/onedegree_demo.mp4` (git-ignored) | captions only |
 | Vercel deploy | Waiting for owner to import the repo | `vercel.json` |

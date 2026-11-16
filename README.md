@@ -16,37 +16,43 @@ does a one-week slip change the answer?* Every number comes from NASA data.
 
 ## The experience
 
-- **Opening.** A flyover of the outpost, the thesis, and your task — skippable; choose
-  *Begin Mission 01* or *Free exploration*.
-- **Walk the outpost.** First person (look down: legs and boots) or third person (**V**).
-  WASD, mouse look (click to capture, **Esc** to release), **Shift** lope, **Space**
-  low-gravity jump (g = 1.62 m/s²), **E** use, **L** helmet lamp.
-- **Science is the gameplay — five missions:**
-  1. **First Light** — the Solar Monitoring Station: Sun elevation/azimuth, the LOLA
-     horizon in that direction, clearance, next sunset, 30-day sunlight and longest
-     night. Scrub or play time and watch the Sun (and the sun-tracking solar arrays)
-     move in the 3D sky; the Sun's 30-day path is drawn amber where it clears the
-     terrain and red where it is blocked.
-  2. **Calling Earth** — the Comms Station: the dish points at Earth's real direction;
-     line of sight, next Earth-set, longest blackout (line of sight ≠ radio link).
-  3. **The Shadow Problem** — lope to Survey point S-1, 433 m away and 82 m lower:
-     real terrain vs smooth Moon vs the outpost. Trace the scanner's LOLA horizon over
-     the 3D ridges.
-  4. **Choose the Landing Site** — walk into Mission Control (live screens fed by the
-     science engine) and use the planning console: Athena vs Odysseus against a stated
-     requirement (Sun **and** Earth together).
-  5. **The Delay** — slip the launch 7 days and re-check.
-- **Orbit and land anywhere.** Board the lander (or **O**): ascent, a CesiumJS globe
-  with NASA LRO imagery, a landing preview computed live (Sun/Earth now, 30-day
-  sunlight and Earth %), then descent onto LOLA terrain at the chosen point.
-- **Field scanner (M), Planner (P), Reality Check** — kept from v1 and shared by the
-  instruments: one engine, so nothing can disagree.
+- **Opening (0–20 s).** A flyover of the outpost and one sentence of purpose; *Begin
+  Mission 01*, *Free exploration* or *Skip*. Mission control gives one question.
+- **Mission 01 — First Light (one complete science mission).** Walk to the Solar Station
+  → it answers three questions in plain words (*Is the Sun visible? Is the land blocking
+  it? When will that change?*) with a simple sky picture and one conclusion → **get in
+  the rover** and drive 433 m down the slope to Survey point S-1 → step out and scan →
+  the field computer compares both measured places against a stated requirement
+  (direct sunlight ≥ 50 % of the next 30 days) → choose → the debrief explains **why**
+  from the real data (S-1 is 82 m lower; the land there rises above the low polar Sun).
+  An *Advanced explanation* gives the calculation, sources and long-term NASA check.
+- **Three levels of science** at every instrument: *Simple* (plain English), *Scientific
+  details* (angles, clearance, 360° skyline, 30-day timeline, time controls), *Advanced*
+  (step-by-step calculation, NASA sources, measured validation, limits). Same numbers at
+  every level.
+- **Drive the rover** (E to enter, W/S drive, A/D steer, L headlights, E to step out when
+  stopped): terrain-following on LOLA with pitch and roll, lunar-gravity slope effect,
+  climb limit, collisions, speed and navigation HUD. A gameplay vehicle, not an
+  engineering model.
+- **The astronaut**: a rigged, animated suit (idle, walk, run, interact). First person
+  shows a gloved hand holding the field scanner (live Sun/Earth status) — no floating
+  body parts; third person is a smooth over-the-shoulder camera (**V**).
+- **Movement**: WASD, mouse look (click to capture, Esc to release), **Shift** sprint,
+  **Space** lunar jump (g = 1.62 m/s²), **E** use / enter rover, **M** scanner,
+  **P** planner, **O** orbit. Walk 3 m/s, sprint 7.5 m/s — labelled game assists, with
+  a speed slider.
+- **The outpost**: habitat dome, Mission Control (walk in: live screens and the
+  planning console), geodesic lab, sun-tracking vertical arrays, Earth-tracking comms
+  dish, rover, lander — CC0 Quaternius models plus original procedural pieces.
+- **More missions**: Calling Earth (comms), Choose the Landing Site (Athena vs Odysseus),
+  The Delay (7-day slip). **Orbit and land anywhere** with a live landing preview.
+- **Scanner (M), Planner (P), Reality Check** — the v1 science tools, unchanged.
 
 ## What is real, what is modelled, what is fiction
 
 | Real NASA data | Computed by this app from NASA data | Simplified physics | Fiction (labelled) |
 |---|---|---|---|
-| Sun/Earth directions (JPL Horizons); terrain heights (LOLA 10/20/80/240 m DEMs); long-term illumination maps (PGDA 69); Earth imagery (Blue Marble) | skylines, sunlight/Earth %, nights, blackouts, site choice for the outpost | lunar gravity, jumps, slope limit; lunar-Lambert shading; bounce/earthshine fill | the outpost, lander, rover, instruments, missions, astronaut gaits, micro-craters and rocks finer than the DEM |
+| Sun/Earth directions (JPL Horizons); terrain heights (LOLA 10/20/80/240 m DEMs); long-term illumination maps (PGDA 69); Earth imagery (Blue Marble) | skylines, sunlight/Earth %, nights, blackouts, site choice for the outpost | lunar gravity, jumps, slope limit; lunar-Lambert shading; bounce/earthshine fill | the outpost, rover, lander, instruments, missions, movement speeds, micro-craters and rocks finer than the DEM |
 
 The 3D terrain is built from the **same great-circle rays** the scanner uses: the
 horizon of the 3D mesh matches the scanner's LOLA skyline to **0.019° mean / 0.153°
@@ -105,7 +111,7 @@ certification. See [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 ```bash
 npm install
 npm run dev        # http://localhost:5173
-npm test           # 22 tests: Horizons agreement, geometry, metrics, 3D-world consistency, physics
+npm test           # 25 tests: Horizons agreement, geometry, metrics, 3D-world consistency, physics, rover
 npm run build      # typecheck + production bundle
 ```
 
@@ -125,6 +131,13 @@ python scripts/outpost.py             # outpost siting + 10 m walkable terrain m
 python scripts/extract_illumination.py
 python scripts/polar_map.py
 ```
+
+## 3D models
+
+Quaternius **Ultimate Space Kit** (CC0 / public domain, via Poly Pizza): astronaut,
+rover, habitat, Mission Control, lab dome, solar panels, radar dish, antenna, crates,
+boulders — see [public/models/kit/LICENSE.md](public/models/kit/LICENSE.md). Lander,
+instruments, vertical arrays, interior, hand-held scanner: original procedural geometry.
 
 ## Docs
 

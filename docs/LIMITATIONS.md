@@ -33,9 +33,10 @@ works only inside it. Windows use 30-minute steps.
 
 **The outpost and missions are fiction.** The site is real and data-chosen; the base,
 lander, rover, instruments and mission story are a simulation set, not a NASA plan.
-Movement is lunar-gravity physics with comfort concessions (walk 1.6 m/s; lope
-4.5 m/s, faster than Apollo crews managed; slight air control; staying grounded on
-small downhill rises). Ascent and descent are cinematic camera moves, not flight
+Movement is lunar-gravity physics with comfort concessions (walk 3 m/s, sprint
+7.5 m/s — faster than Apollo crews managed — adjustable; slight air control; staying
+grounded on small downhill rises). The rover is a kinematic gameplay vehicle (8 m/s
+top speed; the Apollo LRV did about 5 m/s), not an engineering model. Ascent and descent are cinematic camera moves, not flight
 dynamics. There is no sound in vacuum; the app is silent.
 
 **Orbit globe.** Uses NASA Moon Trek LRO WAC imagery (~100 m/px at best); with an

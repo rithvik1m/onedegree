@@ -70,3 +70,20 @@ studies also find the best-lit ground — we did not place it there by hand.
 NASA's eoimages server was unreachable from the build machine; the same public-domain
 NASA Blue Marble image ("Whole world - land and oceans", NASA Goddard / Visible Earth)
 was fetched from Wikimedia Commons and resized to 2048×1024.
+
+## D12 — v3: CC0 Quaternius models instead of primitives
+Owner feedback: "everything looks like boxes". NASA 3D Resources models are large,
+static and not rigged; Poly Haven has no space-base kit; Kenney's Space Kit is unrigged.
+Quaternius' Ultimate Space Kit is CC0, cohesive, small (3 MB total), and includes a
+rigged astronaut with Idle/Walk/Run/Interact and a rover with separate wheels — so it can
+actually be driven. Licence verified on each Poly Pizza page; credited anyway.
+
+## D13 — progressive science, not simplified science
+Instruments open at *Simple* (three plain-English answers and one conclusion), with
+*Scientific details* and *Advanced* one click away. All three read the same `analyse()`
+output; the simple sentences are generated from those numbers.
+
+## D14 — the rover is a kinematic gameplay vehicle on the real terrain
+A bicycle model with four ground contacts on the LOLA mesh (height, pitch, roll), lunar
+gravity along the slope, a climb limit and collisions — stable and testable. Top speed
+8 m/s is labelled a game value (the Apollo LRV did about 5 m/s).
