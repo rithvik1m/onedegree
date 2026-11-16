@@ -515,3 +515,15 @@ body.in-orbit .rover-hud, body.demo .rover-hud { display: none !important; }
 .tutorial .more { opacity: 0.9; }
 body.demo .notes { display: none !important; }
 #btnNotes.pulse { box-shadow: 0 0 0 2px var(--sun), var(--elev-control); }
+
+/* Quick scan card (H) */
+.scan-card { position: fixed; right: var(--edge); top: 76px; z-index: 22; width: min(360px, calc(100vw - 2 * var(--edge))); padding: 12px 14px; border-radius: var(--radius-lg); background: var(--material), rgb(10 14 16 / 0.95); box-shadow: inset 0 2px 0 #7fe0d0, var(--elev-panel); display: grid; gap: 7px; font-size: 13.5px; animation: slideIn 0.35s var(--ease-sheet); }
+.scan-card .eyebrow { color: #8fe0d4; }
+.scan-card .sc-line { display: grid; grid-template-columns: 22px 1fr; gap: 6px; line-height: 1.4; }
+.scan-card .sc-line b.ok { color: var(--sun-ink); }
+.scan-card .sc-line b.e-ok { color: var(--earth-ink); }
+.scan-card .sc-line b.no { color: #ff9b82; }
+.scan-card .sc-foot { font-size: 11.5px; color: var(--text-faint); }
+.look-hint { position: fixed; left: 50%; top: 56%; transform: translateX(-50%); z-index: 14; padding: 6px 12px; border-radius: 999px; background: rgb(0 0 0 / 0.55); color: var(--text-dim); font-size: 12.5px; pointer-events: none; }
+body.in-orbit .scan-card, body.demo .scan-card, body.demo .look-hint, body.intro-on .look-hint { display: none !important; }
+@media (pointer: coarse) { .look-hint { display: none !important; } }

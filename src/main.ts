@@ -23,6 +23,8 @@ import { SurfaceWorld } from "./surface/world";
 import { loadPatch, patchFromGrid, smoothPatch, groundY, lonLatToScene, type SurfacePatch } from "./surface/terrain3d";
 import { shared } from "./surface/materials";
 import { runDemo } from "./demo";
+import { actionFor, releaseButtonFocus } from "./game/input";
+import { smoothHorizonDeg } from "./science/terrain";
 import { loadKit } from "./surface/assets";
 import { GlbAstronaut } from "./surface/character";
 import * as sfx from "./ui/sfx";
@@ -578,7 +580,7 @@ async function boot(): Promise<void> {
       world.enterRover();
       campaign.emit({ type: "rover-enter" });
       document.body.classList.add("driving");
-      caption("Rover: W/S drive, A/D steer, L headlights. Stop, then E to step out.", 4200);
+      caption("Rover: W/S drive · A/D steer · C cockpit · L lights · R recover. Stop, then E to step out.", 4200);
     } else if (id === "rover-exit") {
       world.exitRover();
       document.body.classList.remove("driving");
@@ -899,6 +901,64 @@ async function boot(): Promise<void> {
     world.applyLighting();
     $("expOut").textContent = v.toFixed(2);
   });
+  // ---------- H: quick scan where you stand ----------
+  let scanReadyAt = 0;
+  let scanTimer = 0;
+  function quickScan(): void {
+    if (store.s.mode !== "surface" || world.inside || !$("intro").classList.contains("hidden")) {
+      toast("Quick scan (H) works outdoors on the surface.", 2500);
+      return;
+    }
+    const now = performance.now();
+    if (now < scanReadyAt) {
+      toast(`Scanner recharging · ${((scanReadyAt - now) / 1000).toFixed(1)} s`, 1400);
+      return;
+    }
+    const r = world.quickScan();
+    const sk = world.skyStateNow;
+    if (!r || !sk) {
+      toast("Scanner unavailable here.", 2000);
+      return;
+    }
+    scanReadyAt = now + 3000;
+    sfx.blip();
+    const sunFrac = discFrac(sk.sunEl, r.sunHz);
+    const sunOk = sunFrac >= 0.5;
+    const flat = smoothHorizonDeg(2); // flat-Moon horizon for a 2 m eye
+    const earthOk = sk.earthEl > r.earthHz;
+    let hi = -90, hiAz = 0;
+    for (let k = 0; k < r.horizon.length; k++) if ((r.horizon[k] as number) > hi) { hi = r.horizon[k] as number; hiAz = k; }
+    const sunTxt = sunOk
+      ? `<b class="ok">Sun visible</b> — it clears the land by ${(sk.sunEl - r.sunHz).toFixed(1)}°.`
+      : sk.sunEl > flat ? `<b class="no">Sun hidden</b> — the land rises to ${r.sunHz.toFixed(1)}° that way; the Sun is at ${sk.sunEl.toFixed(1)}°.` : `<b class="no">Sun below the horizon</b> — local night.`;
+    const earthTxt = earthOk
+      ? `<b class="e-ok">Earth in view</b> — ${(sk.earthEl - r.earthHz) < 0.1 ? (sk.earthEl - r.earthHz).toFixed(2) : (sk.earthEl - r.earthHz).toFixed(1)}° above the land (line of sight, not a guaranteed radio link).`
+      : sk.earthEl > flat ? `<b class="no">Earth blocked</b> by terrain (${r.earthHz.toFixed(1)}° vs Earth ${sk.earthEl.toFixed(1)}°).` : `<b class="no">Earth below the horizon</b> from here.`;
+    const src = r.kind === "lola" ? "NASA LOLA terrain + NASA/JPL Horizons" : r.kind === "grid400" ? "NASA LOLA 400 m grid (coarse) + Horizons" : "no terrain model here — flat Moon + Horizons";
+    $("scanCard").innerHTML = `<div class="eyebrow">Quick scan · ${fmtLat(r.lat)} ${fmtLon(r.lon)}</div>
+      <div class="sc-line"><span>☀</span><span>${sunTxt}</span></div>
+      <div class="sc-line"><span>◐</span><span>${earthTxt}</span></div>
+      <div class="sc-line"><span>⛰</span><span>Highest horizon: <b>${hi.toFixed(1)}°</b> toward ${compass(hiAz)} — traced in teal on the terrain.</span></div>
+      ${r.pois.length ? `<div class="sc-line"><span>⌖</span><span>Nearby: ${r.pois.map((x) => `${x.label} ${x.d < 1000 ? x.d.toFixed(0) + " m" : (x.d / 1000).toFixed(1) + " km"} ${compass(x.brg)}`).join(" · ")}</span></div>` : ""}
+      <div class="sc-foot">${src} · computed for this exact spot · M opens the full scanner</div>`;
+    $("scanCard").classList.remove("hidden");
+    if (!instrument.skylineOn) world.sky.setSkyline(r.horizon);
+    window.clearTimeout(scanTimer);
+    scanTimer = window.setTimeout(() => {
+      $("scanCard").classList.add("hidden");
+      if (!instrument.skylineOn) world.sky.setSkyline(null);
+    }, 10000);
+    if (campaign.mission?.id === "m1") return;
+    if (!notes.some((n) => n.t.includes(`${fmtLat(r.lat)} ${fmtLon(r.lon)}`)) && notes.length < 40) addNote("obs", `Quick scan at ${fmtLat(r.lat)} ${fmtLon(r.lon)}: Sun ${sunOk ? "visible" : "hidden"}, Earth ${earthOk ? "in view" : "not in view"}, highest horizon ${hi.toFixed(1)}° ${compass(hiAz)}.`);
+  }
+  const discFrac = (el: number, h: number): number => {
+    const x = (h - el) / 0.2666;
+    if (x <= -1) return 1;
+    if (x >= 1) return 0;
+    return (Math.acos(x) - x * Math.sqrt(1 - x * x)) / Math.PI;
+  };
+  $("btnQuick").addEventListener("click", () => quickScan());
+
   function returnHome(): void {
     if (store.s.mode !== "surface" || world.inside) return;
     if (world.driving) { world.exitRover(); document.body.classList.remove("driving"); }
@@ -934,12 +994,16 @@ async function boot(): Promise<void> {
   window.addEventListener("keydown", (e) => {
     if ((e.target as HTMLElement)?.closest?.("input, select, textarea, dialog")) return;
     if ($("intro").classList.contains("hidden") === false) return;
-    if (e.code === "KeyM") scanner.toggle();
-    else if (e.code === "KeyO") $("btnOrbit").click();
-    else if (e.code === "KeyP") (planner.isOpen() ? (planner.hide(), document.body.classList.remove("console")) : openControl());
-    else if (e.code === "KeyV") toggleView();
-    else if (e.code === "KeyN") $("notes").classList.toggle("hidden");
-    else if (e.code === "KeyR") returnHome();
+    releaseButtonFocus(e);
+    const act = actionFor(e.code, world.driving);
+    if (act === "scanner") scanner.toggle();
+    else if (act === "quickScan") quickScan();
+    else if (act === "orbit") $("btnOrbit").click();
+    else if (act === "planner") (planner.isOpen() ? (planner.hide(), document.body.classList.remove("console")) : openControl());
+    else if (act === "view") toggleView();
+    else if (act === "notes") $("notes").classList.toggle("hidden");
+    else if (act === "home") returnHome();
+    else if (act === "recover") toast("Rover recovered: upright and clear (gameplay assist).", 2500);
     else if (e.code === "Escape") {
       if (planner.isOpen()) { planner.hide(); document.body.classList.remove("console"); }
       else if (instrument.isOpen()) instrument.close();
@@ -1005,6 +1069,7 @@ async function boot(): Promise<void> {
   };
   world.afterFrame = () => {
     world.hideHandheld = instrument.isOpen() || planner.isOpen();
+    $("lookHint").classList.toggle("hidden", !!document.pointerLockElement || world.driving || store.s.mode !== "surface" || world.inCinematic || instrument.isOpen() || planner.isOpen() || !$("intro").classList.contains("hidden"));
     world.paused = planner.isOpen() && !document.body.classList.contains("demo"); // the full-screen planner covers the 3D view
     const rh = $("roverHud");
     rh.classList.toggle("hidden", !world.driving);

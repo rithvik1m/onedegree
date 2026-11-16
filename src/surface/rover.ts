@@ -91,6 +91,24 @@ export class Rover {
     this.settle(ground, 1);
   }
 
+  get pitchAngle(): number {
+    return this.pitch;
+  }
+  get rollAngle(): number {
+    return this.roll;
+  }
+
+  /** Recovery (gameplay assist): stop, set upright on the terrain, nudge clear of anything solid. */
+  recover(ground: (x: number, z: number) => number): void {
+    this.speed = 0;
+    this.steer = 0;
+    this.pitch = 0;
+    this.roll = 0;
+    this.pos.x += Math.sin(this.yaw) * -2;
+    this.pos.z += -Math.cos(this.yaw) * -2;
+    this.settle(ground, 1);
+  }
+
   get kmh(): number {
     return Math.abs(this.speed) * 3.6;
   }

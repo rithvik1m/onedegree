@@ -17,7 +17,8 @@ import { buildLander, buildOutpost, label, type Interactable, type OutpostRefs }
 import { EYE_HEIGHT, Player } from "./player";
 import { Sky3D, dirFromAzEl } from "./sky3d";
 import { Interior } from "./interior";
-import { buildTerrain, groundY, horizonToward, lonLatToScene, sceneToLonLat, type SurfacePatch } from "./terrain3d";
+import { actionFor, releaseButtonFocus } from "../game/input";
+import { buildTerrain, farHorizon, groundY, horizonToward, lonLatToScene, sceneToLonLat, type SurfacePatch } from "./terrain3d";
 import { DPR_CAP, TERRAIN_LOD, loadGfx, saveGfx, type Gfx } from "./graphics";
 
 const D2R = Math.PI / 180;
@@ -73,6 +74,9 @@ export class SurfaceWorld {
   private props = new THREE.Group();
   private rocks: THREE.InstancedMesh[] = [];
   private skyState: SkyState | null = null;
+  get skyStateNow(): SkyState | null {
+    return this.skyState;
+  }
   private gateHz = -90;
   private horizonAz = -999;
   private horizonAt = new THREE.Vector2(1e9, 1e9);
@@ -256,21 +260,26 @@ export class SurfaceWorld {
     }, { passive: true });
     window.addEventListener("keydown", (e) => {
       if (!this.running || (e.target as HTMLElement)?.closest?.("input, select, textarea, dialog")) return;
-      if (["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "ShiftLeft", "ShiftRight", "KeyQ"].includes(e.code)) {
+      releaseButtonFocus(e);
+      const act = actionFor(e.code, this.driving);
+      if (act === "forward" || act === "back" || act === "left" || act === "right" || act === "sprint" || e.code === "KeyQ") {
         this.player.keys.add(e.code);
         if (e.code.startsWith("Arrow")) e.preventDefault();
       }
-      if (e.code === "Space") {
+      if (act === "jump") {
         e.preventDefault();
         if (this.cine) this.skipCinematic();
         else this.player.jump();
       }
-      if (e.code === "KeyE" && this.prompt && !this.cine) this.ev.onInteract(this.prompt.id);
-      if (e.code === "KeyL") {
+      if (e.code === "Space" && this.driving) e.preventDefault();
+      if (act === "use" && this.prompt && !this.cine) this.ev.onInteract(this.prompt.id);
+      if (act === "lamp") {
         if (this.driving && this.rover) this.rover.headlights = !this.rover.headlights;
         else this.lampOn = !this.lampOn;
       }
-    });
+      if (act === "roverCam") { this.roverCockpit = !this.roverCockpit; this.camInit = false; }
+      if (act === "recover" && this.rover && this.patch) { this.rover.recover((x, z) => groundY(this.patch as SurfacePatch, x, z)); }
+    }, true);
     window.addEventListener("keyup", (e) => this.player.keys.delete(e.code));
     window.addEventListener("blur", () => this.player.keys.clear());
   }
@@ -646,6 +655,15 @@ export class SurfaceWorld {
         l.visible = op > 0.01;
       }
     }
+    if (this.pulse?.visible) {
+      const u = (performance.now() - this.pulseT0) / 1400;
+      if (u >= 1) this.pulse.visible = false;
+      else {
+        const r = 2 + u * 70;
+        this.pulse.scale.set(r, r, r);
+        (this.pulse.material as THREE.MeshBasicMaterial).opacity = 0.8 * (1 - u);
+      }
+    }
     if (this.waypoint) {
       const ring = this.waypoint.getObjectByName("ring") as THREE.Mesh;
       const k = 1 + 0.15 * Math.sin(now / 300);
@@ -743,6 +761,7 @@ export class SurfaceWorld {
 
   private lastCam = 0;
   driving = false;
+  roverCockpit = false;
 
   private placeCamera(now: number): void {
     const p = this.player;
@@ -812,11 +831,52 @@ export class SurfaceWorld {
     const r = this.rover as Rover;
     const c = this.camera;
     const fx = Math.sin(r.yaw), fz = -Math.cos(r.yaw);
+    if (this.roverCockpit) {
+      // driver's eye in the cab, looking along the heading (follows pitch with the chassis)
+      c.position.set(r.pos.x + fx * 1.4, r.pos.y + 2.55, r.pos.z + fz * 1.4);
+      c.rotation.set(r.pitchAngle * 0.9 - 0.05, -r.yaw, -r.rollAngle * 0.6);
+      return;
+    }
     const want = new THREE.Vector3(r.pos.x - fx * 10, r.pos.y + 4.4, r.pos.z - fz * 10);
     if (this.patch) want.y = Math.max(want.y, groundY(this.patch, want.x, want.z) + 1.2);
     if (!this.camInit) { c.position.copy(want); this.camInit = true; }
     c.position.lerp(want, 1 - Math.exp(-6 * dt));
     c.lookAt(r.pos.x + fx * 8, r.pos.y + 1.6, r.pos.z + fz * 8);
+  }
+
+  // ---------- quick scan (H) ----------
+  private pulse: THREE.Mesh | null = null;
+  private pulseT0 = 0;
+  /**
+   * Scan from where you stand: your own 360° terrain horizon (from the LOLA mesh data),
+   * the Sun and Earth against it, and nearby points of interest.
+   */
+  quickScan(): { horizon: Float32Array; sunHz: number; earthHz: number; lon: number; lat: number; pois: { label: string; d: number; brg: number }[]; kind: string } | null {
+    if (!this.patch || !this.skyState) return null;
+    const p = this.player.pos;
+    const horizon = new Float32Array(360);
+    farHorizon(this.patch, p.x, p.z, 2, 12, horizon);
+    const sunHz = horizonToward(this.patch, p.x, p.z, 2, 12, this.skyState.sunAz);
+    const earthHz = horizonToward(this.patch, p.x, p.z, 2, 12, this.skyState.earthAz);
+    const [lon, lat] = sceneToLonLat(this.patch, p.x, p.z);
+    const items = [...(this.outpost?.interactables ?? []), ...this.siteInteractables];
+    const seen = new Set<string>();
+    const pois = items
+      .filter((i) => !seen.has(i.id) && seen.add(i.id))
+      .map((i) => ({ label: i.label.split("·").pop()?.trim() ?? i.label, d: Math.hypot(i.x - p.x, i.z - p.z), brg: ((Math.atan2(i.x - p.x, -(i.z - p.z)) / D2R) + 360) % 360 }))
+      .filter((x) => x.d < 600)
+      .sort((a, b) => a.d - b.d)
+      .slice(0, 4);
+    // expanding ring on the ground (visual)
+    if (!this.pulse) {
+      this.pulse = new THREE.Mesh(new THREE.RingGeometry(0.96, 1, 96), new THREE.MeshBasicMaterial({ color: 0x7fe0d0, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false }));
+      this.pulse.rotation.x = -Math.PI / 2;
+      this.scene.add(this.pulse);
+    }
+    this.pulse.position.set(p.x, p.y + 0.15, p.z);
+    this.pulse.visible = true;
+    this.pulseT0 = performance.now();
+    return { horizon, sunHz, earthHz, lon, lat, pois, kind: this.patch.kind };
   }
 
   /** Swap in the rigged GLB astronaut once it has loaded. */
