@@ -152,7 +152,10 @@ async function boot(): Promise<void> {
 
   let skyCheck: SkyCheck | null = null;
   const horizonsErr = (): number | null => (skyCheck ? skyCheck.max : null);
-  const allPlaces = (): Place[] => [...sites, data.sites.reference];
+  const allPlaces = (): Place[] => {
+    const seen = new Set<string>();
+    return [...sites, data.sites.reference].filter((p) => { const k = p.id ?? p.name; if (seen.has(k)) return false; seen.add(k); return true; });
+  };
   const scanner = new Scanner(data, store, horizonsErr);
   const planner = new Planner(data, store, horizonsErr, allPlaces);
   renderAbout();
@@ -575,6 +578,10 @@ async function boot(): Promise<void> {
       world.sky.setSkyline(instrument.skylineOn && a?.skyline ? a.skyline.horizon : null);
       caption(instrument.skylineOn ? "You are looking WSW into Shackleton crater — its floor lies about 4 km below this rim and never sees direct sunlight. The teal line is the horizon the scanner computes from NASA LOLA terrain; it traces the 3D ridges because both come from the same data." : "Horizon trace off", 9000);
     } else if (id === "lander") void goOrbit();
+    else if (id === "scope") {
+      const on = world.toggleScope();
+      caption(on ? "Observation scope: the descent stage, viewed from outside the heritage boundary. E again to step back." : "Scope off.", 4000);
+    }
     else if (id === "rover") {
       instrument.close();
       world.enterRover();
@@ -688,7 +695,7 @@ async function boot(): Promise<void> {
     const p: Place = known ?? { name: `Point ${fmtLat(lat)}, ${fmtLon(lon)}`, short: "Landing point", lat, lon, kind: "custom" };
     const now = skyNow(data, p, store.s.time);
     const a = analyse(data, p, Math.floor(store.s.time / 3600) * 3600, 30);
-    const terr = patches.has(p.id ?? "") || p.id === "im1" || p.id === "im2" ? "NASA LOLA (precomputed)" : p.lat <= -80 && data.grid ? "NASA LOLA 400 m (coarse)" : "no terrain model — smooth sphere";
+    const terr = patches.has(p.id ?? "") || ["im1", "im2", "a11", "a15", "a17"].includes(p.id ?? "") ? "NASA LOLA (precomputed)" : p.lat <= -80 && data.grid ? "NASA LOLA 400 m (coarse)" : "no terrain model — smooth sphere";
     const pv = $("preview");
     pv.innerHTML = `<div class="eyebrow">Landing preview</div><h3>${known ? known.name : "Selected point"}</h3>
       <div class="mono dim">${fmtLat(lat)} · ${fmtLon(lon)}</div>
@@ -754,7 +761,7 @@ async function boot(): Promise<void> {
     const id = target.id ?? "";
     try {
       if (patches.has(id)) patch = patches.get(id) as SurfacePatch;
-      else if (id === "im1" || id === "im2") {
+      else if (["im1", "im2", "a11", "a15", "a17"].includes(id)) {
         patch = await loadPatch(id);
         patches.set(id, patch);
       }
@@ -764,7 +771,8 @@ async function boot(): Promise<void> {
     if (!patch && lat <= -80 && data.grid) patch = patchFromGrid(data.grid, lon, lat);
     if (!patch) patch = smoothPatch(lon, lat);
     const atOutpost = id === "outpost" || id === "survey";
-    world.setSite(atOutpost ? (patches.get("outpost") as SurfacePatch) : patch, { outpost: atOutpost, survey, spawn: id === "survey" ? spawnAtSurvey() : undefined });
+    const heritageM = (target as Place & { heritage_m?: number }).heritage_m;
+    world.setSite(atOutpost ? (patches.get("outpost") as SurfacePatch) : patch, { outpost: atOutpost, survey, spawn: id === "survey" ? spawnAtSurvey() : undefined, heritage: heritageM ? { radius: heritageM, name: target.short } : undefined });
     store.set({ mode: "surface", here: target });
     renderMission();
     live = { lon, lat };
@@ -793,8 +801,29 @@ async function boot(): Promise<void> {
     $("roMode").textContent = modeLabel();
     toast(`Landed · ${patch.label}`, 5000);
     campaign.emit({ type: "land" });
+    if (target.kind === "historic") showHistoric(target);
     busy = false;
   }
+  function showHistoric(p: Place): void {
+    const prof = data.profiles.get(p.id ?? "");
+    const hzMax = prof ? Math.max(...prof.horizon_deg) : null;
+    const hm = (p as Place & { heritage_m?: number }).heritage_m;
+    $("histKicker").textContent = `Historic site · ${p.event_date ?? ""}`;
+    $("histTitle").textContent = p.name;
+    $("histText").textContent = p.event ?? "";
+    const facts = [
+      `Lunar Module position <b>${fmtLat(p.lat)}, ${fmtLon(p.lon)}</b> (NASA NSSDC).`,
+      hzMax !== null ? `Science here: the surrounding land rises to at most <b>${hzMax.toFixed(1)}°</b> above your eye (NASA LOLA 118 m). ${hzMax > 5 ? "Mountains and valley walls block the low Sun and Earth for longer than on an open mare." : "An open, flat mare: almost nothing blocks the sky."}` : "",
+      hm ? `NASA's 2011 recommendations ask visitors to keep <b>${hm} m</b> from the descent stage${p.id === "a15" ? " (75 m is used here as a game boundary; NASA lists 75 m for Apollo 11 and 225 m for Apollo 17)" : ""}. Use the observation scope at the ring.` : "",
+    ].filter(Boolean);
+    $("histFacts").innerHTML = facts.map((f) => `<li>${f}</li>`).join("");
+    $("histFine").textContent = "The descent stage is a simplified reconstruction, not a scan; nothing else from the mission is placed here. The sky shows the mission clock (Horizons table covers 2023–2028), not the historic date. Source: " + (p.source ?? "");
+    if (document.pointerLockElement) document.exitPointerLock();
+    ($("hist") as HTMLDialogElement).showModal();
+    if (!notes.some((n) => n.t.includes(p.name))) addNote("obs", `Visited <b>${p.name}</b> (${p.event_date}). Highest horizon here ${hzMax !== null ? hzMax.toFixed(1) + "°" : "n/a"} — compare the flat mare at Apollo 11 with the valley at Apollo 17.`);
+  }
+  $("histOk").addEventListener("click", () => ($("hist") as HTMLDialogElement).close());
+
   function spawnAtSurvey(): { x: number; z: number; yaw: number } {
     const [sx, sz] = lonLatToScene(patches.get("outpost") as SurfacePatch, survey.lon, survey.lat);
     return { x: sx + 3, z: sz + 3, yaw: Math.atan2(-sx, sz) };

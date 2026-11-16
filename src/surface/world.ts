@@ -14,7 +14,7 @@ import { Rover } from "./rover";
 import { Dust } from "./dust";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { regolithMaterial, shared } from "./materials";
-import { buildLander, buildOutpost, label, type Interactable, type OutpostRefs } from "./outpost";
+import { buildApolloDescentStage, buildLander, buildOutpost, heritageRing, label, type Interactable, type OutpostRefs } from "./outpost";
 import { EYE_HEIGHT, Player } from "./player";
 import { Sky3D, dirFromAzEl } from "./sky3d";
 import { Interior } from "./interior";
@@ -206,7 +206,10 @@ export class SurfaceWorld {
   /** Lighting mode: realistic (vacuum-black shadows) / balanced / bright (accessibility). Never changes the science. */
   applyLighting(): void {
     const mode = this.realisticDark ? "realistic" : this.gfx.lighting;
-    this.renderer.toneMappingExposure = this.userExposure * (mode === "bright" ? 1.3 : mode === "balanced" ? 1.12 : 1);
+    // camera-style auto-exposure: a high Sun (equatorial sites) needs less exposure than a polar grazing Sun
+    const el = this.skyState ? Math.max(0, this.skyState.sunEl) : 0;
+    const auto = 1 / (1 + 0.9 * Math.sin((el * Math.PI) / 180));
+    this.renderer.toneMappingExposure = this.userExposure * auto * (mode === "bright" ? 1.3 : mode === "balanced" ? 1.12 : 1);
     this.flood.intensity = mode === "realistic" ? 0 : mode === "bright" ? 200 : 110;
     const em = mode === "realistic" ? 0 : mode === "bright" ? 0.22 : 0.12;
     this.outpost?.group.traverse((o) => {
@@ -304,7 +307,8 @@ export class SurfaceWorld {
   }
 
   // ---------- site ----------
-  setSite(p: SurfacePatch, opts: { outpost?: boolean; survey?: { lon: number; lat: number }; spawn?: { x: number; z: number; yaw: number } } = {}): void {
+  setSite(p: SurfacePatch, opts: { outpost?: boolean; survey?: { lon: number; lat: number }; spawn?: { x: number; z: number; yaw: number }; heritage?: { radius: number; name: string } } = {}): void {
+    if (this.scopeOn) this.toggleScope();
     for (const m of this.terrain) {
       this.scene.remove(m);
       m.geometry.dispose();
@@ -339,6 +343,44 @@ export class SurfaceWorld {
         this.player.colliders = [...this.outpost.colliders, this.roverCollider];
         exclude.push({ x: b.x, z: b.z, r: 7 });
       }
+    } else if (opts.heritage) {
+      if (this.driving) this.exitRover();
+      this.rover = null;
+      // historic site: descent-stage reconstruction at the NSSDC position, keep-out ring, observation scope
+      const H = opts.heritage;
+      const lm = buildApolloDescentStage();
+      lm.position.set(0, gy(0, 0) + 0.05, 0);
+      this.props.add(lm);
+      const lab = label(`${H.name}`, "Lunar Module descent stage — approximate reconstruction", 1);
+      lab.name = "site-label";
+      lab.position.set(0, gy(0, 0) + 6, 0);
+      this.props.add(lab);
+      this.props.add(heritageRing(H.radius, gy));
+      const sx = 0, sz = H.radius + 6;
+      const scope = new THREE.Group();
+      const tri = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.2, 6), new THREE.MeshStandardMaterial({ color: 0x8b9097, metalness: 0.7, roughness: 0.3 }));
+      tri.position.y = 0.6;
+      const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, 0.7, 12), new THREE.MeshStandardMaterial({ color: 0xe4e1da, roughness: 0.5 }));
+      tube.position.y = 1.25;
+      tube.rotation.x = Math.PI / 2;
+      scope.add(tri, tube);
+      scope.position.set(sx, gy(sx, sz), sz);
+      this.props.add(scope);
+      const bl = label("Heritage boundary", `${H.radius} m — NASA 2011 recommendations`, 0.9);
+      bl.name = "site-label";
+      bl.position.set(sx + 3, gy(sx + 3, sz - 6) + 3, sz - 6);
+      this.props.add(bl);
+      this.player.colliders = [{ x: 0, z: 0, r: H.radius }];
+      this.siteInteractables = [{ id: "scope", label: "Look through the observation scope", x: sx, z: sz + 1.2, r: 2.6 }];
+      const lander = buildLander();
+      const lx = 22, lz = H.radius + 30;
+      lander.position.set(lx, gy(lx, lz) + 0.1, lz);
+      this.props.add(lander);
+      this.player.colliders.push({ x: lx, z: lz, r: 3.6 });
+      this.siteInteractables.push({ id: "lander", label: "Board spacecraft · launch to orbit", x: lx - 4.6, z: lz - 1, r: 3 });
+      exclude.push({ x: 0, z: 0, r: H.radius + 4 }, { x: lx, z: lz, r: 8 }, { x: sx, z: sz, r: 4 });
+      const sp = opts.spawn ?? { x: sx + 1.5, z: sz + 3, yaw: Math.PI + 0.06 };
+      this.player.place(sp.x, sp.z, sp.yaw);
     } else {
       if (this.driving) this.exitRover();
       this.rover = null;
@@ -502,7 +544,13 @@ export class SurfaceWorld {
 
   // ---------- sky / time ----------
   applySky(s: SkyState): void {
+    const prevEl = this.skyState?.sunEl ?? -99;
     this.skyState = s;
+    if (Math.abs(prevEl - s.sunEl) > 2) {
+      const el = Math.max(0, s.sunEl);
+      const mode = this.realisticDark ? "realistic" : this.gfx.lighting;
+      this.renderer.toneMappingExposure = this.userExposure * (1 / (1 + 0.9 * Math.sin((el * Math.PI) / 180))) * (mode === "bright" ? 1.3 : mode === "balanced" ? 1.12 : 1);
+    }
     this.sky.update(s.sunAz, s.sunEl, s.earthAz, s.earthEl, s.distKm, s.unix);
     // Earthshine fill: from Earth's direction, scaled by how much of Earth is lit.
     const lit = this.sky.earthLitFraction();
@@ -653,12 +701,13 @@ export class SurfaceWorld {
       this.ev.onPrompt(best ? best.label : null);
     }
     // labels: fade with distance
+    if (this.labelTick % 6 === 0) for (const o of this.props.children) if (o.name === "site-label") o.visible = !this.scopeOn;
     if (this.labelTick++ % 6 === 0) {
       // labels: fixed on-screen size (sizeAttenuation off), shown between 6 m and the label range
       const range = Math.min(260, Math.max(120, this.gfx.renderDist));
       for (const l of this.outpost?.labels ?? []) {
         const d = l.position.distanceTo(this.camera.position);
-        const op = d < 6 ? 0 : d < 10 ? (d - 6) / 4 : d > range ? Math.max(0, 1 - (d - range) / 60) : 1;
+        const op = this.scopeOn ? 0 : d < 6 ? 0 : d < 10 ? (d - 6) / 4 : d > range ? Math.max(0, 1 - (d - range) / 60) : 1;
         (l.material as THREE.SpriteMaterial).opacity = op;
         l.visible = op > 0.01;
       }
@@ -925,6 +974,21 @@ export class SurfaceWorld {
     parent?.remove(this.astro.root);
     this.astro = c;
     (parent ?? this.scene).add(c.root);
+  }
+
+  /** Observation scope: narrow field of view toward the heritage site (E again to leave). */
+  scopeOn = false;
+  toggleScope(): boolean {
+    this.scopeOn = !this.scopeOn;
+    this.camera.fov = this.scopeOn ? 9 : 62;
+    this.camera.updateProjectionMatrix();
+    if (this.scopeOn) {
+      const p = this.player;
+      p.thirdPerson = false;
+      p.yaw = Math.atan2(-p.pos.x, p.pos.z);
+      p.pitch = Math.atan2(this.groundAt(0, 0) + 2.2 - (p.pos.y + 1.62), Math.hypot(p.pos.x, p.pos.z));
+    }
+    return this.scopeOn;
   }
 
   toggleView(): boolean {

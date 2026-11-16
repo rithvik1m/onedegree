@@ -63,6 +63,42 @@
       "kind": "test",
       "event": "A reference point 15 km from the pole, used in the Horizons checks.",
       "source": "Chosen test coordinate (not a landing site)."
+    },
+    {
+      "id": "a11",
+      "name": "Apollo 11 — Tranquility Base",
+      "short": "Apollo 11",
+      "lat": 0.67416,
+      "lon": 23.47314,
+      "kind": "historic",
+      "event": "First crewed landing, 20 Jul 1969 (Mare Tranquillitatis). EVA 2.53 h, 0.25 km traverse, 21.55 kg of samples (NSSDC). Crew: Neil Armstrong and Buzz Aldrin on the surface; Michael Collins in lunar orbit.",
+      "source": "Lunar Module position from NASA NSSDC 'Apollo Landing Sites' (https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_sites.html); mission facts from NSSDC 'Apollo Lunar Landings'. Terrain: LOLA global 118 m DEM.",
+      "event_date": "1969-07-20",
+      "heritage_m": 75
+    },
+    {
+      "id": "a15",
+      "name": "Apollo 15 — Hadley-Apennine",
+      "short": "Apollo 15",
+      "lat": 26.13239,
+      "lon": 3.6333,
+      "kind": "historic",
+      "event": "Landed 30 Jul 1971 at Hadley Rille, beneath the Apennine mountains; first mission with the Lunar Roving Vehicle. EVA 19.13 h, 27.9 km traverse, 77.31 kg of samples (NSSDC). Crew: David Scott and James Irwin on the surface; Alfred Worden in orbit.",
+      "source": "NSSDC 'Apollo Landing Sites' and 'Apollo Lunar Landings'. Terrain: LOLA global 118 m DEM.",
+      "event_date": "1971-07-30",
+      "heritage_m": 75
+    },
+    {
+      "id": "a17",
+      "name": "Apollo 17 — Taurus-Littrow",
+      "short": "Apollo 17",
+      "lat": 20.1911,
+      "lon": 30.7723,
+      "kind": "historic",
+      "event": "Last crewed landing, 11 Dec 1972, in the Taurus-Littrow valley between massifs. EVA 22.07 h, 35 km traverse, 110.52 kg of samples (NSSDC). Crew: Eugene Cernan and Harrison Schmitt on the surface; Ronald Evans in orbit.",
+      "source": "NSSDC 'Apollo Landing Sites' and 'Apollo Lunar Landings'. Terrain: LOLA global 118 m DEM.",
+      "event_date": "1972-12-11",
+      "heritage_m": 225
     }
   ],
   "regions": {
@@ -84,10 +120,12 @@
     "id": "a11",
     "name": "Apollo 11 — Tranquility Base",
     "short": "Apollo 11",
-    "lat": 0.67408,
-    "lon": 23.47297,
-    "kind": "reference",
-    "event": "First crewed landing, 20 Jul 1969. Flat mare: the smooth-Moon horizon is used and labelled.",
-    "source": "Apollo 11 landing site 0.67408 N, 23.47297 E (LROC / NASA)."
+    "lat": 0.67416,
+    "lon": 23.47314,
+    "kind": "historic",
+    "event": "First crewed landing, 20 Jul 1969 (Mare Tranquillitatis). EVA 2.53 h, 0.25 km traverse, 21.55 kg of samples (NSSDC). Crew: Neil Armstrong and Buzz Aldrin on the surface; Michael Collins in lunar orbit.",
+    "source": "Lunar Module position from NASA NSSDC 'Apollo Landing Sites' (https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_sites.html); mission facts from NSSDC 'Apollo Lunar Landings'. Terrain: LOLA global 118 m DEM.",
+    "event_date": "1969-07-20",
+    "heritage_m": 75
   }
 }

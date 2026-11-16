@@ -579,3 +579,72 @@ export function buildLander(): THREE.Group {
   }
   return g;
 }
+
+/**
+ * Apollo Lunar Module DESCENT STAGE — an approximate, simplified reconstruction (original
+ * geometry, not a NASA model): octagonal stage wrapped in gold/black foil, four legs with
+ * footpads, a ladder on the forward leg. The ascent stage left for orbit, so it is absent.
+ */
+export function buildApolloDescentStage(): THREE.Group {
+  const g = new THREE.Group();
+  const gold = gated(new THREE.MeshStandardMaterial({ color: 0xc89b3c, roughness: 0.35, metalness: 0.9 }));
+  const black = gated(new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.5, metalness: 0.6 }));
+  const silver = gated(new THREE.MeshStandardMaterial({ color: 0xb8bcc2, roughness: 0.3, metalness: 0.85 }));
+  const body = mesh(new THREE.CylinderGeometry(2.1, 2.1, 1.65, 8), gold);
+  body.position.y = 2.2;
+  body.rotation.y = Math.PI / 8;
+  g.add(body);
+  const top = mesh(new THREE.CylinderGeometry(2.12, 2.12, 0.12, 8), black);
+  top.position.y = 3.05;
+  top.rotation.y = Math.PI / 8;
+  g.add(top);
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2;
+    const ca = Math.cos(a), sa = Math.sin(a);
+    const leg = mesh(new THREE.CylinderGeometry(0.08, 0.08, 3.1, 8), silver);
+    leg.position.set(ca * 3.0, 1.35, sa * 3.0);
+    leg.rotation.set(sa * 0.55, 0, -ca * 0.55);
+    g.add(leg);
+    const strut = mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.0, 6), silver);
+    strut.position.set(ca * 2.4, 0.9, sa * 2.4);
+    strut.rotation.set(sa * 1.0, 0, -ca * 1.0);
+    g.add(strut);
+    const pad = mesh(new THREE.CylinderGeometry(0.45, 0.47, 0.12, 16), silver);
+    pad.position.set(ca * 3.85, 0.06, sa * 3.85);
+    g.add(pad);
+  }
+  const ladder = new THREE.Group();
+  for (const sx of [-0.25, 0.25]) {
+    const rail = mesh(new THREE.BoxGeometry(0.05, 2.6, 0.05), silver);
+    rail.position.set(sx, 0, 0);
+    ladder.add(rail);
+  }
+  for (let k = 0; k < 8; k++) {
+    const rung = mesh(new THREE.BoxGeometry(0.5, 0.03, 0.05), silver);
+    rung.position.y = -1.1 + k * 0.32;
+    ladder.add(rung);
+  }
+  ladder.position.set(0, 1.5, -3.0);
+  ladder.rotation.x = -0.45;
+  g.add(ladder);
+  const porch = mesh(new THREE.BoxGeometry(0.9, 0.06, 0.6), silver);
+  porch.position.set(0, 2.85, -2.3);
+  g.add(porch);
+  return g;
+}
+
+/** Dashed ring marking a heritage keep-out distance. */
+export function heritageRing(radius: number, groundY: (x: number, z: number) => number): THREE.Group {
+  const g = new THREE.Group();
+  const n = 96;
+  for (let i = 0; i < n; i += 2) {
+    const a0 = (i / n) * Math.PI * 2, a1 = ((i + 1) / n) * Math.PI * 2;
+    const x0 = Math.sin(a0) * radius, z0 = -Math.cos(a0) * radius, x1 = Math.sin(a1) * radius, z1 = -Math.cos(a1) * radius;
+    const len = Math.hypot(x1 - x0, z1 - z0);
+    const seg = new THREE.Mesh(new THREE.BoxGeometry(len, 0.06, 0.25), M.lightAmber);
+    seg.position.set((x0 + x1) / 2, groundY((x0 + x1) / 2, (z0 + z1) / 2) + 0.05, (z0 + z1) / 2);
+    seg.rotation.y = -Math.atan2(z1 - z0, x1 - x0);
+    g.add(seg);
+  }
+  return g;
+}

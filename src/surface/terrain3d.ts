@@ -64,10 +64,10 @@ export function parsePatch(id: string, meta: PatchMeta, buf: ArrayBuffer): Surfa
   h.set(near, 0);
   for (let i = 0; i < far.length; i++) h[meta.n_near * nA + i] = far[i] as number;
   const finest = Object.entries(meta.finest_to_m).find(([, v]) => v > 0)?.[0] ?? meta.dems[0] ?? "LOLA";
-  const res = finest.includes("10MPP") ? "10 m" : finest.includes("20MPP") ? "20 m" : finest.includes("80MPP") ? "80 m" : "240 m";
+  const res = finest.includes("10MPP") ? "10 m" : finest.includes("20MPP") ? "20 m" : finest.includes("80MPP") ? "80 m" : finest.includes("118") ? "118 m (global LOLA)" : "240 m";
   return {
     id, lon: meta.lon, lat: meta.lat, groundM: meta.ground_m, nAz: nA, radii: Float64Array.from(meta.radii_m),
-    nNear: meta.n_near, h, kind: "lola", label: `NASA LOLA terrain · ${res} near field`,
+    nNear: meta.n_near, h, kind: "lola", label: `NASA LOLA terrain · ${res}${finest.includes("118") ? " · flat sphere beyond ~23 km" : " near field"}`,
   };
 }
 
